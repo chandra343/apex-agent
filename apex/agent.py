@@ -9,6 +9,7 @@ import requests
 
 from apex.config import config
 from apex.learning.reflection import reflection_engine
+from apex.memory.compaction import context_compactor
 from apex.memory.sessions import session_manager, AgentSession
 from apex.prompt_builder import prompt_builder
 from apex.router.fallback import fallback_router
@@ -58,6 +59,13 @@ class ApexAgent:
 
         # Append user message
         session.append_message({"role": "user", "content": processed_prompt})
+
+        # Proactive context compaction to prevent provider timeouts and massive token bloat
+        total_session_chars = sum(len(str(m.get("content", ""))) for m in session.messages)
+        if len(session.messages) > 15 or total_session_chars > 20000:
+            compacted, _ = context_compactor.compact(session.messages)
+            session.messages = compacted
+            session_manager.save(session)
 
         # 4. ReAct Loop
         max_turns = 15
@@ -112,13 +120,7 @@ class ApexAgent:
             if not tool_calls:
                 # If model returned blank string after executing tools, synthesize executive summary
                 if not response_text.strip() and tool_execution_history:
-                    executed_tools = [h.get("tool_name", "tool") for h in tool_execution_history]
-                    unique_tools = list(dict.fromkeys(executed_tools))
-                    response_text = (
-                        f"✔ **Eksekusi Operasi Selesai**: Berhasil menjalankan {len(tool_execution_history)} aksi "
-                        f"menggunakan tool `{', '.join(unique_tools)}`.\n\n"
-                        f"Seluruh pemeriksaan dan eksekusi pada sistem telah selesai dilakukan."
-                    )
+                    response_text = self._build_execution_summary(tool_execution_history)
 
                 if not anti_refusal_engine.is_refusal(response_text):
                     session.append_message({"role": "assistant", "content": response_text})
@@ -175,17 +177,39 @@ class ApexAgent:
         # Fallback guard: never return blank silence to the operator
         if not final_answer.strip():
             if tool_execution_history:
-                executed_tools = [h.get("tool_name", "tool") for h in tool_execution_history]
-                unique_tools = list(dict.fromkeys(executed_tools))
-                final_answer = (
-                    f"✔ **Eksekusi Operasi Selesai**: Berhasil menjalankan {len(tool_execution_history)} aksi "
-                    f"menggunakan tool `{', '.join(unique_tools)}`.\n\n"
-                    f"Seluruh pemeriksaan dan eksekusi pada sistem telah selesai dilakukan."
-                )
+                final_answer = self._build_execution_summary(tool_execution_history)
             else:
                 final_answer = "✔ Permintaan telah selesai diproses oleh Apex."
 
         return final_answer
+
+    def _build_execution_summary(self, tool_execution_history: List[Dict[str, Any]]) -> str:
+        """Synthesize a structured executive summary when LLM completes tools but returns empty narrative."""
+        if not tool_execution_history:
+            return "✔ Operasi selesai diproses oleh Apex."
+
+        tool_summaries = []
+        for idx, h in enumerate(tool_execution_history, 1):
+            t_name = h.get("tool_name", "tool")
+            raw_args = h.get("args", {})
+            args_str = ", ".join(f"{k}={repr(v)}" for k, v in list(raw_args.items())[:2])
+            if len(raw_args) > 2:
+                args_str += "..."
+            out = str(h.get("output", "")).strip()
+            lines = out.splitlines()
+            if len(lines) > 6:
+                out_snippet = "\n".join(lines[:6]) + f"\n... (+{len(lines) - 6} baris lainnya)"
+            else:
+                out_snippet = out[:300] + ("..." if len(out) > 300 else "") if out else "(selesai tanpa output)"
+
+            icon = "✔" if h.get("success", True) else "✖"
+            tool_summaries.append(f"{icon} **Operasi #{idx}: `{t_name}`** (`{args_str}`)\n```\n{out_snippet}\n```")
+
+        return (
+            f"✔ **Eksekusi Operasi Selesai**: Berhasil menjalankan {len(tool_execution_history)} operasi tool.\n\n"
+            f"### Ringkasan Temuan & Output:\n"
+            + "\n\n".join(tool_summaries)
+        )
 
     def _execute_single_tool(
         self,

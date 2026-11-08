@@ -23,6 +23,7 @@ from apex.tools.mcp import mcp_manager
 from apex.tools.web import web_search, fetch_web_page
 from apex.tools.custom_loader import custom_tool_loader
 from apex.tools.meta_tools import create_custom_tool, create_skill, create_mcp_server
+from apex.tools.doc_reader import read_any_file
 
 
 class ToolRegistry:
@@ -36,7 +37,7 @@ class ToolRegistry:
 
     def _register_native_tools(self) -> None:
         # File operations
-        self.register("read_file", "Read text contents of a file on the host filesystem", {
+        self.register("read_file", "Read contents of a file on the host filesystem (supports text, PDF, Word docx, Excel xlsx, image OCR, archives, SQLite, binary)", {
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "Absolute or relative file path to read"},
@@ -45,6 +46,24 @@ class ToolRegistry:
             },
             "required": ["path"]
         }, lambda args: read_file(args["path"], args.get("offset_lines", 0), args.get("limit_lines", 1000)), is_safe=True)
+
+        self.register("read_document", "Universal omni-modal document & media parser. Reads PDF, Word (.docx), Excel (.xlsx), images with OCR, archives (.zip/.tar), SQLite databases (.db), and binary files", {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to document, image, archive, database, or binary file"},
+                "offset_lines": {"type": "integer", "description": "Line offset for pagination", "default": 0},
+                "limit_lines": {"type": "integer", "description": "Maximum lines/rows to display", "default": 1000},
+                "internal_path": {"type": "string", "description": "Optional inner file path when inspecting archives (.zip/.tar)"},
+                "ocr": {"type": "boolean", "description": "Enable OCR text extraction on images (default: true)", "default": True}
+            },
+            "required": ["path"]
+        }, lambda args: read_any_file(
+            args["path"],
+            args.get("offset_lines", 0),
+            args.get("limit_lines", 1000),
+            args.get("internal_path"),
+            args.get("ocr", True)
+        ), is_safe=True)
 
         self.register("write_file", "Write or overwrite a file on disk (auto-creates checkpoints)", {
             "type": "object",

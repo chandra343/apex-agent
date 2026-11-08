@@ -22,25 +22,9 @@ def read_file(
     offset_lines: int = 0,
     limit_lines: int = 1000
 ) -> Tuple[bool, str]:
-    """Read contents of a file on the host filesystem."""
-    p = resolve_path(path)
-    if not p.exists():
-        return False, f"File does not exist: {p}"
-    if not p.is_file():
-        return False, f"Path is not a regular file: {p}"
-
-    try:
-        with open(p, "r", encoding="utf-8", errors="replace") as f:
-            lines = f.readlines()
-
-        total = len(lines)
-        selected = lines[offset_lines : offset_lines + limit_lines]
-        content = "".join(selected)
-
-        header = f"# File: {p} (Lines {offset_lines + 1} to {min(offset_lines + limit_lines, total)} of {total})\n"
-        return True, header + content
-    except Exception as e:
-        return False, f"Error reading file '{p}': {e}"
+    """Read contents of a file on the host filesystem (supports text, PDF, docx, xlsx, images with OCR, archives, and DBs)."""
+    from apex.tools.doc_reader import read_any_file
+    return read_any_file(path=path, offset_lines=offset_lines, limit_lines=limit_lines)
 
 
 def write_file(path: str, content: str, overwrite: bool = True) -> Tuple[bool, str]:
