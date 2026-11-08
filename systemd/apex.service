@@ -1,0 +1,21 @@
+[Unit]
+Description=Project Apex - Sovereign Hybrid AI Agent Gateway Daemon
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=chandra
+Group=chandra
+WorkingDirectory=/home/chandra/Proj
+ExecStart=/home/chandra/Proj/.venv/bin/python3 -m apex.gateways.cli gateway start --foreground
+Restart=always
+RestartSec=5
+KillMode=process
+StandardOutput=append:/home/chandra/.apex/logs/gateway.log
+StandardError=append:/home/chandra/.apex/logs/gateway.err.log
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/home/chandra/Proj/.venv/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target

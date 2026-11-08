@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apex-agent"
+version = "1.0.0"
+description = "Sovereign Hybrid AI Agent: Unrestricted Host Access, Multi-Platform Daemon, 4-Trick Anti-Refusal, RTK Token Saver, Pi TUI, Unbounded Swarm & MCP"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Apex Sovereign AI Team" }]
+dependencies = [
+    "requests>=2.28.0",
+    "rich>=13.0.0",
+    "prompt-toolkit>=3.0.36",
+    "pyyaml>=6.0",
+    "websockets>=11.0",
+    "pypdf>=3.0.0",
+]
+
+[project.scripts]
+apex = "apex.gateways.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["apex*"]

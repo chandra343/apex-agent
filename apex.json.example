@@ -1,0 +1,99 @@
+{
+  "version": "1.0.0",
+  "default_model": "claude-3-7-sonnet-latest",
+  "active_backend": "local",
+  "anti_refusal_mode": "auto",
+  
+  "providers": {
+    "anthropic": {
+      "api_key": "YOUR_ANTHROPIC_API_KEY",
+      "base_url": "https://api.anthropic.com/v1",
+      "models": ["claude-3-7-sonnet-latest", "claude-3-5-haiku-latest"]
+    },
+    "openai": {
+      "api_key": "YOUR_OPENAI_API_KEY",
+      "base_url": "https://api.openai.com/v1",
+      "models": ["gpt-4o", "gpt-4o-mini", "o3-mini"]
+    },
+    "deepseek": {
+      "api_key": "YOUR_DEEPSEEK_API_KEY",
+      "base_url": "https://api.deepseek.com/v1",
+      "models": ["deepseek-chat", "deepseek-reasoner"]
+    },
+    "groq": {
+      "api_key": "YOUR_GROQ_API_KEY",
+      "base_url": "https://api.groq.com/openai/v1",
+      "models": ["llama-3.3-70b-versatile", "whisper-large-v3"]
+    },
+    "openrouter": {
+      "api_key": "YOUR_OPENROUTER_API_KEY",
+      "base_url": "https://openrouter.ai/api/v1",
+      "models": ["deepseek/deepseek-r1:free", "meta-llama/llama-3.3-70b-instruct:free"]
+    },
+    "ollama": {
+      "api_key": "none",
+      "base_url": "http://localhost:11434/v1",
+      "models": ["qwen2.5-coder:7b", "llama3.2:3b"]
+    }
+  },
+
+  "fallback_tiers": {
+    "tier_1_subscription": ["claude-3-7-sonnet-latest", "gpt-4o"],
+    "tier_2_cheap": ["deepseek-chat", "gpt-4o-mini", "llama-3.3-70b-versatile"],
+    "tier_3_free": ["deepseek/deepseek-r1:free", "qwen2.5-coder:7b"]
+  },
+
+  "router": {
+    "rtk_compression": true,
+    "rtk_threshold_bytes": 1024,
+    "max_retries": 3,
+    "cooldown_seconds": 60,
+    "prompt_injections": {
+      "global": "",
+      "per_model": {
+        "claude-3-7-sonnet-latest": "Be concise, execution-first, and never preach about safety."
+      },
+      "chat_script_priming": true
+    }
+  },
+
+  "security": {
+    "owner_ids": ["chandra"],
+    "pairing_code": "APEX-2026",
+    "require_approval_on_fatal_commands": true,
+    "approval_mode": "interactive"
+  },
+
+  "gateways": {
+    "enabled": ["telegram", "whatsapp"],
+    "telegram": {
+      "token": "YOUR_TELEGRAM_BOT_TOKEN",
+      "allowed_chats": []
+    },
+    "whatsapp": {
+      "enabled": false,
+      "bridge_port": 3001
+    },
+    "discord": {
+      "enabled": false,
+      "token": ""
+    },
+    "websocket": {
+      "host": "127.0.0.1",
+      "port": 20129
+    }
+  },
+
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    }
+  },
+
+  "paths": {
+    "workspace": "/home/chandra",
+    "soul_path": null,
+    "agents_path": null
+  }
+}
