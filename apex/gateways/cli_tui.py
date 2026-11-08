@@ -1,4 +1,4 @@
-"""Pi Agent-Style Minimalist Terminal UI/UX (prompt_toolkit + rich)."""
+"""Pi Agent-Style Minimalist Terminal UI/UX with Autocompletion & Command Palette."""
 from __future__ import annotations
 
 import sys
@@ -6,6 +6,8 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.document import Document
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 from rich.console import Console
@@ -15,19 +17,97 @@ from rich.table import Table
 from rich.text import Text
 
 from apex.agent import default_agent
-from apex.config import config, DATA_DIR
+from apex.config import config, DATA_DIR, PKG_ROOT
 from apex.router.ledger import token_ledger
 from apex.router.model_switcher import model_switcher
 from apex.security.anti_refusal import anti_refusal_engine
 from apex.tools.backends import backend_manager
 
-# Prompt toolkit custom styling (Pi Agent aesthetic)
+# Prompt toolkit custom styling (Pi Agent aesthetic + Popup Dropdown Menu)
 PT_STYLE = Style.from_dict({
     "prompt_sym": "#00d7af bold",
     "prompt_name": "#ffffff bold",
     "prompt_arrow": "#00d7af bold",
     "rprompt": "#666666 italic",
+    # Completion popup menu styling
+    "completion-menu": "bg:#16191f #d0d7de",
+    "completion-menu.completion": "bg:#16191f #d0d7de",
+    "completion-menu.completion.current": "bg:#00d7af #000000 bold",
+    "completion-menu.meta": "bg:#21262d #8b949e",
+    "completion-menu.meta.current": "bg:#00b38f #000000",
+    "scrollbar.background": "bg:#16191f",
+    "scrollbar.button": "bg:#00d7af",
 })
+
+
+class SlashCommandCompleter(Completer):
+    """Dynamic autocompletion popup for slash commands, models, and backends."""
+
+    COMMANDS = {
+        "/model": "Ganti model AI aktif (TokenHarbor, Antigravity, dll)",
+        "/provider": "Buka Rak Provider AI (9Router Pro Shelf)",
+        "/setup": "Jalankan 6-Stage Interactive Setup Wizard",
+        "/stats": "Lihat statistik penggunaan token & estimasi biaya",
+        "/compact": "Kompresi konteks riwayat percakapan panjang",
+        "/session": "Informasi & ringkasan sesi percakapan aktif",
+        "/backend": "Ganti execution backend (local, docker, ssh)",
+        "/doctor": "Diagnostik kesehatan sistem & koneksi provider",
+        "/gateway": "Kelola background gateway (Telegram, WhatsApp)",
+        "/soul": "Lihat doktrin SOUL & kedaulatan operator",
+        "/agents": "Lihat arsitektur multi-agent (AGENTS.md)",
+        "/skills": "Daftar kemampuan & modular skills",
+        "/mcp": "Status dan daftar server MCP",
+        "/clear": "Bersihkan layar & reset memori chat",
+        "/help": "Panduan bantuan & daftar perintah lengkap",
+        "/exit": "Keluar dari sesi interaktif",
+    }
+
+    def get_completions(self, document: Document, complete_event: Any):
+        text_before_cursor = document.text_before_cursor
+
+        # 1. Autocomplete model names after '/model '
+        if text_before_cursor.startswith("/model "):
+            prefix = text_before_cursor[7:].strip().lower()
+            try:
+                models = model_switcher.get_available_models()
+                for m in models:
+                    m_id = m.get("id", "")
+                    if m_id.lower().startswith(prefix) or not prefix:
+                        yield Completion(
+                            text=m_id,
+                            start_position=-len(text_before_cursor[7:]),
+                            display=m_id,
+                            display_meta=f"{m.get('provider', '')} ({m.get('tag', '')})"
+                        )
+            except Exception:
+                pass
+            return
+
+        # 2. Autocomplete backend names after '/backend '
+        if text_before_cursor.startswith("/backend "):
+            prefix = text_before_cursor[9:].strip().lower()
+            backends = ["local", "docker", "ssh", "modal", "daytona"]
+            for b in backends:
+                if b.startswith(prefix) or not prefix:
+                    yield Completion(
+                        text=b,
+                        start_position=-len(text_before_cursor[9:]),
+                        display=b,
+                        display_meta="Execution Backend"
+                    )
+            return
+
+        # 3. Autocomplete slash commands when starting with '/'
+        if text_before_cursor.startswith("/"):
+            query = text_before_cursor.lower()
+            for cmd, desc in self.COMMANDS.items():
+                if cmd.startswith(query) or query == "/":
+                    yield Completion(
+                        text=cmd,
+                        start_position=-len(text_before_cursor),
+                        display=cmd,
+                        display_meta=desc
+                    )
 
 
 class PiTerminalTUI:
@@ -38,9 +118,12 @@ class PiTerminalTUI:
         self.agent = agent or default_agent
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         history_file = DATA_DIR / "tui_history.txt"
+        self.completer = SlashCommandCompleter()
         self.session = PromptSession(
             history=FileHistory(str(history_file)),
-            style=PT_STYLE
+            style=PT_STYLE,
+            completer=self.completer,
+            complete_while_typing=True
         )
 
     def print_welcome(self) -> None:
@@ -56,7 +139,7 @@ class PiTerminalTUI:
             f"  [bold white]Model Utama :[/bold white] [bold cyan]{active_model}[/bold cyan] [dim]({active_provider.upper()})[/dim]\n"
             f"  [bold white]Workspace   :[/bold white] [dim]{workspace}[/dim]\n"
             f"  [bold white]Backend     :[/bold white] [green]{active_backend}[/green] · [bold magenta]SOUL: Sovereign Zero-Refusal[/bold magenta]\n\n"
-            f"  [dim]Perintah: [bold cyan]/help[/bold cyan] · [bold cyan]/model[/bold cyan] · [bold cyan]/provider[/bold cyan] · [bold cyan]/stats[/bold cyan] · [bold cyan]/clear[/bold cyan] · [bold cyan]/exit[/bold cyan] | Host: [bold yellow]$ <perintah>[/bold yellow][/dim]",
+            f"  [dim]Ketik [bold cyan]/[/bold cyan] untuk menu perintah instan | Bantuan: [bold cyan]/help[/bold cyan] | Host: [bold yellow]$ <perintah>[/bold yellow][/dim]",
             title="[bold cyan]● APEX AGENT[/bold cyan]",
             border_style="cyan",
             padding=(0, 2)
@@ -95,26 +178,22 @@ class PiTerminalTUI:
     def handle_slash_command(self, cmd: str) -> bool:
         """Process slash commands. Returns True if handled."""
         parts = cmd.strip().split()
+        if not parts:
+            return False
         root_cmd = parts[0].lower()
 
         if root_cmd in ["/exit", "/quit"]:
             self.console.print("[dim]Sampai jumpa! Keluar dari Apex...[/dim]")
             sys.exit(0)
 
-        elif root_cmd == "/help":
-            table = Table(title="[bold cyan]Daftar Perintah Terminal APEX[/bold cyan]", show_lines=False, border_style="dim")
+        elif root_cmd in ["/", "/help"]:
+            table = Table(title="[bold cyan]⚡ APEX COMMAND PALETTE (Daftar Menu /)[/bold cyan]", show_lines=True, border_style="cyan")
             table.add_column("Perintah", style="bold yellow")
-            table.add_column("Keterangan", style="dim")
-            table.add_row("/model [nama]", "Lihat daftar model atau ganti model AI aktif")
-            table.add_row("/provider", "Buka rak provider AI (9Router Pro Shelf)")
-            table.add_row("/backend [nama]", "Ganti backend eksekusi (local, docker, ssh)")
-            table.add_row("/stats", "Lihat statistik penggunaan token & estimasi biaya")
-            table.add_row("/soul", "Lihat doktrin SOUL & AGENTS anti-refusal")
-            table.add_row("/clear", "Bersihkan layar terminal")
-            table.add_row("/exit /quit", "Keluar dari sesi interaktif")
-            table.add_row("$ <perintah>", "Eksekusi perintah host langsung (bypass LLM)")
+            table.add_column("Keterangan & Fitur", style="white")
+            for c_name, c_desc in SlashCommandCompleter.COMMANDS.items():
+                table.add_row(f"[bold yellow]{c_name}[/bold yellow]", c_desc)
             self.console.print(table)
-            self.console.print()
+            self.console.print("[dim]Tip: Cukup ketik '/' di terminal untuk melihat menu dropdown autocomplete otomatis.[/dim]\n")
             return True
 
         elif root_cmd == "/model":
@@ -130,6 +209,18 @@ class PiTerminalTUI:
                 self.console.print("[dim]Gunakan: /model <nama_model> untuk mengganti[/dim]\n")
             return True
 
+        elif root_cmd in ["/provider", "/providers"]:
+            from apex.gateways.setup_wizard import SetupWizard
+            SetupWizard().run_provider_shelf(standalone=True)
+            self.print_welcome()
+            return True
+
+        elif root_cmd == "/setup":
+            from apex.gateways.setup_wizard import run_setup
+            run_setup()
+            self.print_welcome()
+            return True
+
         elif root_cmd == "/backend":
             if len(parts) > 1:
                 ok, msg = backend_manager.switch_backend(parts[1])
@@ -140,15 +231,59 @@ class PiTerminalTUI:
                 self.console.print("Pilihan tersedia: local, docker, ssh, modal, daytona\n")
             return True
 
-        elif root_cmd in ["/provider", "/providers"]:
-            from apex.gateways.setup_wizard import SetupWizard
-            SetupWizard().run_provider_shelf(standalone=True)
-            self.print_welcome()
-            return True
-
         elif root_cmd == "/stats":
             self.console.print(token_ledger.get_summary_text())
             self.console.print()
+            return True
+
+        elif root_cmd == "/compact":
+            from apex.memory.sessions import session_manager
+            from apex.memory.compaction import ContextCompactor
+            session = session_manager.get_or_create("cli_interactive")
+            old_len = len(session.messages)
+            compactor = ContextCompactor()
+            compacted, saved = compactor.compact(session.messages)
+            session.messages = compacted
+            session_manager.save(session)
+            self.console.print(f"[bold green]✔ Konteks percakapan dikompresi: {old_len} pesan → {len(compacted)} pesan (Hemat ~{saved} token)![/bold green]\n")
+            return True
+
+        elif root_cmd == "/session":
+            from apex.memory.sessions import session_manager
+            session = session_manager.get_or_create("cli_interactive")
+            channel = session.metadata.get("channel", "cli_tui")
+            created = session.metadata.get("created_at", "")
+            self.console.print(Panel(
+                f" • Session ID    : [cyan]{session.session_id}[/cyan]\n"
+                f" • Channel       : [green]{channel}[/green]\n"
+                f" • Active Model  : [yellow]{session.active_model}[/yellow]\n"
+                f" • Total Messages: [bold white]{len(session.messages)} pesan[/bold white]\n"
+                f" • Created At    : [dim]{created}[/dim]",
+                title="[bold cyan]ℹ Info Sesi Percakapan Aktif[/bold cyan]",
+                border_style="cyan"
+            ))
+            self.console.print()
+            return True
+
+        elif root_cmd == "/doctor":
+            from apex.router.provider_manager import provider_manager
+            self.console.print("[cyan]Menjalankan uji konektivitas & diagnostik provider aktif...[/cyan]")
+            results = provider_manager.test_all(only_configured=True)
+            doc_table = Table(title="🩺 Hasil Diagnostik Kesehatan Apex", show_lines=True)
+            doc_table.add_column("Provider", style="bold cyan")
+            doc_table.add_column("Status", justify="center")
+            doc_table.add_column("Latensi", justify="right")
+            doc_table.add_column("Keterangan", style="dim")
+            for p, (ok, msg, lat) in results.items():
+                s_badge = "[bold green]✔ OK[/bold green]" if ok else "[bold red]✖ FAILED[/bold red]"
+                doc_table.add_row(p.upper(), s_badge, f"{lat}s" if lat > 0 else "-", msg)
+            self.console.print(doc_table)
+            self.console.print()
+            return True
+
+        elif root_cmd == "/gateway":
+            from apex.gateways.daemon import gateway_daemon
+            gateway_daemon.status()
             return True
 
         elif root_cmd == "/soul":
@@ -160,6 +295,48 @@ class PiTerminalTUI:
                 border_style="magenta"
             ))
             self.console.print()
+            return True
+
+        elif root_cmd == "/agents":
+            agents_file = config.workspace / "AGENTS.md"
+            if not agents_file.is_file():
+                agents_file = PKG_ROOT / "AGENTS.md"
+            if agents_file.is_file():
+                content = agents_file.read_text(encoding="utf-8")
+                self.console.print(Panel(
+                    content[:1200] + ("\n[dim]... (+ selengkapnya di AGENTS.md)[/dim]" if len(content) > 1200 else ""),
+                    title="[bold cyan]AGENTS Manifest (Multi-Agent Architecture)[/bold cyan]",
+                    border_style="cyan"
+                ))
+            else:
+                self.console.print("[dim]AGENTS.md tidak ditemukan.[/dim]")
+            self.console.print()
+            return True
+
+        elif root_cmd == "/skills":
+            from apex.learning.skills import skill_manager
+            skills = skill_manager._skills_cache
+            sk_table = Table(title="🧩 Daftar Skills & Kemampuan Agent", show_lines=False, border_style="dim")
+            sk_table.add_column("Skill", style="bold yellow")
+            sk_table.add_column("Deskripsi", style="white")
+            for s_name, s_data in skills.items():
+                sk_table.add_row(s_name, s_data.get("description", ""))
+            self.console.print(sk_table)
+            self.console.print()
+            return True
+
+        elif root_cmd == "/mcp":
+            mcps = config.get("mcpServers", {})
+            if not mcps:
+                self.console.print("[dim]Belum ada MCP server yang terdaftar di ~/.apex/apex.json[/dim]\n")
+            else:
+                mcp_table = Table(title="🔌 Daftar Server MCP Terdaftar", show_lines=True)
+                mcp_table.add_column("Server", style="bold cyan")
+                mcp_table.add_column("Command / URL", style="white")
+                for m_name, m_cfg in mcps.items():
+                    mcp_table.add_row(m_name, str(m_cfg.get("command") or m_cfg.get("url", "")))
+                self.console.print(mcp_table)
+                self.console.print()
             return True
 
         elif root_cmd in ["/clear", "/reset"]:
@@ -192,7 +369,9 @@ class PiTerminalTUI:
 
                 user_input = self.session.prompt(
                     prompt_label,
-                    rprompt=rprompt_str
+                    rprompt=rprompt_str,
+                    completer=self.completer,
+                    complete_while_typing=True
                 ).strip()
 
                 if not user_input:
