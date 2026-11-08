@@ -3,61 +3,617 @@
   "default_model": "claude-3-7-sonnet-latest",
   "active_backend": "local",
   "anti_refusal_mode": "auto",
-  
   "providers": {
-    "anthropic": {
-      "api_key": "YOUR_ANTHROPIC_API_KEY",
+    "antigravity": {
+      "api_key": "",
+      "base_url": "https://cloudcode-pa.googleapis.com/v1internal",
+      "models": [
+        "claude-sonnet-4-6",
+        "claude-opus-4-6-thinking",
+        "gemini-3.8-flash-tiered",
+        "gemini-3-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-3.1-flash-image",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash-thinking",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash",
+        "gemini-2.0-pro-exp",
+        "gpt-oss-120b-medium"
+      ]
+    },
+    "copilot": {
+      "api_key": "",
+      "base_url": "https://api.githubcopilot.com",
+      "models": [
+        "claude-3.7-sonnet",
+        "claude-3.7-sonnet-thought",
+        "claude-3.5-sonnet",
+        "o3-mini",
+        "o1",
+        "o1-mini",
+        "o1-preview",
+        "gpt-4.5-preview",
+        "gpt-4o",
+        "gpt-4o-mini"
+      ]
+    },
+    "claude-code": {
+      "api_key": "",
       "base_url": "https://api.anthropic.com/v1",
-      "models": ["claude-3-7-sonnet-latest", "claude-3-5-haiku-latest"]
+      "models": [
+        "claude-3-7-sonnet-20250219",
+        "claude-3-7-sonnet-latest",
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-sonnet-latest",
+        "claude-3-5-haiku-20241022",
+        "claude-3-5-haiku-latest",
+        "claude-3-opus-20240229",
+        "claude-3-opus-latest"
+      ]
+    },
+    "codex": {
+      "api_key": "",
+      "base_url": "https://chatgpt.com/backend-api",
+      "models": [
+        "o3-mini",
+        "o3-mini-high",
+        "o3-pro",
+        "o1",
+        "o1-preview",
+        "gpt-4.5-preview",
+        "chatgpt-4o-latest",
+        "gpt-4o",
+        "gpt-4o-mini"
+      ]
+    },
+    "cursor": {
+      "api_key": "",
+      "base_url": "https://api.cursor.com/v1",
+      "models": [
+        "cursor-fast",
+        "cursor-small",
+        "claude-3.7-sonnet",
+        "claude-3.7-sonnet-thinking",
+        "claude-3.5-sonnet",
+        "gpt-4o",
+        "gpt-4o-mini",
+        "o3-mini",
+        "o1",
+        "deepseek-r1",
+        "deepseek-v3"
+      ]
+    },
+    "kiro": {
+      "api_key": "",
+      "base_url": "https://api.kiro.ai/v1",
+      "models": [
+        "kiro-claude-3.7-sonnet",
+        "kiro-claude-3.5-sonnet",
+        "kiro-deepseek-r1",
+        "kiro-glm-4",
+        "kiro-llama-3.3"
+      ]
+    },
+    "anthropic": {
+      "api_key": "",
+      "base_url": "https://api.anthropic.com/v1",
+      "models": [
+        "claude-3-7-sonnet-20250219",
+        "claude-3-7-sonnet-latest",
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-sonnet-latest",
+        "claude-3-5-haiku-20241022",
+        "claude-3-5-haiku-latest",
+        "claude-3-opus-20240229",
+        "claude-3-opus-latest"
+      ]
     },
     "openai": {
-      "api_key": "YOUR_OPENAI_API_KEY",
+      "api_key": "",
       "base_url": "https://api.openai.com/v1",
-      "models": ["gpt-4o", "gpt-4o-mini", "o3-mini"]
-    },
-    "deepseek": {
-      "api_key": "YOUR_DEEPSEEK_API_KEY",
-      "base_url": "https://api.deepseek.com/v1",
-      "models": ["deepseek-chat", "deepseek-reasoner"]
-    },
-    "groq": {
-      "api_key": "YOUR_GROQ_API_KEY",
-      "base_url": "https://api.groq.com/openai/v1",
-      "models": ["llama-3.3-70b-versatile", "whisper-large-v3"]
-    },
-    "openrouter": {
-      "api_key": "YOUR_OPENROUTER_API_KEY",
-      "base_url": "https://openrouter.ai/api/v1",
-      "models": ["deepseek/deepseek-r1:free", "meta-llama/llama-3.3-70b-instruct:free"]
+      "models": [
+        "o3-mini",
+        "o3-mini-high",
+        "o3-pro",
+        "o1",
+        "o1-2024-12-17",
+        "o1-preview",
+        "o1-mini",
+        "gpt-4.5-preview",
+        "gpt-4.5-preview-2025-02-27",
+        "chatgpt-4o-latest",
+        "gpt-4o-2024-11-20",
+        "gpt-4o",
+        "gpt-4o-mini"
+      ]
     },
     "gemini": {
-      "api_key": "YOUR_GEMINI_API_KEY",
+      "api_key": "",
       "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
-      "models": ["gemini-2.0-flash", "gemini-2.0-pro-exp"]
+      "models": [
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash-001",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-2.0-pro-exp-02-05",
+        "gemini-2.0-pro-exp",
+        "gemini-2.0-flash-thinking-exp-01-21",
+        "gemini-2.0-flash-thinking-exp",
+        "gemini-1.5-pro-latest",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash-8b"
+      ]
     },
-    "together": {
-      "api_key": "YOUR_TOGETHER_API_KEY",
-      "base_url": "https://api.together.xyz/v1",
-      "models": ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-Coder-32B-Instruct"]
+    "deepseek": {
+      "api_key": "",
+      "base_url": "https://api.deepseek.com/v1",
+      "models": [
+        "deepseek-reasoner",
+        "deepseek-chat",
+        "deepseek-v4-pro",
+        "deepseek-coder-v2"
+      ]
+    },
+    "xai": {
+      "api_key": "",
+      "base_url": "https://api.x.ai/v1",
+      "models": [
+        "grok-3",
+        "grok-3-mini",
+        "grok-2-1212",
+        "grok-2-vision-1212",
+        "grok-beta"
+      ]
     },
     "mistral": {
-      "api_key": "YOUR_MISTRAL_API_KEY",
+      "api_key": "",
       "base_url": "https://api.mistral.ai/v1",
-      "models": ["mistral-large-latest", "codestral-latest"]
+      "models": [
+        "codestral-2501",
+        "codestral-latest",
+        "mistral-large-2411",
+        "mistral-large-latest",
+        "mistral-small-24b-instruct-2501",
+        "mistral-small-latest",
+        "pixtral-large-latest",
+        "pixtral-12b",
+        "ministral-8b-latest",
+        "ministral-3b-latest"
+      ]
+    },
+    "cohere": {
+      "api_key": "",
+      "base_url": "https://api.cohere.com/v2",
+      "models": [
+        "command-r-plus-08-2024",
+        "command-r-plus",
+        "command-r7b-12-2024",
+        "command-r"
+      ]
+    },
+    "perplexity": {
+      "api_key": "",
+      "base_url": "https://api.perplexity.ai",
+      "models": [
+        "sonar-deep-research",
+        "sonar-reasoning-pro",
+        "sonar-reasoning",
+        "sonar-pro",
+        "sonar"
+      ]
+    },
+    "groq": {
+      "api_key": "",
+      "base_url": "https://api.groq.com/openai/v1",
+      "models": [
+        "deepseek-r1-distill-llama-70b",
+        "deepseek-r1-distill-qwen-32b",
+        "llama-3.3-70b-versatile",
+        "llama-3.3-70b-specdec",
+        "qwen-2.5-coder-32b",
+        "llama-3.1-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it",
+        "whisper-large-v3-turbo",
+        "whisper-large-v3"
+      ]
+    },
+    "cerebras": {
+      "api_key": "",
+      "base_url": "https://api.cerebras.ai/v1",
+      "models": [
+        "deepseek-r1-distill-llama-70b",
+        "llama3.3-70b",
+        "llama3.1-70b",
+        "llama3.1-8b"
+      ]
+    },
+    "sambanova": {
+      "api_key": "",
+      "base_url": "https://api.sambanova.ai/v1",
+      "models": [
+        "DeepSeek-R1",
+        "DeepSeek-R1-Distill-Llama-70B",
+        "Meta-Llama-3.3-70B-Instruct",
+        "Meta-Llama-3.1-405B-Instruct",
+        "Meta-Llama-3.1-70B-Instruct",
+        "Qwen2.5-Coder-32B-Instruct",
+        "Qwen2.5-72B-Instruct"
+      ]
+    },
+    "together": {
+      "api_key": "",
+      "base_url": "https://api.together.xyz/v1",
+      "models": [
+        "deepseek-ai/DeepSeek-R1",
+        "deepseek-ai/DeepSeek-V3",
+        "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+        "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+        "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "Qwen/Qwen2.5-72B-Instruct-Turbo",
+        "mistralai/Mistral-Small-24B-Instruct-2501"
+      ]
+    },
+    "fireworks": {
+      "api_key": "",
+      "base_url": "https://api.fireworks.ai/inference/v1",
+      "models": [
+        "accounts/fireworks/models/deepseek-r1",
+        "accounts/fireworks/models/deepseek-v3",
+        "accounts/fireworks/models/llama-v3p3-70b-instruct",
+        "accounts/fireworks/models/qwen2p5-coder-32b-instruct",
+        "accounts/fireworks/models/qwen2p5-72b-instruct"
+      ]
+    },
+    "siliconflow": {
+      "api_key": "",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "models": [
+        "deepseek-ai/DeepSeek-R1",
+        "deepseek-ai/DeepSeek-V3",
+        "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+        "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+        "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "Qwen/Qwen2.5-72B-Instruct",
+        "meta-llama/Llama-3.3-70B-Instruct",
+        "TeleAI/TeleChat2"
+      ]
+    },
+    "deepinfra": {
+      "api_key": "",
+      "base_url": "https://api.deepinfra.com/v1/openai",
+      "models": [
+        "deepseek-ai/DeepSeek-R1",
+        "deepseek-ai/DeepSeek-V3",
+        "meta-llama/Llama-3.3-70B-Instruct",
+        "meta-llama/Meta-Llama-3.1-405B-Instruct",
+        "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "Qwen/Qwen2.5-72B-Instruct"
+      ]
+    },
+    "novita": {
+      "api_key": "",
+      "base_url": "https://api.novita.ai/v3/openai",
+      "models": [
+        "deepseek/deepseek-r1",
+        "deepseek/deepseek-v3",
+        "meta-llama/llama-3.3-70b-instruct",
+        "qwen/qwen-2.5-coder-32b-instruct"
+      ]
+    },
+    "hyperbolic": {
+      "api_key": "",
+      "base_url": "https://api.hyperbolic.xyz/v1",
+      "models": [
+        "deepseek-ai/DeepSeek-R1",
+        "deepseek-ai/DeepSeek-V3",
+        "meta-llama/Llama-3.3-70B-Instruct",
+        "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "Qwen/Qwen2.5-72B-Instruct"
+      ]
+    },
+    "moonshot": {
+      "api_key": "",
+      "base_url": "https://api.moonshot.cn/v1",
+      "models": [
+        "kimi-k1.5",
+        "moonshot-v1-128k",
+        "moonshot-v1-32k",
+        "moonshot-v1-8k",
+        "moonshot-v1-auto"
+      ]
+    },
+    "zhipu": {
+      "api_key": "",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "models": [
+        "glm-4-plus",
+        "glm-4-0520",
+        "glm-4-flash",
+        "glm-4-flashx",
+        "glm-4-air",
+        "glm-4-airx",
+        "glm-4-long",
+        "glm-4-voice"
+      ]
+    },
+    "minimax": {
+      "api_key": "",
+      "base_url": "https://api.minimax.chat/v1",
+      "models": [
+        "abab6.5s-chat",
+        "abab6.5t-chat",
+        "abab6.5-chat",
+        "MiniMax-Text-01"
+      ]
+    },
+    "dashscope": {
+      "api_key": "",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "models": [
+        "qwen-max-latest",
+        "qwen-max",
+        "qwen-plus-latest",
+        "qwen-plus",
+        "qwen-turbo-latest",
+        "qwen2.5-coder-32b-instruct",
+        "qwen2.5-coder-14b-instruct",
+        "qwen2.5-coder-7b-instruct",
+        "qwen2.5-72b-instruct",
+        "qvq-72b-preview"
+      ]
+    },
+    "baichuan": {
+      "api_key": "",
+      "base_url": "https://api.baichuan-ai.com/v1",
+      "models": [
+        "Baichuan4",
+        "Baichuan3-Turbo",
+        "Baichuan3-Turbo-128k",
+        "Baichuan2-Turbo"
+      ]
+    },
+    "01ai": {
+      "api_key": "",
+      "base_url": "https://api.01.ai/v1",
+      "models": [
+        "yi-lightning",
+        "yi-large",
+        "yi-large-turbo",
+        "yi-medium",
+        "yi-spark"
+      ]
+    },
+    "qianfan": {
+      "api_key": "",
+      "base_url": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat",
+      "models": [
+        "ernie-4.0-turbo-8k",
+        "ernie-4.0-8k-latest",
+        "ernie-4.0-8k",
+        "ernie-3.5-8k",
+        "ernie-speed-128k"
+      ]
+    },
+    "hunyuan": {
+      "api_key": "",
+      "base_url": "https://api.hunyuan.cloud.tencent.com/v1",
+      "models": [
+        "hunyuan-pro",
+        "hunyuan-standard",
+        "hunyuan-lite",
+        "hunyuan-code",
+        "hunyuan-turbo"
+      ]
+    },
+    "stepfun": {
+      "api_key": "",
+      "base_url": "https://api.stepfun.com/v1",
+      "models": [
+        "step-2-16k",
+        "step-1-128k",
+        "step-1-32k",
+        "step-1v-8k",
+        "step-1v-32k"
+      ]
+    },
+    "azure": {
+      "api_key": "",
+      "base_url": "https://your-resource.openai.azure.com",
+      "models": [
+        "o3-mini",
+        "o1",
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4-turbo"
+      ]
+    },
+    "bedrock": {
+      "api_key": "",
+      "base_url": "https://bedrock-runtime.us-east-1.amazonaws.com",
+      "models": [
+        "anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "anthropic.claude-3-5-haiku-20241022-v1:0",
+        "meta.llama3-3-70b-instruct-v1:0",
+        "amazon.nova-pro-v1:0",
+        "amazon.nova-lite-v1:0"
+      ]
+    },
+    "vertex": {
+      "api_key": "",
+      "base_url": "https://us-central1-aiplatform.googleapis.com/v1",
+      "models": [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-thinking-exp",
+        "gemini-2.0-pro-exp",
+        "claude-3-7-sonnet@20250219",
+        "claude-3-5-sonnet@20241022",
+        "claude-3-5-haiku@20241022"
+      ]
+    },
+    "cloudflare": {
+      "api_key": "",
+      "base_url": "https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1",
+      "models": [
+        "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+        "@cf/meta/llama-3.3-70b-instruct",
+        "@cf/meta/llama-3.1-70b-instruct",
+        "@cf/meta/llama-3.1-8b-instruct",
+        "@cf/qwen/qwen2.5-coder-32b-instruct"
+      ]
+    },
+    "ai21": {
+      "api_key": "",
+      "base_url": "https://api.ai21.com/studio/v1",
+      "models": [
+        "jamba-1.5-large",
+        "jamba-1.5-mini"
+      ]
+    },
+    "openrouter": {
+      "api_key": "",
+      "base_url": "https://openrouter.ai/api/v1",
+      "models": [
+        "deepseek/deepseek-r1",
+        "deepseek/deepseek-v3",
+        "anthropic/claude-3.7-sonnet",
+        "anthropic/claude-3.7-sonnet:thinking",
+        "anthropic/claude-3.5-sonnet",
+        "openai/o3-mini",
+        "openai/o3-mini-high",
+        "openai/o1",
+        "openai/gpt-4.5-preview",
+        "openai/gpt-4o-2024-11-20",
+        "google/gemini-2.0-flash-001",
+        "google/gemini-2.0-pro-exp-02-05:free",
+        "meta-llama/llama-3.3-70b-instruct",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-coder-32b-instruct"
+      ]
+    },
+    "venice": {
+      "api_key": "",
+      "base_url": "https://api.venice.ai/api/v1",
+      "models": [
+        "llama-3.3-70b",
+        "deepseek-r1-llama-70b",
+        "qwen-2.5-coder-32b",
+        "mistral-large"
+      ]
+    },
+    "opencode": {
+      "api_key": "",
+      "base_url": "https://api.opencode.ai/v1",
+      "models": [
+        "opencode-glm-4-free",
+        "opencode-llama-free",
+        "opencode-deepseek-r1-free",
+        "opencode-qwen2.5-free"
+      ]
+    },
+    "gemini-free": {
+      "api_key": "",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "models": [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-thinking-exp",
+        "gemini-2.0-pro-exp",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash"
+      ]
     },
     "ollama": {
       "api_key": "none",
       "base_url": "http://localhost:11434/v1",
-      "models": ["qwen2.5-coder:7b", "llama3.2:3b"]
+      "models": [
+        "deepseek-r1:671b",
+        "deepseek-r1:70b",
+        "deepseek-r1:32b",
+        "deepseek-r1:14b",
+        "deepseek-r1:8b",
+        "deepseek-r1:1.5b",
+        "qwen2.5-coder:32b",
+        "qwen2.5-coder:14b",
+        "qwen2.5-coder:7b",
+        "qwen2.5-coder:1.5b",
+        "llama3.3:70b",
+        "llama3.2:3b",
+        "llama3.2:1b",
+        "mistral-small:24b",
+        "codellama:70b",
+        "starcoder2:15b"
+      ]
+    },
+    "vllm": {
+      "api_key": "none",
+      "base_url": "http://localhost:8000/v1",
+      "models": [
+        "deepseek-ai/DeepSeek-R1",
+        "deepseek-ai/DeepSeek-V3",
+        "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+        "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+        "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "meta-llama/Llama-3.3-70B-Instruct"
+      ]
+    },
+    "lmstudio": {
+      "api_key": "none",
+      "base_url": "http://localhost:1234/v1",
+      "models": [
+        "deepseek-r1-distill-qwen-14b",
+        "deepseek-r1-distill-llama-8b",
+        "qwen2.5-coder-32b-instruct",
+        "qwen2.5-coder-7b-instruct",
+        "llama-3.3-70b-instruct",
+        "meta-llama-3.1-8b-instruct"
+      ]
+    },
+    "llamacpp": {
+      "api_key": "none",
+      "base_url": "http://localhost:8080/v1",
+      "models": [
+        "DeepSeek-R1-Distill-Qwen-14B-GGUF",
+        "DeepSeek-R1-Distill-Qwen-32B-GGUF",
+        "Qwen2.5-Coder-32B-Instruct-GGUF",
+        "Qwen2.5-Coder-7B-Instruct-GGUF",
+        "Llama-3.3-70B-Instruct-GGUF"
+      ]
+    },
+    "localai": {
+      "api_key": "none",
+      "base_url": "http://localhost:8080/v1",
+      "models": [
+        "deepseek-r1-distill-qwen-7b",
+        "qwen2.5-coder-7b",
+        "llama-3.2-3b",
+        "phi-4"
+      ]
     }
   },
-
   "fallback_tiers": {
-    "tier_1_subscription": ["claude-3-7-sonnet-latest", "gpt-4o"],
-    "tier_2_cheap": ["deepseek-chat", "gpt-4o-mini", "llama-3.3-70b-versatile"],
-    "tier_3_free": ["deepseek/deepseek-r1:free", "qwen2.5-coder:7b"]
+    "tier_1_subscription": [
+      "claude-3-7-sonnet-latest",
+      "gpt-4o",
+      "gemini-3-flash"
+    ],
+    "tier_2_cheap": [
+      "deepseek-chat",
+      "gpt-4o-mini",
+      "llama-3.3-70b-versatile"
+    ],
+    "tier_3_free": [
+      "deepseek/deepseek-r1:free",
+      "qwen2.5-coder:7b"
+    ]
   },
-
   "router": {
     "rtk_compression": true,
     "rtk_threshold_bytes": 1024,
@@ -71,41 +627,32 @@
       "chat_script_priming": true
     }
   },
-
   "security": {
-    "owner_ids": ["chandra"],
+    "owner_ids": [
+      "chandra"
+    ],
     "pairing_code": "APEX-2026",
     "require_approval_on_fatal_commands": true,
     "approval_mode": "interactive"
   },
-
   "gateways": {
-    "enabled": ["telegram", "whatsapp"],
+    "enabled": [
+      "telegram"
+    ],
     "telegram": {
-      "token": "YOUR_TELEGRAM_BOT_TOKEN",
+      "token": "",
       "allowed_chats": []
     },
     "whatsapp": {
       "enabled": false,
       "bridge_port": 3001
     },
-    "discord": {
-      "enabled": false,
-      "token": ""
-    },
     "websocket": {
       "host": "127.0.0.1",
       "port": 20129
     }
   },
-
-  "mcpServers": {
-    "memory": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
-    }
-  },
-
+  "mcpServers": {},
   "paths": {
     "workspace": "/home/chandra",
     "soul_path": null,

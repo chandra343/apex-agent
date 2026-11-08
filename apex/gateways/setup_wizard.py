@@ -145,10 +145,12 @@ class SetupWizard:
                 cfg_data = configured_providers.get(p_id, {})
                 api_key = cfg_data.get("api_key", "").strip()
                 base_url = cfg_data.get("base_url") or item["url"]
-                models_list = cfg_data.get("models") or item["models"]
-                models_preview = ", ".join(models_list[:2])
-                if len(models_list) > 2:
-                    models_preview += f" (+{len(models_list) - 2})"
+                placeholders = {"local-model", "vllm-model", "gguf-model"}
+                raw_models = list(dict.fromkeys(item.get("models", []) + cfg_data.get("models", [])))
+                models_list = [m for m in raw_models if m not in placeholders] or raw_models
+                models_preview = ", ".join(models_list[:3])
+                if len(models_list) > 3:
+                    models_preview += f" (+{len(models_list) - 3})"
 
                 # Auth Type Label
                 auth_type = item.get("auth_type", "api_key")
@@ -202,11 +204,16 @@ class SetupWizard:
                 " • Masukkan [bold yellow]+[/bold yellow]       : ➕ Tambah Custom Provider Baru\n"
                 " • Masukkan [bold yellow]t[/bold yellow]       : 🧪 Test All (Uji koneksi & latensi semua provider serentak)\n"
                 " • Masukkan [bold yellow]r[/bold yellow]       : 🔄 [bold cyan]Sync / Refresh Live Models[/bold cyan] (Ambil model terbaru langsung dari API)\n"
+                " • Masukkan [bold yellow]m[/bold yellow]       : 📋 [bold cyan]Katalog Model AI Lengkap[/bold cyan] (Tampilkan semua model & capability tags)\n"
                 f" • Masukkan [bold yellow]n[/bold yellow]       : {'Selesai / Tutup' if standalone else 'Lanjut ke Tahap Berikutnya [ Next > ]'}\n"
                 f" • Masukkan [bold yellow]b[/bold yellow]       : {'Kembali' if standalone else 'Kembali ke Tahap Sebelumnya [ < Back ]'}"
             )
 
             choice = Prompt.ask("\nPilih aksi").strip().lower()
+
+            if choice == "m":
+                self._show_model_catalog()
+                continue
 
             if choice == "b":
                 if not standalone:
@@ -380,6 +387,41 @@ class SetupWizard:
                     self.console.print(f"[red]Nomor {choice} tidak ada dalam daftar.[/red]")
                     time.sleep(1.0)
 
+    def _show_model_catalog(self) -> None:
+        """Display an organized table of all available AI models across all 46+ providers with capability tags."""
+        from apex.router.model_switcher import ModelSwitcher
+        switcher = ModelSwitcher()
+        models = switcher.get_available_models()
+
+        table = Table(
+            title=f"[bold yellow]Katalog Model AI Lengkap — {len(models)} Model Terdaftar[/bold yellow]",
+            show_lines=True,
+            header_style="bold cyan",
+            expand=True
+        )
+        table.add_column("No", justify="center", style="bold yellow", width=4)
+        table.add_column("Nama Model AI", style="bold green", min_width=28)
+        table.add_column("Provider", style="cyan", min_width=16)
+        table.add_column("Kapabilitas", style="magenta", min_width=18)
+
+        for i, m in enumerate(models, 1):
+            table.add_row(
+                str(i),
+                m["id"],
+                m["provider"],
+                m["tag"]
+            )
+
+        self.console.print(table)
+        self.console.print("[dim]Ketik nama model untuk dijadikan model default, atau tekan Enter untuk kembali.[/dim]")
+        pick = Prompt.ask("Pilih model default baru (atau Enter)", default="").strip()
+        if pick:
+            chosen = switcher.switch_model(pick)
+            self.console.print(f"[bold green]✔ Model default aktif diatur ke: {chosen}[/bold green]")
+            time.sleep(1.0)
+        else:
+            Prompt.ask("Tekan Enter untuk kembali ke shelf...")
+
     def _configure_single_provider(
         self,
         item: Dict[str, Any],
@@ -392,7 +434,9 @@ class SetupWizard:
         existing = configured_providers.get(p_id, {})
         curr_key = existing.get("api_key", "")
         curr_url = existing.get("base_url") or item["url"]
-        curr_models = existing.get("models") or item["models"]
+        placeholders = {"local-model", "vllm-model", "gguf-model"}
+        raw_m = list(dict.fromkeys(item.get("models", []) + existing.get("models", [])))
+        curr_models = [m for m in raw_m if m not in placeholders] or raw_m
 
         # Special shortcut for Google Antigravity
         if p_id == "antigravity":

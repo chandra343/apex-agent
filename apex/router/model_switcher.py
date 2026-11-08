@@ -24,13 +24,13 @@ class ModelSwitcher:
                 seen.add((p_name, m))
 
                 m_low = m.lower()
-                if "thinking" in m_low or "reason" in m_low or "o3" in m_low or "o1" in m_low:
+                if "r1" in m_low or "thinking" in m_low or "reason" in m_low or "o3" in m_low or "o1" in m_low:
                     tag = "🧠 Reasoning"
-                elif "sonnet" in m_low or "coder" in m_low or "codestral" in m_low:
+                elif "coder" in m_low or "codestral" in m_low or "sonnet" in m_low or "code" in m_low:
                     tag = "💻 Agentic Code"
-                elif "opus" in m_low or "gpt-4" in m_low or "pro" in m_low or "max" in m_low:
+                elif "opus" in m_low or "gpt-4" in m_low or "pro" in m_low or "max" in m_low or "grok-3" in m_low or "405b" in m_low or "large" in m_low or "v3" in m_low or "plus" in m_low:
                     tag = "👑 Flagship"
-                elif "flash" in m_low or "mini" in m_low or "haiku" in m_low or "turbo" in m_low:
+                elif "flash" in m_low or "mini" in m_low or "haiku" in m_low or "turbo" in m_low or "instant" in m_low or "8b" in m_low or "7b" in m_low or "3b" in m_low or "lite" in m_low or "fast" in m_low or "small" in m_low:
                     tag = "⚡ Fast"
                 else:
                     tag = "🤖 General"
