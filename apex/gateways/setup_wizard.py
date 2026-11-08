@@ -911,28 +911,221 @@ class SetupWizard:
                 continue
 
     # =========================================================================
-    # STAGE 5: Messaging Gateway & Security Pairing
+    # STAGE 5: Messaging Gateway & Connection Channel Selection (Stage 5/6)
     # =========================================================================
     def stage_5_gateways_and_auth(self) -> None:
-        self._header("Messaging Gateways & Security Authorization")
-        curr_token = config.get("gateways.telegram.token", "")
+        self._header("Pilihan Koneksi & Gateway Antarmuka (Stage 5/6)")
+
+        enabled_gateways = list(config.get("gateways.enabled", ["cli"]))
+        if "cli" not in enabled_gateways:
+            enabled_gateways.insert(0, "cli")
+
+        curr_tg_token = config.get("gateways.telegram.token", "")
+        curr_discord_token = config.get("gateways.discord.bot_token", "")
+        curr_discord_webhook = config.get("gateways.discord.webhook_url", "")
+        curr_wa_port = config.get("gateways.whatsapp.bridge_port", 3001)
+        curr_api_port = config.get("gateways.web_api.port", 8080)
         curr_code = config.get("security.pairing_code", "APEX-2026")
 
-        self.console.print("[dim]Telegram Bot integration allows remote 24/7 access from your phone.[/dim]")
-        token_val = Prompt.ask("Telegram Bot Token (or press Enter to skip)", default=curr_token)
-        if token_val.strip().lower() == "b":
-            self.current_stage -= 1
-            return
+        while True:
+            # Table of available connection channels
+            table = Table(
+                title="[bold yellow]Mau Hubungkan Apex ke Mana Terlebih Dahulu?[/bold yellow]",
+                show_lines=True,
+                header_style="bold cyan",
+                expand=True
+            )
+            table.add_column("No", justify="center", style="bold yellow", width=4)
+            table.add_column("Channel / Interface", style="bold", min_width=24)
+            table.add_column("Status Aktif", style="bold", min_width=14)
+            table.add_column("Keterangan & Cara Akses", style="dim", min_width=32)
 
-        config.set("gateways.telegram.token", token_val.strip(), auto_save=False)
+            channels = [
+                {
+                    "id": "cli",
+                    "name": "💻 CLI & Terminal Interaktif (Lokal)",
+                    "enabled": True,
+                    "desc": "Bawaan utama lokal: Chat langsung di terminal lewat perintah 'apex'"
+                },
+                {
+                    "id": "telegram",
+                    "name": "📱 Telegram Bot (Remote Mobile 24/7)",
+                    "enabled": "telegram" in enabled_gateways and bool(curr_tg_token),
+                    "desc": "Akses jarak jauh dari smartphone via Telegram Bot token (@BotFather)"
+                },
+                {
+                    "id": "discord",
+                    "name": "💬 Discord Bot / Webhook Server",
+                    "enabled": "discord" in enabled_gateways,
+                    "desc": "Integrasi ke server Discord untuk multi-channel atau bot komunitas"
+                },
+                {
+                    "id": "whatsapp",
+                    "name": "🌐 WhatsApp Gateway (Baileys Bridge)",
+                    "enabled": "whatsapp" in enabled_gateways,
+                    "desc": f"Koneksi WhatsApp Web bridge di port lokal {curr_wa_port}"
+                },
+                {
+                    "id": "web_api",
+                    "name": "🔌 Web API & OpenAI-Compatible Server",
+                    "enabled": "web_api" in enabled_gateways,
+                    "desc": f"Localhost REST & WebSocket API di http://127.0.0.1:{curr_api_port}"
+                },
+                {
+                    "id": "acp",
+                    "name": "🧩 Agent Client Protocol (ACP) IDE",
+                    "enabled": "acp" in enabled_gateways,
+                    "desc": "Integrasi AI coding langsung ke Cursor, VS Code, Windsurf, JetBrains"
+                }
+            ]
 
-        code_val = Prompt.ask("Secret Security Pairing Code (for authenticating chats)", default=curr_code)
-        if code_val.strip().lower() == "b":
-            self.current_stage -= 1
-            return
+            for idx, ch in enumerate(channels, 1):
+                badge = "[bold green]🟢 AKTIF[/bold green]" if ch["enabled"] else "[dim]⚪ NONAKTIF[/dim]"
+                table.add_row(str(idx), ch["name"], badge, ch["desc"])
 
-        config.set("security.pairing_code", code_val.strip(), auto_save=False)
-        self.current_stage += 1
+            self.console.print(table)
+            self.console.print(
+                "\n[bold cyan]Menu Pengaturan Channel Koneksi:[/bold cyan]\n"
+                " • Masukkan angka [bold yellow]1 - 6[/bold yellow] : Atur / Aktifkan channel koneksi spesifik\n"
+                " • Masukkan [bold yellow]s[/bold yellow]       : 🔑 Atur Secret Security Pairing Code (Saat ini: [bold green]" + curr_code + "[/bold green])\n"
+                " • Masukkan [bold yellow]n[/bold yellow]       : Selesai & Lanjut ke Diagnostik Akhir [ Next > ]\n"
+                " • Masukkan [bold yellow]b[/bold yellow]       : Kembali ke Tahap Sebelumnya [ < Back ]"
+            )
+
+            choice = Prompt.ask("\nPilih nomor channel yang mau dihubungkan atau 'n' untuk lanjut", default="n").strip().lower()
+
+            if choice == "b":
+                self.current_stage -= 1
+                return
+
+            if choice in ["n", "next", "lanjut"]:
+                config.set("gateways.enabled", enabled_gateways, auto_save=False)
+                config.set("security.pairing_code", curr_code, auto_save=False)
+                self.console.print("[bold green]✔ Konfigurasi channel koneksi berhasil disimpan![/bold green]")
+                time.sleep(0.8)
+                self.current_stage += 1
+                return
+
+            if choice == "s":
+                new_code = Prompt.ask("\nMasukkan Secret Security Pairing Code baru", default=curr_code).strip()
+                if new_code:
+                    curr_code = new_code
+                    config.set("security.pairing_code", curr_code, auto_save=False)
+                    self.console.print(f"[bold green]✔ Pairing code diatur ke: {curr_code}[/bold green]")
+                Prompt.ask("Tekan Enter untuk lanjut...")
+                continue
+
+            if choice == "1":
+                self.console.print("[bold green]✔ CLI & Terminal Interaktif selalu aktif secara bawaan untuk eksekusi lokal.[/bold green]")
+                Prompt.ask("Tekan Enter untuk lanjut...")
+                continue
+
+            if choice == "2":
+                self.console.print(Panel(
+                    "[bold cyan]📱 Konfigurasi Telegram Bot Gateway[/bold cyan]\n"
+                    "[dim]Dapatkan Bot Token gratis dari @BotFather di aplikasi Telegram untuk mengontrol Apex 24/7.[/dim]",
+                    border_style="cyan"
+                ))
+                new_token = Prompt.ask("Masukkan Telegram Bot Token (kosongkan untuk menonaktifkan)", default=curr_tg_token).strip()
+                curr_tg_token = new_token
+                config.set("gateways.telegram.token", curr_tg_token, auto_save=False)
+                if curr_tg_token:
+                    if "telegram" not in enabled_gateways:
+                        enabled_gateways.append("telegram")
+                    self.console.print("[bold green]✔ Telegram Bot Gateway AKTIF![/bold green]")
+                else:
+                    if "telegram" in enabled_gateways:
+                        enabled_gateways.remove("telegram")
+                    self.console.print("[yellow]Telegram Bot Gateway dinonaktifkan.[/yellow]")
+                Prompt.ask("Tekan Enter untuk lanjut...")
+                continue
+
+            if choice == "3":
+                self.console.print(Panel(
+                    "[bold cyan]💬 Konfigurasi Discord Bot / Webhook Gateway[/bold cyan]\n"
+                    "[dim]Gunakan Discord Bot Token atau Webhook URL untuk menghubungkan Apex ke server Discord.[/dim]",
+                    border_style="cyan"
+                ))
+                discord_tok = Prompt.ask("Masukkan Discord Bot Token (opsional)", default=curr_discord_token).strip()
+                discord_hook = Prompt.ask("Masukkan Discord Webhook URL (opsional)", default=curr_discord_webhook).strip()
+                curr_discord_token = discord_tok
+                curr_discord_webhook = discord_hook
+                config.set("gateways.discord.bot_token", curr_discord_token, auto_save=False)
+                config.set("gateways.discord.webhook_url", curr_discord_webhook, auto_save=False)
+                if curr_discord_token or curr_discord_webhook:
+                    if "discord" not in enabled_gateways:
+                        enabled_gateways.append("discord")
+                    self.console.print("[bold green]✔ Discord Gateway AKTIF![/bold green]")
+                else:
+                    if "discord" in enabled_gateways:
+                        enabled_gateways.remove("discord")
+                    self.console.print("[yellow]Discord Gateway dinonaktifkan.[/yellow]")
+                Prompt.ask("Tekan Enter untuk lanjut...")
+                continue
+
+            if choice == "4":
+                self.console.print(Panel(
+                    "[bold cyan]🌐 Konfigurasi WhatsApp Web (Baileys Bridge)[/bold cyan]\n"
+                    "[dim]Apex menghubungkan ke WhatsApp bridge daemon lokal untuk merespons pesan chat WhatsApp.[/dim]",
+                    border_style="cyan"
+                ))
+                enable_wa = Confirm.ask("Aktifkan WhatsApp Gateway?", default="whatsapp" in enabled_gateways)
+                if enable_wa:
+                    port_str = Prompt.ask("Bridge Port", default=str(curr_wa_port)).strip()
+                    curr_wa_port = int(port_str) if port_str.isdigit() else 3001
+                    config.set("gateways.whatsapp.bridge_port", curr_wa_port, auto_save=False)
+                    config.set("gateways.whatsapp.enabled", True, auto_save=False)
+                    if "whatsapp" not in enabled_gateways:
+                        enabled_gateways.append("whatsapp")
+                    self.console.print(f"[bold green]✔ WhatsApp Gateway AKTIF di port {curr_wa_port}![/bold green]")
+                else:
+                    if "whatsapp" in enabled_gateways:
+                        enabled_gateways.remove("whatsapp")
+                    config.set("gateways.whatsapp.enabled", False, auto_save=False)
+                    self.console.print("[yellow]WhatsApp Gateway dinonaktifkan.[/yellow]")
+                Prompt.ask("Tekan Enter untuk lanjut...")
+                continue
+
+            if choice == "5":
+                self.console.print(Panel(
+                    "[bold cyan]🔌 Konfigurasi Web API & OpenAI-Compatible Server[/bold cyan]\n"
+                    "[dim]Menyediakan REST & WebSocket API lokal untuk web browser atau integrasi aplikasi pihak ketiga.[/dim]",
+                    border_style="cyan"
+                ))
+                enable_api = Confirm.ask("Aktifkan Web API Server?", default="web_api" in enabled_gateways)
+                if enable_api:
+                    api_port_str = Prompt.ask("Port Server Web API", default=str(curr_api_port)).strip()
+                    curr_api_port = int(api_port_str) if api_port_str.isdigit() else 8080
+                    config.set("gateways.web_api.port", curr_api_port, auto_save=False)
+                    config.set("gateways.web_api.enabled", True, auto_save=False)
+                    if "web_api" not in enabled_gateways:
+                        enabled_gateways.append("web_api")
+                    self.console.print(f"[bold green]✔ Web API AKTIF di http://127.0.0.1:{curr_api_port}![/bold green]")
+                else:
+                    if "web_api" in enabled_gateways:
+                        enabled_gateways.remove("web_api")
+                    config.set("gateways.web_api.enabled", False, auto_save=False)
+                    self.console.print("[yellow]Web API dinonaktifkan.[/yellow]")
+                Prompt.ask("Tekan Enter untuk lanjut...")
+                continue
+
+            if choice == "6":
+                self.console.print(Panel(
+                    "[bold cyan]🧩 Konfigurasi Agent Client Protocol (ACP) IDE[/bold cyan]\n"
+                    "[dim]Memungkinkan Cursor, VS Code, atau Windsurf menggunakan Apex sebagai engine AI backend.[/dim]",
+                    border_style="cyan"
+                ))
+                enable_acp = Confirm.ask("Aktifkan ACP Server untuk IDE?", default="acp" in enabled_gateways)
+                if enable_acp:
+                    if "acp" not in enabled_gateways:
+                        enabled_gateways.append("acp")
+                    self.console.print("[bold green]✔ ACP Server AKTIF (jalankan via 'apex acp')![/bold green]")
+                else:
+                    if "acp" in enabled_gateways:
+                        enabled_gateways.remove("acp")
+                    self.console.print("[yellow]ACP Server dinonaktifkan.[/yellow]")
+                Prompt.ask("Tekan Enter untuk lanjut...")
+                continue
 
     # =========================================================================
     # STAGE 6: Live Diagnostic Healthcheck
