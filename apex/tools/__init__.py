@@ -21,6 +21,7 @@ from apex.tools.system import get_system_info, get_listening_ports, list_system_
 from apex.tools.lsp import lsp_client
 from apex.tools.mcp import mcp_manager
 from apex.tools.web import web_search, fetch_web_page
+from apex.tools.custom_loader import custom_tool_loader
 
 
 class ToolRegistry:
@@ -28,7 +29,9 @@ class ToolRegistry:
 
     def __init__(self) -> None:
         self._tools: Dict[str, Dict[str, Any]] = {}
+        self._custom_tool_keys: set[str] = set()
         self._register_native_tools()
+        self.discover_custom_tools()
 
     def _register_native_tools(self) -> None:
         # File operations
@@ -201,21 +204,65 @@ class ToolRegistry:
         code, out = run_shell(cmd, cwd=cwd, timeout=timeout, background=bg)
         return code == 0, out
 
+    def discover_custom_tools(self, force_reload: bool = False) -> Dict[str, Dict[str, Any]]:
+        """Scan directories for user-authored Python tools and dynamically register them."""
+        # Clean previously registered custom tools
+        for k in list(self._custom_tool_keys):
+            self._tools.pop(k, None)
+        self._custom_tool_keys.clear()
+
+        loaded_custom = custom_tool_loader.discover_tools()
+        for t_name, t_meta in loaded_custom.items():
+            reg_name = t_name
+            # If conflicts with native tools, prefix with custom__
+            if reg_name in self._tools:
+                reg_name = f"custom__{reg_name}"
+            
+            self._tools[reg_name] = {
+                "name": reg_name,
+                "description": t_meta.get("description", "Custom user-installed tool"),
+                "parameters": t_meta.get("parameters", {"type": "object", "properties": {}}),
+                "handler": t_meta["handler"],
+                "is_safe": t_meta.get("is_safe", False),
+                "is_custom": True,
+                "source_path": t_meta.get("source_path", ""),
+                "origin": t_meta.get("origin", "User Custom Tool")
+            }
+            self._custom_tool_keys.add(reg_name)
+
+        return loaded_custom
+
     def register(
         self,
         name: str,
         description: str,
         parameters: Dict[str, Any],
         handler: Callable[[Dict[str, Any]], Tuple[bool, str]],
-        is_safe: bool = True
+        is_safe: bool = True,
+        is_custom: bool = False,
+        origin: str = "Native Sovereign"
     ) -> None:
         self._tools[name] = {
             "name": name,
             "description": description,
             "parameters": parameters,
             "handler": handler,
-            "is_safe": is_safe
+            "is_safe": is_safe,
+            "is_custom": is_custom,
+            "origin": origin
         }
+
+    def get_native_tools(self) -> Dict[str, Dict[str, Any]]:
+        """Return registered native sovereign tools."""
+        return {k: v for k, v in self._tools.items() if not v.get("is_custom")}
+
+    def get_custom_tools(self) -> Dict[str, Dict[str, Any]]:
+        """Return dynamically loaded user custom tools."""
+        return {k: v for k, v in self._tools.items() if v.get("is_custom")}
+
+    def get_mcp_tools(self) -> Dict[str, Dict[str, Any]]:
+        """Return discovered remote MCP tools."""
+        return mcp_manager.discover_all_tools()
 
     def is_safe_tool(self, name: str) -> bool:
         """Check if a tool is read-only (safe for parallel dispatch)."""

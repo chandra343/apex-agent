@@ -14,6 +14,7 @@ CHECKPOINTS_DIR = DATA_DIR / "checkpoints"
 LOGS_DIR = DATA_DIR / "logs"
 SESSIONS_DIR = DATA_DIR / "sessions"
 SKILLS_DIR = DATA_DIR / "skills"
+CUSTOM_TOOLS_DIR = DATA_DIR / "custom_tools"
 LESSONS_DB = DATA_DIR / "lessons.db"
 MEMORY_DB = DATA_DIR / "memory.db"
 SCHEDULER_JOBS_FILE = DATA_DIR / "cron" / "jobs.json"
@@ -111,6 +112,7 @@ class ConfigManager:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
         SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
         SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+        CUSTOM_TOOLS_DIR.mkdir(parents=True, exist_ok=True)
         (DATA_DIR / "cron").mkdir(parents=True, exist_ok=True)
 
     def load(self) -> None:

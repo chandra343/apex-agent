@@ -47,6 +47,8 @@ class SlashCommandCompleter(Completer):
     """Dynamic autocompletion popup for slash commands, models, and backends."""
 
     COMMANDS = {
+        "/scan": "Pindai otomatis MCP, modular skills, dan custom tools",
+        "/tools": "Daftar seluruh tool aktif (Native, Custom User, MCP)",
         "/model": "Ganti model AI aktif (TokenHarbor, Antigravity, dll)",
         "/provider": "Buka Rak Provider AI (9Router Pro Shelf)",
         "/setup": "Jalankan 6-Stage Interactive Setup Wizard",
@@ -58,8 +60,8 @@ class SlashCommandCompleter(Completer):
         "/gateway": "Kelola background gateway (Telegram, WhatsApp)",
         "/soul": "Lihat doktrin SOUL & kedaulatan operator",
         "/agents": "Lihat arsitektur multi-agent (AGENTS.md)",
-        "/skills": "Daftar kemampuan & modular skills",
-        "/mcp": "Status dan daftar server MCP",
+        "/skills": "Daftar kemampuan & modular skills terdeteksi",
+        "/mcp": "Status dan daftar server MCP multi-ekosistem",
         "/paraphrase": "Uji netralisasi & parafrase prompt anti-refusal",
         "/clear": "Bersihkan layar & reset memori chat",
         "/help": "Panduan bantuan & daftar perintah lengkap",
@@ -132,19 +134,32 @@ class PiTerminalTUI:
         )
 
     def print_welcome(self) -> None:
-        """Render the sleek Pi Agent-style header banner."""
+        """Render the sleek Pi Agent-style header banner with auto-detected ecosystem counts."""
         active_model = config.default_model
         active_provider = config.active_provider
         active_backend = config.active_backend
         workspace = str(config.workspace)
+
+        from apex.tools import tool_registry
+        from apex.learning.skills import skill_manager
+        from apex.tools.mcp import mcp_manager
+
+        native_count = len(tool_registry.get_native_tools())
+        custom_count = len(tool_registry.get_custom_tools())
+        mcp_servers = mcp_manager.get_detected_servers()
+        mcp_tools_count = len(tool_registry.get_mcp_tools())
+        skills_count = len(skill_manager.get_detected_skills())
+
+        mcp_badge = f"{len(mcp_servers)} server ({mcp_tools_count} tools)" if mcp_servers else "0 server"
 
         self.console.print()
         self.console.print(Panel(
             f"[bold cyan]▲ APEX[/bold cyan] [bold white]v1.0.0[/bold white] [dim]· Sovereign Hybrid AI Agent (Pi-Style Terminal)[/dim]\n\n"
             f"  [bold white]Model Utama :[/bold white] [bold cyan]{active_model}[/bold cyan] [dim]({active_provider.upper()})[/dim]\n"
             f"  [bold white]Workspace   :[/bold white] [dim]{workspace}[/dim]\n"
-            f"  [bold white]Backend     :[/bold white] [green]{active_backend}[/green] · [bold magenta]SOUL: Sovereign Zero-Refusal[/bold magenta]\n\n"
-            f"  [dim]Ketik [bold cyan]/[/bold cyan] untuk menu perintah instan | Bantuan: [bold cyan]/help[/bold cyan] | Host: [bold yellow]$ <perintah>[/bold yellow][/dim]",
+            f"  [bold white]Backend     :[/bold white] [green]{active_backend}[/green] · [bold magenta]SOUL: Sovereign Zero-Refusal[/bold magenta]\n"
+            f"  [bold white]Ekosistem   :[/bold white] [green]{native_count} Native Tools[/green] · [yellow]{custom_count} Custom[/yellow] · [cyan]{mcp_badge}[/cyan] · [magenta]{skills_count} Skills[/magenta]\n\n"
+            f"  [dim]Ketik [bold cyan]/[/bold cyan] untuk menu perintah instan | Pindai: [bold cyan]/scan[/bold cyan] | Tools: [bold cyan]/tools[/bold cyan] | Host: [bold yellow]$ <perintah>[/bold yellow][/dim]",
             title="[bold cyan]● APEX AGENT[/bold cyan]",
             border_style="cyan",
             padding=(0, 2)
@@ -318,30 +333,143 @@ class PiTerminalTUI:
             self.console.print()
             return True
 
-        elif root_cmd == "/skills":
+        elif root_cmd == "/scan":
+            from apex.tools import tool_registry
             from apex.learning.skills import skill_manager
-            skills = skill_manager._skills_cache
-            sk_table = Table(title="🧩 Daftar Skills & Kemampuan Agent", show_lines=False, border_style="dim")
-            sk_table.add_column("Skill", style="bold yellow")
-            sk_table.add_column("Deskripsi", style="white")
-            for s_name, s_data in skills.items():
-                sk_table.add_row(s_name, s_data.get("description", ""))
-            self.console.print(sk_table)
+            from apex.tools.mcp import mcp_manager
+            from apex.tools.custom_loader import custom_tool_loader
+
+            self.console.print("\n[bold cyan]🔍 Memindai seluruh MCP, modular skills, dan custom tools di sistem...[/bold cyan]")
+            mcp_manager.discover_all_tools(force_refresh=True)
+            skill_manager.reload_skills()
+            tool_registry.discover_custom_tools(force_reload=True)
+
+            detected_servers = mcp_manager.get_detected_servers()
+            detected_skills = skill_manager.get_detected_skills()
+            detected_custom = custom_tool_loader.get_detected_custom_tools()
+            native_tools = tool_registry.get_native_tools()
+
+            # Summary Metrics Panel
+            online_mcp = sum(1 for s in detected_servers if s.get("status") == "online")
+            total_mcp_tools = sum(s.get("tool_count", 0) for s in detected_servers)
+            summary_txt = (
+                f"• [bold cyan]Server MCP Terdeteksi[/bold cyan]   : [white]{len(detected_servers)} server[/white] "
+                f"([green]{online_mcp} online[/green]) · [yellow]{total_mcp_tools} remote tools[/yellow]\n"
+                f"• [bold magenta]Modular Skills[/bold magenta]          : [white]{len(detected_skills)} skills terdaftar[/white]\n"
+                f"• [bold yellow]Custom User Tools[/bold yellow]       : [white]{len(detected_custom)} tool kustom aktif[/white]\n"
+                f"• [bold green]Native Sovereign Tools[/bold green]  : [white]{len(native_tools)} tool bawaan siap pakai[/white]"
+            )
+            self.console.print(Panel(summary_txt, title="[bold cyan]📊 Hasil Pemindaian Ekosistem Apex[/bold cyan]", border_style="cyan"))
+
+            # Table 1: MCP Servers
+            if detected_servers:
+                mcp_table = Table(title="🔌 Server MCP Terdeteksi", show_lines=True, border_style="cyan")
+                mcp_table.add_column("Server", style="bold cyan")
+                mcp_table.add_column("Transport", justify="center")
+                mcp_table.add_column("Status", justify="center")
+                mcp_table.add_column("Tools", justify="right")
+                mcp_table.add_column("Sumber Konfigurasi", style="dim")
+                for s in detected_servers:
+                    stat_badge = "[bold green]ONLINE[/bold green]" if s.get("status") == "online" else "[bold red]OFFLINE[/bold red]"
+                    mcp_table.add_row(
+                        s.get("name", ""),
+                        s.get("transport", "").upper(),
+                        stat_badge,
+                        f"{s.get('tool_count', 0)} tool",
+                        s.get("source", "")
+                    )
+                self.console.print(mcp_table)
+
+            # Table 2: Modular Skills
+            if detected_skills:
+                sk_table = Table(title=f"🧩 Modular Skills Terdeteksi ({len(detected_skills)} Skills)", show_lines=False, border_style="magenta")
+                sk_table.add_column("Skill", style="bold magenta", width=24)
+                sk_table.add_column("Asal / Sumber", style="cyan", width=34)
+                sk_table.add_column("Deskripsi", style="white")
+                for sk in detected_skills:
+                    sk_table.add_row(sk["name"], sk.get("origin", "Ecosystem"), sk.get("description", "")[:85])
+                self.console.print(sk_table)
+
+            # Table 3: Custom User Tools
+            if detected_custom:
+                ct_table = Table(title=f"🛠 Custom User Tools ({len(detected_custom)} Tool)", show_lines=True, border_style="yellow")
+                ct_table.add_column("Tool Name", style="bold yellow")
+                ct_table.add_column("Asal / Lokasi Script", style="dim")
+                ct_table.add_column("Deskripsi", style="white")
+                for ct in detected_custom:
+                    ct_table.add_row(ct["name"], ct.get("source_path", ""), ct.get("description", ""))
+                self.console.print(ct_table)
+            else:
+                self.console.print("[dim]💡 Tip: Pasang tool Python kustom Anda di ~/.apex/custom_tools/ untuk dimuat otomatis.[/dim]")
+
             self.console.print()
             return True
 
-        elif root_cmd == "/mcp":
-            mcps = config.get("mcpServers", {})
-            if not mcps:
-                self.console.print("[dim]Belum ada MCP server yang terdaftar di ~/.apex/apex.json[/dim]\n")
+        elif root_cmd == "/tools":
+            from apex.tools import tool_registry
+            native = tool_registry.get_native_tools()
+            custom = tool_registry.get_custom_tools()
+            mcp = tool_registry.get_mcp_tools()
+
+            t_table = Table(title=f"🛠 Daftar Seluruh Tools Aktif ({len(native) + len(custom) + len(mcp)} Total)", show_lines=True, border_style="cyan")
+            t_table.add_column("Kategori", style="bold cyan", width=18)
+            t_table.add_column("Nama Tool", style="bold yellow", width=30)
+            t_table.add_column("Deskripsi", style="white")
+
+            for n_name, n_meta in native.items():
+                t_table.add_row("[green]Native Sovereign[/green]", n_name, n_meta.get("description", ""))
+
+            for c_name, c_meta in custom.items():
+                t_table.add_row("[yellow]Custom User[/yellow]", c_name, c_meta.get("description", ""))
+
+            for m_name, m_meta in mcp.items():
+                t_table.add_row("[cyan]MCP Remote[/cyan]", m_name, m_meta.get("description", ""))
+
+            self.console.print(t_table)
+            self.console.print("[dim]Tip: Ketik /scan untuk memindai ulang tools kustom & MCP yang baru dipasang.[/dim]\n")
+            return True
+
+        elif root_cmd == "/skills":
+            from apex.learning.skills import skill_manager
+            skills = skill_manager.get_detected_skills()
+            if not skills:
+                self.console.print("[dim]Tidak ada modular skills yang terdeteksi di sistem.[/dim]\n")
             else:
-                mcp_table = Table(title="🔌 Daftar Server MCP Terdaftar", show_lines=True)
+                sk_table = Table(title=f"🧩 Daftar Modular Skills Terdeteksi ({len(skills)} Skills)", show_lines=False, border_style="magenta")
+                sk_table.add_column("Skill", style="bold yellow", width=24)
+                sk_table.add_column("Asal / Sumber", style="cyan", width=34)
+                sk_table.add_column("Deskripsi", style="white")
+                for s in skills:
+                    sk_table.add_row(s["name"], s.get("origin", "Ecosystem"), s.get("description", "")[:85])
+                self.console.print(sk_table)
+                self.console.print("[dim]Tip: Gunakan /scan untuk memindai ulang skills baru yang dipasang.[/dim]\n")
+            return True
+
+        elif root_cmd == "/mcp":
+            from apex.tools.mcp import mcp_manager
+            servers = mcp_manager.get_detected_servers()
+            if not servers:
+                self.console.print("[dim]Tidak ada server MCP yang terdeteksi di sistem.[/dim]\n")
+            else:
+                mcp_table = Table(title="🔌 Daftar Server MCP Terdeteksi Multi-Ekosistem", show_lines=True, border_style="cyan")
                 mcp_table.add_column("Server", style="bold cyan")
-                mcp_table.add_column("Command / URL", style="white")
-                for m_name, m_cfg in mcps.items():
-                    mcp_table.add_row(m_name, str(m_cfg.get("command") or m_cfg.get("url", "")))
+                mcp_table.add_column("Transport", justify="center")
+                mcp_table.add_column("Status", justify="center")
+                mcp_table.add_column("Tools", justify="right")
+                mcp_table.add_column("Endpoint", style="white")
+                mcp_table.add_column("Sumber Konfigurasi", style="dim")
+                for s in servers:
+                    stat_badge = "[bold green]ONLINE[/bold green]" if s.get("status") == "online" else "[bold red]OFFLINE[/bold red]"
+                    mcp_table.add_row(
+                        s.get("name", ""),
+                        s.get("transport", "").upper(),
+                        stat_badge,
+                        f"{s.get('tool_count', 0)} tool",
+                        s.get("endpoint", ""),
+                        s.get("source", "")
+                    )
                 self.console.print(mcp_table)
-                self.console.print()
+                self.console.print("[dim]Tip: Gunakan /scan untuk memindai ulang atau /tools untuk melihat tool MCP.[/dim]\n")
             return True
 
         elif root_cmd == "/paraphrase":
