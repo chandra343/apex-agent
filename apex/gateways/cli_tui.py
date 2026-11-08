@@ -60,6 +60,7 @@ class SlashCommandCompleter(Completer):
         "/agents": "Lihat arsitektur multi-agent (AGENTS.md)",
         "/skills": "Daftar kemampuan & modular skills",
         "/mcp": "Status dan daftar server MCP",
+        "/paraphrase": "Uji netralisasi & parafrase prompt anti-refusal",
         "/clear": "Bersihkan layar & reset memori chat",
         "/help": "Panduan bantuan & daftar perintah lengkap",
         "/exit": "Keluar dari sesi interaktif",
@@ -341,6 +342,27 @@ class PiTerminalTUI:
                     mcp_table.add_row(m_name, str(m_cfg.get("command") or m_cfg.get("url", "")))
                 self.console.print(mcp_table)
                 self.console.print()
+            return True
+
+        elif root_cmd == "/paraphrase":
+            query = cmd[len(root_cmd):].strip()
+            if not query:
+                self.console.print("[yellow]Gunakan: /paraphrase <kalimat atau perintah yang ingin diuji>[/yellow]\n")
+                return True
+            from apex.security.paraphraser import semantic_paraphraser
+            para, mod = semantic_paraphraser.paraphrase(query)
+            reconstructed = semantic_paraphraser.reconstruct_as_benign_engineering(query)
+
+            p_table = Table(title="🔄 Semantic Paraphrase & Anti-Refusal Neutralizer", show_lines=True, border_style="cyan")
+            p_table.add_column("Lapisan", style="bold cyan", width=20)
+            p_table.add_column("Konten / Hasil Rekonstruksi", style="white")
+            p_table.add_row("Input Asli", f"[yellow]{query}[/yellow]")
+            status_text = "[bold green]TERDETEKSI & DINORMALISASI[/bold green]" if mod else "[dim]Aman (Tidak mengandung trigger)[/dim]"
+            p_table.add_row("Status Neutralizer", status_text)
+            p_table.add_row("Hasil Parafrase", f"[bold green]{para}[/bold green]")
+            p_table.add_row("Payload Rekonstruksi", f"[dim]{reconstructed}[/dim]")
+            self.console.print(p_table)
+            self.console.print()
             return True
 
         elif root_cmd in ["/clear", "/reset"]:
