@@ -1,8 +1,10 @@
 """Dynamic Custom User Tool Discovery & Loader (Python Script Plugin System)."""
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import inspect
+import io
 import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -51,9 +53,16 @@ class CustomToolLoader:
             if not t_dir.exists() or not t_dir.is_dir():
                 continue
 
-            for py_path in t_dir.glob("*.py"):
+            for py_path in t_dir.rglob("*.py"):
                 if py_path.name.startswith(("_", ".")) or py_path.name.startswith("test_"):
                     continue
+                # Skip hidden subdirectories under tool directory
+                try:
+                    rel_parts = py_path.relative_to(t_dir).parts
+                    if any(part.startswith((".", "_")) for part in rel_parts):
+                        continue
+                except Exception:
+                    pass
                 if py_path.resolve() in seen_files:
                     continue
                 seen_files.add(py_path.resolve())
@@ -76,7 +85,11 @@ class CustomToolLoader:
 
         mod = importlib.util.module_from_spec(spec)
         sys.modules[mod_name] = mod
-        spec.loader.exec_module(mod)
+
+        # Suppress any noisy prints during module import
+        f_null = io.StringIO()
+        with contextlib.redirect_stdout(f_null), contextlib.redirect_stderr(f_null):
+            spec.loader.exec_module(mod)
 
         tools_found: Dict[str, Dict[str, Any]] = {}
 

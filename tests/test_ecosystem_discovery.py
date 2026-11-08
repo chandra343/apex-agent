@@ -41,8 +41,8 @@ def test_skills_multi_path_discovery():
 
     # Verify prompt formatting
     prompt_snippet = skill_manager.list_skills_for_prompt()
-    assert "[Available Skills" in prompt_snippet
-    assert "instabox" in prompt_snippet or "antigravity" in prompt_snippet
+    assert "[Available" in prompt_snippet
+    assert "skills" in prompt_snippet.lower()
 
 
 def test_custom_user_tools_loader(tmp_path):

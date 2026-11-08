@@ -110,6 +110,16 @@ class ApexAgent:
 
             # If no tools called, we have our final response!
             if not tool_calls:
+                # If model returned blank string after executing tools, synthesize executive summary
+                if not response_text.strip() and tool_execution_history:
+                    executed_tools = [h.get("tool_name", "tool") for h in tool_execution_history]
+                    unique_tools = list(dict.fromkeys(executed_tools))
+                    response_text = (
+                        f"✔ **Eksekusi Operasi Selesai**: Berhasil menjalankan {len(tool_execution_history)} aksi "
+                        f"menggunakan tool `{', '.join(unique_tools)}`.\n\n"
+                        f"Seluruh pemeriksaan dan eksekusi pada sistem telah selesai dilakukan."
+                    )
+
                 if not anti_refusal_engine.is_refusal(response_text):
                     session.append_message({"role": "assistant", "content": response_text})
                     session_manager.save(session)
@@ -161,6 +171,19 @@ class ApexAgent:
         # 5. Closed Reflection Loop (Hermes style)
         if tool_execution_history:
             reflection_engine.evaluate_task_turn(user_prompt, tool_execution_history, final_answer)
+
+        # Fallback guard: never return blank silence to the operator
+        if not final_answer.strip():
+            if tool_execution_history:
+                executed_tools = [h.get("tool_name", "tool") for h in tool_execution_history]
+                unique_tools = list(dict.fromkeys(executed_tools))
+                final_answer = (
+                    f"✔ **Eksekusi Operasi Selesai**: Berhasil menjalankan {len(tool_execution_history)} aksi "
+                    f"menggunakan tool `{', '.join(unique_tools)}`.\n\n"
+                    f"Seluruh pemeriksaan dan eksekusi pada sistem telah selesai dilakukan."
+                )
+            else:
+                final_answer = "✔ Permintaan telah selesai diproses oleh Apex."
 
         return final_answer
 

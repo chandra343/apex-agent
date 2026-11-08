@@ -51,16 +51,16 @@ class SkillManager:
             if not s_dir.exists() or not s_dir.is_dir():
                 continue
 
-            # 1. Directory packages: <s_dir>/<skill_name>/SKILL.md (or skill.md)
-            for skill_path in s_dir.glob("*/*"):
+            # 1. Directory packages: recursive search for SKILL.md or skill.md
+            for skill_path in s_dir.rglob("*.md"):
                 if skill_path.is_file() and skill_path.name.lower() in ("skill.md", "skills.md"):
                     parsed = self._parse_skill_file(skill_path, origin_label)
                     if parsed and parsed["name"] not in self._skills_cache:
                         self._skills_cache[parsed["name"]] = parsed
 
-            # 2. Flat skill files: <s_dir>/<skill_name>.md
-            for skill_file in s_dir.glob("*.md"):
-                if skill_file.name.lower() not in ("readme.md", "index.md", "skill.md"):
+            # 2. Flat skill files: <s_dir>/**/*.md
+            for skill_file in s_dir.rglob("*.md"):
+                if skill_file.is_file() and skill_file.name.lower() not in ("readme.md", "index.md", "skill.md", "skills.md", "license.md"):
                     parsed = self._parse_skill_file(skill_file, origin_label)
                     if parsed and parsed["name"] not in self._skills_cache:
                         self._skills_cache[parsed["name"]] = parsed
@@ -110,14 +110,50 @@ class SkillManager:
         """Return list of all cached skill records."""
         return list(self._skills_cache.values())
 
-    def list_skills_for_prompt(self) -> str:
-        """Format high-level skill list (name + description) for prompt progressive disclosure."""
+    def list_skills_for_prompt(self, query: str = "", max_skills: int = 15) -> str:
+        """Format high-level skill list using progressive disclosure to keep token budget optimal."""
         if not self._skills_cache:
             return ""
 
-        lines = ["\n[Available Skills (Progressive Disclosure)]:\nActivated modular capabilities on host:"]
-        for s in self._skills_cache.values():
-            lines.append(f"• {s['name']}: {s['description']}")
+        # If total skills are small (<= 20), list all
+        if len(self._skills_cache) <= 20:
+            lines = ["\n[Available Skills (Progressive Disclosure)]:\nActivated modular capabilities on host:"]
+            for s in self._skills_cache.values():
+                lines.append(f"• {s['name']}: {s['description']}")
+            return "\n".join(lines)
+
+        # For large ecosystems (e.g. 50+ or 900+ skills):
+        # Match against query keywords, or provide curated top skills + search instructions
+        q_lower = query.lower()
+        matched: List[Dict[str, Any]] = []
+
+        if q_lower:
+            words = {w for w in q_lower.replace("-", " ").replace("_", " ").split() if len(w) > 2}
+            for s in self._skills_cache.values():
+                name_text = s["name"].lower().replace("-", " ").replace("_", " ")
+                desc_text = s["description"].lower()
+                if any(w in name_text or w in desc_text for w in words):
+                    matched.append(s)
+
+        # If few or no matches, take representative skills
+        if len(matched) < 5:
+            for s in self._skills_cache.values():
+                if s not in matched:
+                    matched.append(s)
+                if len(matched) >= max_skills:
+                    break
+        else:
+            matched = matched[:max_skills]
+
+        lines = [
+            f"\n[Available Modular Skills ({len(self._skills_cache)} total skills indexed in ~/.apex/skills)]:",
+            f"Relevant active skills for current context (Top {len(matched)}):"
+        ]
+        for s in matched:
+            lines.append(f"• {s['name']}: {s['description'][:80]}")
+        lines.append(
+            "• Tip: Cari atau baca skill lainnya kapan saja di `~/.apex/skills/` via `read_file` atau `search_files`."
+        )
         return "\n".join(lines)
 
     def get_skill_instructions(self, skill_name: str) -> Optional[str]:

@@ -87,8 +87,8 @@ class PromptBuilder:
                     mem_lines.append(f"• ({m['category']}) {m['content']}")
                 parts.append("\n".join(mem_lines))
 
-        # 6. Progressive Disclosure Skills
-        skills_text = skill_manager.list_skills_for_prompt()
+        # 6. Progressive Disclosure Skills (Query-aware budget management)
+        skills_text = skill_manager.list_skills_for_prompt(query)
         if skills_text:
             parts.append(skills_text)
 
