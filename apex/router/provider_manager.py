@@ -232,7 +232,7 @@ class ProviderManager:
                 "User-Agent": "Antigravity/2.0"
             }
             try:
-                resp = requests.post(url, headers=headers, json={}, timeout=8)
+                resp = requests.post(url, headers=headers, json={}, timeout=15)
                 latency = round(time.time() - start_t, 3)
                 if resp.status_code == 200:
                     tier = resp.json().get("currentTier", {}).get("name", "Antigravity")
@@ -265,7 +265,7 @@ class ProviderManager:
                 "messages": [{"role": "user", "content": "ping"}]
             }
             try:
-                resp = requests.post(url, headers=headers, json=payload, timeout=12)
+                resp = requests.post(url, headers=headers, json=payload, timeout=20)
                 latency = round(time.time() - start_t, 3)
                 if resp.status_code in [200, 201]:
                     return True, f"OK Copilot ({test_model})", latency
@@ -304,11 +304,18 @@ class ProviderManager:
                 url = f"{base_url}/chat/completions"
                 payload = {
                     "model": test_model,
-                    "max_tokens": 5,
+                    "max_tokens": 3,
                     "messages": [{"role": "user", "content": "ping"}]
                 }
 
-            resp = requests.post(url, headers=headers, json=payload, timeout=8)
+            timeout_sec = 25
+            try:
+                resp = requests.post(url, headers=headers, json=payload, timeout=timeout_sec)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                # Automatic 1-time retry for cold-start queue delay on free/cloud models
+                time.sleep(0.5)
+                resp = requests.post(url, headers=headers, json=payload, timeout=timeout_sec)
+
             latency = round(time.time() - start_t, 3)
 
             if resp.status_code in [200, 201]:
@@ -382,7 +389,7 @@ class ProviderManager:
             headers["Authorization"] = f"Bearer {api_key}"
 
         try:
-            resp = requests.get(url, headers=headers, timeout=8)
+            resp = requests.get(url, headers=headers, timeout=15)
             if resp.status_code == 200:
                 data = resp.json()
                 model_items = data.get("data", [])
@@ -396,6 +403,40 @@ class ProviderManager:
         except Exception as e:
             return False, str(e), []
 
+    def is_provider_configured(self, name: str) -> bool:
+        """Check if a provider has active credentials or is a reachable local engine."""
+        providers = config.get("providers", {})
+        p_data = providers.get(name)
+        if not p_data:
+            return False
+
+        if name == "antigravity":
+            return bool(oauth_manager.get_valid_antigravity_token())
+        if name == "copilot":
+            return bool(oauth_manager.get_valid_copilot_token())
+
+        api_key = p_data.get("api_key", "").strip()
+        is_local = name in ["ollama", "vllm", "lmstudio", "llamacpp", "localai"]
+        if is_local:
+            import socket
+            base_url = p_data.get("base_url", "")
+            port = 11434
+            if ":11434" in base_url:
+                port = 11434
+            elif ":8000" in base_url:
+                port = 8000
+            elif ":1234" in base_url:
+                port = 1234
+            elif ":8080" in base_url:
+                port = 8080
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.15):
+                    return True
+            except (OSError, ConnectionRefusedError):
+                return False
+
+        return bool(api_key and not api_key.startswith("YOUR_") and api_key != "none")
+
     def refresh_all_models(self) -> Dict[str, Tuple[bool, str, List[str]]]:
         """Synchronize models for all configured providers."""
         results: Dict[str, Tuple[bool, str, List[str]]] = {}
@@ -404,11 +445,25 @@ class ProviderManager:
             results[name] = self.fetch_live_models(name)
         return results
 
-    def test_all(self) -> Dict[str, Tuple[bool, str, float]]:
-        """Run diagnostics on all configured providers concurrently."""
+    def test_all(self, only_configured: bool = True) -> Dict[str, Tuple[bool, str, float]]:
+        """Run diagnostics on providers.
+        
+        Args:
+            only_configured: If True, only tests providers that have valid credentials
+                             or active reachable endpoints. Default True.
+        """
         results: Dict[str, Tuple[bool, str, float]] = {}
         providers = config.get("providers", {})
-        for name in providers:
+
+        if only_configured:
+            targets = [name for name in providers if self.is_provider_configured(name)]
+            if not targets:
+                active_p = config.get("active_provider")
+                targets = [active_p] if active_p in providers else list(providers.keys())[:5]
+        else:
+            targets = list(providers.keys())
+
+        for name in targets:
             results[name] = self.test_provider(name)
         return results
 

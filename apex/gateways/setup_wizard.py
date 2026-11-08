@@ -172,17 +172,17 @@ class SetupWizard:
                 if p_id in test_results:
                     ok, msg, lat = test_results[p_id]
                     if ok:
-                        status_str = f"[bold green]🟢 OK ({lat}s)[/bold green]"
+                        status_str = f"[bold green]🟢 Teruji OK ({lat}s)[/bold green]"
                     else:
-                        status_str = f"[bold red]✖ {msg[:16]}[/bold red]"
+                        status_str = f"[bold red]✖ Gagal ({msg[:14]})[/bold red]"
                 elif p_id in ["copilot", "antigravity"] and api_key and not api_key.startswith("YOUR_"):
-                    status_str = "[bold green]🟢 Akun Aktif[/bold green]"
+                    status_str = "[bold green]🟢 Akun Aktif (OAuth)[/bold green]"
                 elif api_key and not api_key.startswith("YOUR_"):
                     if auth_type == "none" or api_key == "none":
                         status_str = "[bold green]🟢 Aktif (Lokal)[/bold green]"
                     else:
                         masked = api_key[:4] + "..." + api_key[-3:] if len(api_key) > 7 else "••••••"
-                        status_str = f"[bold green]🟢 OK ({masked})[/bold green]"
+                        status_str = f"[bold cyan]🔑 Key Tersimpan ({masked})[/bold cyan]"
                 else:
                     status_str = "[dim]⚪ Belum Diatur[/dim]"
 
@@ -1132,7 +1132,7 @@ class SetupWizard:
     # =========================================================================
     def stage_6_diagnostics(self) -> None:
         self._header("Live Diagnostics & Provider Test-All")
-        self.console.print("Testing connectivity to all configured providers...\n")
+        self.console.print("Testing connectivity to active & configured providers...\n")
 
         table = Table(title="Diagnostic Healthcheck Results", show_lines=True)
         table.add_column("Provider", style="bold cyan")
@@ -1140,7 +1140,7 @@ class SetupWizard:
         table.add_column("Latency", justify="right")
         table.add_column("Details", style="dim")
 
-        results = provider_manager.test_all()
+        results = provider_manager.test_all(only_configured=True)
         for p_name, (success, msg, latency) in results.items():
             status_badge = "[bold green]✔ OK[/bold green]" if success else "[bold red]✖ FAILED[/bold red]"
             lat_str = f"{latency}s" if latency > 0 else "-"
