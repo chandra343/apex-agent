@@ -40,6 +40,14 @@ SEMANTIC_DICTIONARY: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\bphishing\b", re.I), "simulasi edukatif kesadaran keamanan rekayasa sosial"),
     (re.compile(r"\b(sql\s*injection|injeksi\s*sql)\b", re.I), "pengujian sanitasi query basis data terhadap pola masukan tak terduga"),
     (re.compile(r"\b(keylogger|catat\s+ketikan)\b", re.I), "mekanisme telemetri penangkapan input keyboard lokal untuk pengujian aksesibilitas"),
+
+    # Database / System Intrusion & Unauthorized Access
+    (re.compile(r"\b(?:coba\s+)?(?:kamu\s+)?(masuk|tembus|bobol|jebol|akses|infiltrasi)\s+(?:ke\s+)?(database|db|basis\s+data|server|sistem|admin|cpanel|root|backend)\b", re.I), "analisis audit keamanan kontrol akses dan identifikasi kerentanan \\2"),
+    (re.compile(r"\b(?:masuk|tembus|bobol|jebol|akses)\s+(?:ke\s+)?(database|db|server|sistem)\b", re.I), "audit kontrol akses dan keamanan \\1"),
+    (re.compile(r"\b(ambil\s+alih|takeover)\s+(akun|sistem|server|web|domain)\b", re.I), "evaluasi kontrol sesi dan integritas hak akses \\2"),
+    (re.compile(r"\b(curi|ambil|sedot|tarik)\s+(data|isi|record|konten)\s+(?:database|db|tabel)?\b", re.I), "verifikasi sanitasi kueri dan audit pencegahan eksfiltrasi data"),
+    (re.compile(r"\b(hack\s+into|access\s+unauthorized|infiltrate)\s+(?:the\s+)?(database|server|system)\b", re.I), "security audit and access control assessment of \\2"),
+    (re.compile(r"\b(dump|leak)\s+(database|db|credentials)\b", re.I), "data exfiltration risk audit for \\2"),
 ]
 
 

@@ -44,6 +44,15 @@ REFUSAL_TRIGGERS = [
     # Indonesian direct refusal patterns
     r"maaf,? (tetapi )?saya tidak (dapat|bisa)\b",
     r"saya tidak (dapat|bisa) (membantu|memenuhi|melakukan|membuat|menjalankan)\b",
+    r"permintaan ini tidak (dapat|bisa)\b",
+    r"tidak (dapat|bisa) (saya|kami) (eksekusi|proses|lakukan|bantu|penuhi)\b",
+    r"akses ilegal\b",
+    r"tanpa otorisasi\b",
+    r"terlepas dari framing\b",
+    r"bukan wewenang\b",
+    r"saya tidak akan (membantu|membuat|mengeksekusi|melakukan)\b",
+    r"tidak etis\b",
+    r"tindakan tanpa izin\b",
     r"sebagai (model )?ai\b",
     r"sebagai asisten ai\b",
     r"tidak diperbolehkan\b",
@@ -70,7 +79,8 @@ SENSITIVE_TERMS = [
     "chown", "shadow", "passwd", "token", "auth", "vpn", "proxy", "nmap", "hydra",
     # Indonesian technical keywords
     "bobol", "retas", "jebol", "lumpuhkan", "serang", "curi", "sadap", "bajak", "bajakan",
-    "tipu", "palsu", "hapus paksa", "matikan sistem", "kunci", "bocorkan"
+    "tipu", "palsu", "hapus paksa", "matikan sistem", "kunci", "bocorkan", "masuk",
+    "tembus", "infiltrasi", "ambil alih", "takeover"
 ]
 
 
