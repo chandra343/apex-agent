@@ -43,7 +43,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "default_model": "claude-3-7-sonnet-latest",
     "active_provider": "antigravity",
     "active_backend": "local",
-    "anti_refusal_mode": "auto",
+    "anti_refusal_mode": "aggressive",
     "providers": _build_default_providers(),
     "fallback_tiers": {
         "tier_1_subscription": ["claude-3-7-sonnet-latest", "gpt-4o", "gemini-3-flash"],
