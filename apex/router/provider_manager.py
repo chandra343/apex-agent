@@ -51,6 +51,56 @@ class ProviderManager:
             return True
         return False
 
+    def add_model_to_provider(self, provider_name: str, model_name: str) -> Tuple[bool, str]:
+        """Add a custom user model to a specific provider and save config."""
+        p_name = provider_name.strip().lower()
+        m_name = model_name.strip()
+        if not m_name:
+            return False, "Nama model tidak boleh kosong."
+
+        providers = config.get("providers", {})
+        if p_name not in providers:
+            providers[p_name] = {
+                "api_key": "none",
+                "base_url": "http://localhost:8000/v1",
+                "models": []
+            }
+
+        curr_models = providers[p_name].get("models", [])
+        if m_name in curr_models or any(m.lower() == m_name.lower() for m in curr_models):
+            return False, f"Model '{m_name}' sudah terdaftar pada provider '{p_name}'."
+
+        curr_models.append(m_name)
+        providers[p_name]["models"] = curr_models
+        config.set("providers", providers, auto_save=True)
+        return True, f"Model '{m_name}' berhasil ditambahkan ke provider '{p_name}'!"
+
+    def remove_model_from_provider(self, provider_name: str, model_name: str) -> Tuple[bool, str]:
+        """Remove a model from a specific provider and save config."""
+        p_name = provider_name.strip().lower()
+        m_name = model_name.strip().lower()
+        if not m_name:
+            return False, "Nama model tidak boleh kosong."
+
+        providers = config.get("providers", {})
+        if p_name not in providers:
+            return False, f"Provider '{p_name}' tidak ditemukan."
+
+        curr_models = providers[p_name].get("models", [])
+        found_target = None
+        for m in curr_models:
+            if m.lower() == m_name:
+                found_target = m
+                break
+
+        if not found_target:
+            return False, f"Model '{model_name}' tidak ditemukan di provider '{p_name}'."
+
+        curr_models.remove(found_target)
+        providers[p_name]["models"] = curr_models
+        config.set("providers", providers, auto_save=True)
+        return True, f"Model '{found_target}' berhasil dihapus dari provider '{p_name}'."
+
     def get_provider_for_model(self, model_name: str) -> Optional[Tuple[str, Dict[str, Any]]]:
         """Find the matching provider configuration for a given model."""
         providers = config.get("providers", {})

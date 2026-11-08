@@ -44,8 +44,10 @@ def main() -> None:
     gw_sub.add_parser("status", help="Check gateway daemon status")
 
     # Model
-    model_parser = subparsers.add_parser("model", help="View or switch active model")
-    model_parser.add_argument("name", nargs="?", default=None, help="Model name to switch to")
+    model_parser = subparsers.add_parser("model", help="View, switch, or add custom AI models")
+    model_parser.add_argument("name", nargs="?", default=None, help="Model name to switch to, or 'add' / 'rm'")
+    model_parser.add_argument("target_model", nargs="?", default="", help="Model name if using add/rm")
+    model_parser.add_argument("--provider", "-p", default="", help="Target provider ID (e.g. ollama, openai, vllm)")
 
     # Provider
     prov_parser = subparsers.add_parser("provider", help="Manage AI providers")
@@ -88,6 +90,72 @@ def main() -> None:
         return
 
     if args.command == "model":
+        cmd_action = (args.name or "").lower()
+
+        if cmd_action == "add":
+            m_name = args.target_model.strip()
+            p_name = args.provider.strip().lower()
+
+            if not m_name:
+                from rich.prompt import Prompt
+                from rich.console import Console
+                c = Console()
+                c.print("[bold cyan]➕ Tambah Model AI Kustom ke Project Apex[/bold cyan]")
+                m_name = Prompt.ask("Masukkan nama model (contoh: my-finetuned-llama, qwen-custom, mistral-large-3)").strip()
+                if not m_name:
+                    print("✖ Nama model tidak boleh kosong.")
+                    return
+
+            if not p_name:
+                from rich.prompt import Prompt
+                from rich.console import Console
+                c = Console()
+                configured = list(config.get("providers", {}).keys())
+                c.print(f"[dim]Provider yang aktif saat ini: {', '.join(configured[:8])}...[/dim]")
+                p_name = Prompt.ask("Masukkan ID provider tujuan", default="ollama").strip().lower()
+
+            ok, msg = provider_manager.add_model_to_provider(p_name, m_name)
+            if ok:
+                print(f"✔ {msg}")
+                from rich.prompt import Confirm
+                set_def = Confirm.ask(f"Jadikan '{m_name}' sebagai model default aktif sekarang?", default=True)
+                if set_def:
+                    model_switcher.switch_model(m_name)
+                    print(f"✔ Model default aktif sekarang: {m_name}")
+            else:
+                print(f"✖ {msg}")
+            return
+
+        if cmd_action in ["rm", "remove", "delete"]:
+            m_name = args.target_model.strip()
+            p_name = args.provider.strip().lower()
+
+            if not m_name:
+                from rich.prompt import Prompt
+                m_name = Prompt.ask("Masukkan nama model yang ingin dihapus").strip()
+                if not m_name:
+                    print("✖ Nama model tidak boleh kosong.")
+                    return
+
+            if not p_name:
+                providers = config.get("providers", {})
+                matching_p = [p for p, data in providers.items() if any(m.lower() == m_name.lower() for m in data.get("models", []))]
+                if len(matching_p) == 1:
+                    p_name = matching_p[0]
+                elif len(matching_p) > 1:
+                    from rich.prompt import Prompt
+                    p_name = Prompt.ask(f"Model ditemukan di beberapa provider ({', '.join(matching_p)}). Hapus dari", choices=matching_p)
+                else:
+                    print(f"✖ Model '{m_name}' tidak ditemukan di provider manapun.")
+                    return
+
+            ok, msg = provider_manager.remove_model_from_provider(p_name, m_name)
+            if ok:
+                print(f"✔ {msg}")
+            else:
+                print(f"✖ {msg}")
+            return
+
         if args.name:
             new_m = model_switcher.switch_model(args.name)
             print(f"✔ Active model switched to: {new_m}")
@@ -97,6 +165,9 @@ def main() -> None:
             for m in models:
                 mark = " (active)" if m["id"] == config.default_model else ""
                 print(f"  • {m['display']}{mark}")
+            print("\nTips:")
+            print("  • Tambah model kustom: apex model add <nama-model> --provider <provider>")
+            print("  • Ganti model aktif  : apex model <nama-model>")
         return
 
     if args.command == "provider":

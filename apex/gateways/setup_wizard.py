@@ -202,6 +202,7 @@ class SetupWizard:
                 " • Masukkan [bold yellow]s[/bold yellow]       : 🔍 [bold green]Auto-Scan Local AI[/bold green] (Ollama:11434, LM Studio:1234, vLLM:8000)\n"
                 " • Masukkan [bold yellow]f[/bold yellow]       : 📑 [bold cyan]Ganti Kategori / Filter Tab[/bold cyan] (All, OAuth, Frontier, Fast, APAC, Cloud, Local)\n"
                 " • Masukkan [bold yellow]+[/bold yellow]       : ➕ Tambah Custom Provider Baru\n"
+                " • Masukkan [bold yellow]+m[/bold yellow]      : ➕ [bold green]Tambah Model AI Baru ke Provider[/bold green]\n"
                 " • Masukkan [bold yellow]t[/bold yellow]       : 🧪 Test All (Uji koneksi & latensi semua provider serentak)\n"
                 " • Masukkan [bold yellow]r[/bold yellow]       : 🔄 [bold cyan]Sync / Refresh Live Models[/bold cyan] (Ambil model terbaru langsung dari API)\n"
                 " • Masukkan [bold yellow]m[/bold yellow]       : 📋 [bold cyan]Katalog Model AI Lengkap[/bold cyan] (Tampilkan semua model & capability tags)\n"
@@ -211,8 +212,12 @@ class SetupWizard:
 
             choice = Prompt.ask("\nPilih aksi").strip().lower()
 
+            if choice in ["+m", "m+", "addm", "add-model"]:
+                self._add_custom_model_dialog(all_shelf_items)
+                continue
+
             if choice == "m":
-                self._show_model_catalog()
+                self._show_model_catalog(all_shelf_items)
                 continue
 
             if choice == "b":
@@ -387,7 +392,46 @@ class SetupWizard:
                     self.console.print(f"[red]Nomor {choice} tidak ada dalam daftar.[/red]")
                     time.sleep(1.0)
 
-    def _show_model_catalog(self) -> None:
+    def _add_custom_model_dialog(self, all_shelf_items: list[dict[str, Any]]) -> None:
+        """Interactive dialog to add a custom AI model to any provider."""
+        self.console.print(Panel(
+            "[bold cyan]➕ Tambah Model AI Kustom Baru[/bold cyan]\n"
+            "[dim]Tambahkan model baru ke provider lokal (Ollama, vLLM, LM Studio) atau cloud provider manapun.[/dim]",
+            border_style="cyan"
+        ))
+
+        m_name = Prompt.ask("Masukkan nama / ID model baru (contoh: my-finetuned-llama, qwen-custom, deepseek-r1-q4)").strip()
+        if not m_name:
+            self.console.print("[yellow]Batal: Nama model kosong.[/yellow]")
+            time.sleep(1.0)
+            return
+
+        self.console.print("\nPilih provider tujuan:")
+        self.console.print("  • Masukkan nomor provider dari daftar shelf (1 - 46)")
+        self.console.print("  • Atau ketik ID provider langsung (misal: ollama, vllm, openai, deepseek, openrouter)")
+
+        p_input = Prompt.ask("Provider tujuan", default="ollama").strip().lower()
+        target_p_id = p_input
+
+        if p_input.isdigit():
+            idx = int(p_input)
+            if 1 <= idx <= len(all_shelf_items):
+                target_p_id = all_shelf_items[idx - 1]["id"]
+
+        ok, msg = provider_manager.add_model_to_provider(target_p_id, m_name)
+        if ok:
+            self.console.print(f"[bold green]✔ {msg}[/bold green]")
+            set_def = Confirm.ask(f"Jadikan '{m_name}' sebagai model default aktif sekarang?", default=True)
+            if set_def:
+                from apex.router.model_switcher import ModelSwitcher
+                ModelSwitcher().switch_model(m_name)
+                self.console.print(f"[bold green]✔ Model default aktif sekarang: {m_name}[/bold green]")
+        else:
+            self.console.print(f"[bold yellow]✖ {msg}[/bold yellow]")
+
+        Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
+
+    def _show_model_catalog(self, all_shelf_items: Optional[list[dict[str, Any]]] = None) -> None:
         """Display an organized table of all available AI models across all 46+ providers with capability tags."""
         from apex.router.model_switcher import ModelSwitcher
         switcher = ModelSwitcher()
@@ -413,9 +457,11 @@ class SetupWizard:
             )
 
         self.console.print(table)
-        self.console.print("[dim]Ketik nama model untuk dijadikan model default, atau tekan Enter untuk kembali.[/dim]")
-        pick = Prompt.ask("Pilih model default baru (atau Enter)", default="").strip()
-        if pick:
+        self.console.print("[dim]Tips: Ketik '+' untuk menambah model kustom baru, atau ketik nama model untuk dijadikan default.[/dim]")
+        pick = Prompt.ask("Pilih aksi (atau Enter untuk kembali)", default="").strip()
+        if pick == "+":
+            self._add_custom_model_dialog(all_shelf_items or [])
+        elif pick:
             chosen = switcher.switch_model(pick)
             self.console.print(f"[bold green]✔ Model default aktif diatur ke: {chosen}[/bold green]")
             time.sleep(1.0)
@@ -431,146 +477,175 @@ class SetupWizard:
         p_id = item["id"]
         p_name = item["name"]
         icon = item["icon"]
-        existing = configured_providers.get(p_id, {})
-        curr_key = existing.get("api_key", "")
-        curr_url = existing.get("base_url") or item["url"]
-        placeholders = {"local-model", "vllm-model", "gguf-model"}
-        raw_m = list(dict.fromkeys(item.get("models", []) + existing.get("models", [])))
-        curr_models = [m for m in raw_m if m not in placeholders] or raw_m
+        auth_type = item.get("auth_type", "api_key")
 
-        # Special shortcut for Google Antigravity
-        if p_id == "antigravity":
-            self.console.print(Panel(
-                f"[bold cyan]{icon} {p_name.upper()} (OAUTH & CLOUD CODE ASSIST)[/bold cyan]\n"
-                f"Model Tersedia: [yellow]{', '.join(curr_models)}[/yellow]\n"
-                f"[dim]Apex dapat mendeteksi session aktif Google Antigravity langsung dari sistem komputer Anda.[/dim]",
-                border_style="cyan"
-            ))
-            do_import = Confirm.ask("Impor session Antigravity dari ~/.gemini/antigravity-cli sekarang?", default=True)
-            if do_import:
-                ok, msg = oauth_manager.import_antigravity(self.console)
-                if ok:
-                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
-                    t_ok, t_msg, t_lat = provider_manager.test_provider("antigravity")
-                    test_results["antigravity"] = (t_ok, t_msg, t_lat)
-                    if t_ok:
-                        self.console.print(f"[bold green]✔ Terverifikasi! Latensi: {t_lat}s ({t_msg})[/bold green]")
+        while True:
+            existing = config.get("providers", {}).get(p_id, {})
+            curr_key = existing.get("api_key", "")
+            curr_url = existing.get("base_url") or item["url"]
+            placeholders = {"local-model", "vllm-model", "gguf-model"}
+            raw_m = list(dict.fromkeys(item.get("models", []) + existing.get("models", [])))
+            curr_models = [m for m in raw_m if m not in placeholders] or raw_m
+
+            # Key status preview
+            if curr_key and not curr_key.startswith("YOUR_"):
+                if auth_type == "none" or curr_key == "none":
+                    key_status = "[bold green]🟢 Aktif (Lokal / No Key Required)[/bold green]"
+                elif auth_type in ["oauth_device", "oauth_session", "session_import"]:
+                    key_status = "[bold green]🟢 Session / OAuth Aktif[/bold green]"
                 else:
-                    self.console.print(f"[bold red]✖ {msg}[/bold red]")
-                Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
-                return
-
-        # Special shortcut for OpenAI Codex / ChatGPT Plus
-        if p_id == "codex":
-            self.console.print(Panel(
-                f"[bold cyan]{icon} {p_name.upper()} (CHATGPT PLUS & CODEX SESSION)[/bold cyan]\n"
-                f"Model Tersedia: [yellow]{', '.join(curr_models)}[/yellow]\n"
-                f"[dim]Gunakan session token ChatGPT Plus Anda untuk model GPT-4o & o1.[/dim]",
-                border_style="cyan"
-            ))
-            tok = Prompt.ask("Masukkan Session Token OpenAI Codex (Enter untuk auto-detect)", default="").strip()
-            ok, msg = oauth_manager.import_codex(tok)
-            if ok:
-                self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    masked = curr_key[:4] + "..." + curr_key[-3:] if len(curr_key) > 7 else "••••••"
+                    key_status = f"[bold green]🟢 Terkonfigurasi ({masked})[/bold green]"
             else:
-                self.console.print(f"[yellow]{msg}[/yellow]")
-            Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
-            return
+                key_status = "[dim]⚪ Belum Dikonfigurasi[/dim]"
 
-        # Special shortcut for Kiro AI
-        if p_id == "kiro":
-            oauth_manager.import_kiro()
-            self.console.print("[bold green]✔ Kiro AI Platform (Free Tier) berhasil diaktifkan![/bold green]")
-            Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
-            return
-
-        # Special shortcut for GitHub Copilot
-        if p_id == "copilot":
             self.console.print(Panel(
-                f"[bold cyan]{icon} {p_name.upper()} (OAUTH & LANGGANAN)[/bold cyan]\n"
-                f"Model Tersedia: [yellow]{', '.join(curr_models)}[/yellow]\n"
-                f"[dim]Anda dapat login otomatis via browser (OAuth Device Code) tanpa perlu mengetik token manual.[/dim]",
+                f"[bold cyan]{icon} {p_name.upper()}[/bold cyan] [dim]({p_id})[/dim]\n"
+                f"Status   : {key_status}\n"
+                f"Endpoint : [dim]{curr_url}[/dim]\n"
+                f"Model ({len(curr_models)} terdaftar):\n[yellow]{', '.join(curr_models)}[/yellow]\n\n"
+                f"[dim]{item.get('description', '')}[/dim]",
                 border_style="cyan"
             ))
-            do_oauth = Confirm.ask("Mulai login via GitHub OAuth sekarang?", default=True)
-            if do_oauth:
-                ok, msg = oauth_manager.login_github_copilot(self.console)
+
+            self.console.print(
+                "[bold cyan]Pilihan Aksi untuk Provider Ini:[/bold cyan]\n"
+                " 1. ➕ [bold green]Tambah Model AI Baru ke Provider Ini[/bold green]\n"
+                " 2. ➖ [bold red]Hapus Model Tertentu dari Provider Ini[/bold red]\n"
+                " 3. 📝 Edit Seluruh Daftar Model Sekaligus (Pisahkan Koma)\n"
+                " 4. 🔑 Atur API Key / Login Akun\n"
+                " 5. 🌐 Ubah Base URL Endpoint\n"
+                " 6. 🔄 Sinkronkan / Fetch Live Models dari Upstream API\n"
+                " 7. 🧪 Uji Koneksi Provider Ini\n"
+                " 8. ↩️  Kembali ke Shelf\n"
+            )
+            sub_choice = Prompt.ask("Pilih aksi [1-8]", default="8").strip()
+
+            if sub_choice == "1":
+                new_m = Prompt.ask("\nMasukkan nama / ID model AI baru (contoh: mistral-small-3, qwen-custom)").strip()
+                if new_m:
+                    ok, msg = provider_manager.add_model_to_provider(p_id, new_m)
+                    if ok:
+                        self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                        set_def = Confirm.ask(f"Jadikan '{new_m}' sebagai model default aktif sekarang?", default=True)
+                        if set_def:
+                            from apex.router.model_switcher import ModelSwitcher
+                            ModelSwitcher().switch_model(new_m)
+                            self.console.print(f"[bold green]✔ Model default aktif sekarang: {new_m}[/bold green]")
+                    else:
+                        self.console.print(f"[yellow]{msg}[/yellow]")
+                    Prompt.ask("\nTekan Enter untuk lanjut...")
+                continue
+
+            if sub_choice == "2":
+                self.console.print("\nPilih model yang ingin dihapus:")
+                for idx_m, m_name in enumerate(curr_models, 1):
+                    self.console.print(f"  {idx_m}. {m_name}")
+                del_pick = Prompt.ask("Ketik nomor atau nama model yang ingin dihapus (Enter untuk batal)", default="").strip()
+                if del_pick:
+                    target_to_del = ""
+                    if del_pick.isdigit() and 1 <= int(del_pick) <= len(curr_models):
+                        target_to_del = curr_models[int(del_pick) - 1]
+                    else:
+                        target_to_del = del_pick
+
+                    ok, msg = provider_manager.remove_model_from_provider(p_id, target_to_del)
+                    if ok:
+                        self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    else:
+                        self.console.print(f"[yellow]{msg}[/yellow]")
+                    Prompt.ask("\nTekan Enter untuk lanjut...")
+                continue
+
+            if sub_choice == "3":
+                new_models_str = Prompt.ask("\nDaftar Model (pisahkan koma)", default=", ".join(curr_models)).strip()
+                new_models = [m.strip() for m in new_models_str.split(",") if m.strip()]
+                key_to_use = curr_key if curr_key else ("none" if auth_type == "none" else "")
+                provider_manager.add_provider(p_id, key_to_use, curr_url, new_models)
+                self.console.print(f"[bold green]✔ Daftar model untuk {p_name} berhasil disimpan![/bold green]")
+                Prompt.ask("\nTekan Enter untuk lanjut...")
+                continue
+
+            if sub_choice == "4":
+                # Special OAuth logins
+                if p_id == "antigravity":
+                    ok, msg = oauth_manager.import_antigravity(self.console)
+                    if ok:
+                        self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    else:
+                        self.console.print(f"[yellow]{msg}[/yellow]")
+                elif p_id == "copilot":
+                    ok, msg = oauth_manager.login_github_copilot(self.console)
+                    if ok:
+                        self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    else:
+                        self.console.print(f"[yellow]{msg}[/yellow]")
+                elif p_id == "codex":
+                    tok = Prompt.ask("Masukkan Session Token OpenAI Codex (Enter untuk auto-detect)", default="").strip()
+                    ok, msg = oauth_manager.import_codex(tok)
+                    if ok:
+                        self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    else:
+                        self.console.print(f"[yellow]{msg}[/yellow]")
+                elif p_id == "claude-code":
+                    ok, msg, tok = oauth_manager.import_claude_code()
+                    if ok:
+                        self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    else:
+                        manual = Prompt.ask("Masukkan session token / key Claude Code", default="").strip()
+                        if manual:
+                            provider_manager.add_provider("claude-code", manual, curr_url, curr_models)
+                elif p_id == "cursor":
+                    ok, msg, tok = oauth_manager.import_cursor()
+                    if ok:
+                        self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    else:
+                        manual = Prompt.ask("Masukkan WorkOS Cursor Session Token", default="").strip()
+                        if manual:
+                            provider_manager.add_provider("cursor", manual, curr_url, curr_models)
+                elif auth_type == "none":
+                    self.console.print("[dim]Provider lokal tidak membutuhkan API key.[/dim]")
+                else:
+                    new_key = Prompt.ask(f"API Key untuk {p_name}", default=curr_key if not curr_key.startswith("YOUR_") else "").strip()
+                    if new_key:
+                        provider_manager.add_provider(p_id, new_key, curr_url, curr_models)
+                        self.console.print(f"[bold green]✔ Kredensial untuk {p_name} tersimpan![/bold green]")
+                Prompt.ask("\nTekan Enter untuk lanjut...")
+                continue
+
+            if sub_choice == "5":
+                new_url = Prompt.ask(f"\nBase URL Endpoint untuk {p_name}", default=curr_url).strip()
+                if new_url:
+                    key_to_use = curr_key if curr_key else ("none" if auth_type == "none" else "")
+                    provider_manager.add_provider(p_id, key_to_use, new_url, curr_models)
+                    self.console.print(f"[bold green]✔ Base URL untuk {p_name} berhasil diubah![/bold green]")
+                Prompt.ask("\nTekan Enter untuk lanjut...")
+                continue
+
+            if sub_choice == "6":
+                self.console.print(f"\n[cyan]Mengambil daftar model live dari {p_name}...[/cyan]")
+                ok, msg, live_m = provider_manager.fetch_live_models(p_id)
                 if ok:
                     self.console.print(f"[bold green]✔ {msg}[/bold green]")
-                    ok_t, msg_t, lat_t = provider_manager.test_provider("copilot")
-                    test_results["copilot"] = (ok_t, msg_t, lat_t)
-                    if ok_t:
-                        self.console.print(f"[bold green]✔ Terverifikasi! Latensi: {lat_t}s ({msg_t})[/bold green]")
+                    self.console.print(f"Model: [yellow]{', '.join(live_m)}[/yellow]")
                 else:
-                    self.console.print(f"[bold red]✖ {msg}[/bold red]")
-                Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
-                return
+                    self.console.print(f"[yellow]{msg}[/yellow]")
+                Prompt.ask("\nTekan Enter untuk lanjut...")
+                continue
 
-        # Special shortcut for local engines (Ollama, LM Studio, etc.)
-        if item.get("auth_type") == "none":
-            self.console.print(Panel(
-                f"[bold cyan]{icon} {p_name.upper()} (LOCAL ENGINE)[/bold cyan]\n"
-                f"Default Endpoint: [dim]{item['url']}[/dim]\n"
-                f"Model Bawaan: [yellow]{', '.join(curr_models)}[/yellow]\n"
-                f"[dim]Engine lokal gratis dan tidak membutuhkan API Key (bebas token).[/dim]",
-                border_style="cyan"
-            ))
-            new_url = Prompt.ask("Base URL Endpoint", default=curr_url).strip()
-            new_models_str = Prompt.ask("Daftar Model (pisahkan koma)", default=", ".join(curr_models)).strip()
-            new_models = [m.strip() for m in new_models_str.split(",") if m.strip()]
-
-            provider_manager.add_provider(p_id, "none", new_url, new_models)
-            self.console.print(f"[bold green]✔ Pengaturan {p_name} tersimpan![/bold green]")
-
-            test_now = Confirm.ask(f"Uji koneksi ke {p_name} sekarang?", default=True)
-            if test_now:
-                self.console.print(f"[dim]Menguji {p_name}...[/dim]")
+            if sub_choice == "7":
+                self.console.print(f"\n[dim]Menguji {p_name}...[/dim]")
                 ok, msg, lat = provider_manager.test_provider(p_id)
                 test_results[p_id] = (ok, msg, lat)
                 if ok:
                     self.console.print(f"[bold green]✔ Berhasil terhubung! Latensi: {lat}s ({msg})[/bold green]")
                 else:
                     self.console.print(f"[bold red]✖ Uji koneksi gagal: {msg}[/bold red]")
-                Prompt.ask("\nTekan Enter untuk kembali ke daftar provider...")
-            return
+                Prompt.ask("\nTekan Enter untuk lanjut...")
+                continue
 
-        # Standard API Key / Session Provider
-        self.console.print(Panel(
-            f"[bold cyan]Konfigurasi: {icon} {p_name.upper()}[/bold cyan]\n"
-            f"Deskripsi: [dim]{item.get('description', '-')}[/dim]\n"
-            f"Endpoint Default: [dim]{item['url']}[/dim]\n"
-            f"Model Bawaan: [yellow]{', '.join(curr_models)}[/yellow]",
-            border_style="cyan"
-        ))
-
-        key_prompt = f"API Key untuk {p_name} [Enter untuk simpan yang lama]"
-        new_key = Prompt.ask(key_prompt, default=curr_key if not curr_key.startswith("YOUR_") else "").strip()
-
-        url_prompt = f"Base URL Endpoint [Enter untuk tetap: {curr_url}]"
-        new_url = Prompt.ask(url_prompt, default=curr_url).strip()
-
-        models_prompt = f"Daftar Model (pisahkan koma) [Enter untuk tetap]"
-        new_models_str = Prompt.ask(models_prompt, default=", ".join(curr_models)).strip()
-        new_models = [m.strip() for m in new_models_str.split(",") if m.strip()]
-
-        if new_key:
-            provider_manager.add_provider(p_id, new_key, new_url, new_models)
-            self.console.print(f"[bold green]✔ Pengaturan {p_name} tersimpan![/bold green]")
-
-            # Offer immediate test
-            test_now = Confirm.ask(f"Uji koneksi ke {p_name} sekarang?", default=True)
-            if test_now:
-                self.console.print(f"[dim]Menguji {p_name}...[/dim]")
-                ok, msg, lat = provider_manager.test_provider(p_id)
-                test_results[p_id] = (ok, msg, lat)
-                if ok:
-                    self.console.print(f"[bold green]✔ Berhasil terhubung! Latensi: {lat}s ({msg})[/bold green]")
-                else:
-                    self.console.print(f"[bold red]✖ Uji koneksi gagal: {msg}[/bold red]")
-                Prompt.ask("\nTekan Enter untuk kembali ke daftar provider...")
-        else:
-            self.console.print("[dim]Tidak ada perubahan API Key yang disimpan.[/dim]")
-            time.sleep(1.0)
+            if sub_choice in ["8", "b", ""]:
+                break
 
     # =========================================================================
     # STAGE 3: Soul & Identity Manifest
