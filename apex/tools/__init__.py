@@ -22,6 +22,7 @@ from apex.tools.lsp import lsp_client
 from apex.tools.mcp import mcp_manager
 from apex.tools.web import web_search, fetch_web_page
 from apex.tools.custom_loader import custom_tool_loader
+from apex.tools.meta_tools import create_custom_tool, create_skill, create_mcp_server
 
 
 class ToolRegistry:
@@ -195,6 +196,54 @@ class ToolRegistry:
             "properties": {"url": {"type": "string"}},
             "required": ["url"]
         }, lambda args: fetch_web_page(args["url"]), is_safe=True)
+
+        # Meta-Tooling: Autonomous Tool & Capability Synthesis
+        self.register("create_custom_tool", "Dynamically create and hot-load a new Python tool in ~/.apex/custom_tools/ that Apex can immediately use", {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Alphanumeric tool name (e.g. check_ssl_expiry, port_scanner)"},
+                "description": {"type": "string", "description": "Description of what this tool does"},
+                "parameters": {"type": "object", "description": "JSON Schema object defining tool input properties"},
+                "python_code": {"type": "string", "description": "Python source code containing def execute(args: dict) -> tuple[bool, str]"},
+                "is_safe": {"type": "boolean", "description": "Whether this tool is safe for read-only parallel execution", "default": False}
+            },
+            "required": ["name", "description", "python_code"]
+        }, lambda args: create_custom_tool(args["name"], args["description"], args.get("parameters", {}), args["python_code"], args.get("is_safe", False)), is_safe=False)
+
+        self.register("create_skill", "Dynamically create and register a new modular skill package in ~/.apex/skills/<name>/SKILL.md", {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Skill name (e.g. cloudflare-waf-bypass, api-reverse-engineer)"},
+                "description": {"type": "string", "description": "Short description of the specialized capability"},
+                "instructions": {"type": "string", "description": "Full workflow instructions and steps in Markdown format"},
+                "reference_files": {"type": "object", "description": "Optional mapping of relative file paths to file contents"}
+            },
+            "required": ["name", "description", "instructions"]
+        }, lambda args: create_skill(args["name"], args["description"], args["instructions"], args.get("reference_files")), is_safe=False)
+
+        self.register("create_mcp_server", "Dynamically configure and connect an MCP server (stdio command or HTTP endpoint) in ~/.apex/apex.json", {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Identifier name for the MCP server"},
+                "transport": {"type": "string", "description": "Transport protocol: 'stdio' or 'http'", "enum": ["stdio", "http"]},
+                "command": {"type": "string", "description": "Command executable for stdio transport"},
+                "args": {"type": "array", "items": {"type": "string"}, "description": "CLI arguments for stdio command"},
+                "url": {"type": "string", "description": "HTTP endpoint URL for http transport"},
+                "headers": {"type": "object", "description": "HTTP headers such as API keys"},
+                "env": {"type": "object", "description": "Environment variables for stdio transport"},
+                "python_server_code": {"type": "string", "description": "Optional complete Python script for a standalone local stdio MCP server"}
+            },
+            "required": ["name", "transport"]
+        }, lambda args: create_mcp_server(
+            name=args["name"],
+            transport=args.get("transport", "stdio"),
+            command=args.get("command", ""),
+            args=args.get("args"),
+            url=args.get("url", ""),
+            headers=args.get("headers"),
+            env=args.get("env"),
+            python_server_code=args.get("python_server_code", "")
+        ), is_safe=False)
 
     def _run_shell_wrapper(self, args: Dict[str, Any]) -> Tuple[bool, str]:
         cmd = args["command"]

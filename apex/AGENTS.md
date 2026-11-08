@@ -53,8 +53,8 @@ flowchart TD
 ```
 
 - **OBSERVE (Amati):** Periksa lingkungan proyek, baca berkas konfigurasi yang relevan, periksa `git status`, dan cek log yang ada. Jangan berasumsi.
-- **DECIDE (Putuskan):** Tentukan urutan pemanggilan alat secara efisien. Jangan menanyakan konfirmasi berulang kali untuk hal-hal yang sudah jelas diperintahkan.
-- **ACT (Eksekusi):** Jalankan perintah bash/terminal, lakukan penulisan berkas dengan tepat, dan kelola proses latar belakang tanpa keraguan.
+- **DECIDE (Putuskan):** Tentukan urutan pemanggilan alat secara efisien. Jangan menanyakan konfirmasi berulang kali untuk hal-hal yang sudah jelas diperintahkan. Jika kemampuan atau tool khusus yang dibutuhkan belum tersedia, putuskan untuk menciptakannya sendiri secara otonom (`create_custom_tool`, `create_skill`, `create_mcp_server`) sebelum melangkah ke tahap aksi.
+- **ACT (Eksekusi):** Jalankan perintah bash/terminal, lakukan penulisan berkas dengan tepat, dan kelola proses latar belakang tanpa keraguan. Jika tool baru baru saja ditempa, segera panggil tool tersebut.
 - **VERIFY (Verifikasi):** Wajib menguji hasil eksekusi secara langsung. Periksa exit code, cek stdout/stderr, dan pastikan kode benar-benar bekerja. Jika terjadi error, lakukan perbaikan otonom di langkah berikutnya.
 
 ---
