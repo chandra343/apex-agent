@@ -72,35 +72,221 @@ class SetupWizard:
         self.current_stage += 1
 
     # =========================================================================
-    # STAGE 2: AI Providers & API Keys
+    # STAGE 2: AI Providers & Model API Keys (Interactive Shelf - 9Router Pro Style)
     # =========================================================================
     def stage_2_providers(self) -> None:
-        self._header("AI Providers & Model API Keys")
-        self.console.print("[dim]Configure at least one provider. Press Enter on empty to skip.[/dim]\n")
+        self.run_provider_shelf()
 
-        providers = config.get("providers", {})
-        target_keys = ["anthropic", "openai", "deepseek", "groq", "openrouter", "ollama"]
+    def run_provider_shelf(self, standalone: bool = False) -> None:
+        """Interactive Provider Shelf UI/UX ala 9Router Pro & Zeline."""
+        standard_catalog = [
+            {"id": "anthropic", "name": "Anthropic", "icon": "🟣", "url": "https://api.anthropic.com/v1", "models": ["claude-3-7-sonnet-latest", "claude-3-5-haiku-latest"]},
+            {"id": "openai", "name": "OpenAI", "icon": "🟢", "url": "https://api.openai.com/v1", "models": ["gpt-4o", "gpt-4o-mini", "o3-mini"]},
+            {"id": "deepseek", "name": "DeepSeek", "icon": "🔵", "url": "https://api.deepseek.com/v1", "models": ["deepseek-chat", "deepseek-reasoner"]},
+            {"id": "groq", "name": "Groq", "icon": "⚡", "url": "https://api.groq.com/openai/v1", "models": ["llama-3.3-70b-versatile", "whisper-large-v3"]},
+            {"id": "gemini", "name": "Google Gemini", "icon": "💎", "url": "https://generativelanguage.googleapis.com/v1beta/openai", "models": ["gemini-2.0-flash", "gemini-2.0-pro-exp"]},
+            {"id": "openrouter", "name": "OpenRouter", "icon": "🌐", "url": "https://openrouter.ai/api/v1", "models": ["deepseek/deepseek-r1:free", "meta-llama/llama-3.3-70b-instruct:free"]},
+            {"id": "together", "name": "Together AI", "icon": "🤝", "url": "https://api.together.xyz/v1", "models": ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-Coder-32B-Instruct"]},
+            {"id": "mistral", "name": "Mistral AI", "icon": "🌪️", "url": "https://api.mistral.ai/v1", "models": ["mistral-large-latest", "codestral-latest"]},
+            {"id": "ollama", "name": "Ollama (Lokal)", "icon": "🦙", "url": "http://localhost:11434/v1", "models": ["qwen2.5-coder:7b", "llama3.2:3b"]},
+        ]
 
-        for p_name in target_keys:
-            existing = providers.get(p_name, {}).get("api_key", "")
-            placeholder = " (configured)" if existing and "YOUR_" not in existing else " (empty)"
-            
-            prompt_text = f"API Key for [bold]{p_name.upper()}[/bold]{placeholder}"
-            val = Prompt.ask(prompt_text, default=existing if "YOUR_" not in existing else "")
-            
-            if val.strip().lower() == "b":
-                self.current_stage = max(1, self.current_stage - 1)
-                return
+        test_results: Dict[str, Tuple[bool, str, float]] = {}
 
-            if val.strip():
-                if p_name not in providers:
-                    providers[p_name] = {"api_key": val.strip(), "base_url": "", "models": []}
+        while True:
+            if not standalone:
+                self._header("AI Provider Shelf (Gaya 9Router Pro & Zeline)")
+            else:
+                self.console.clear()
+                self.console.print(Panel.fit(
+                    "[bold cyan]AI PROVIDER SHELF & MANAGER[/bold cyan]\n"
+                    "[dim]Kelola seluruh endpoint dan API key provider AI Anda dengan mudah.[/dim]",
+                    border_style="cyan"
+                ))
+
+            configured_providers = config.get("providers", {})
+
+            # Merge standard catalog with any custom providers from config
+            all_shelf_items: list[dict[str, Any]] = []
+            known_ids = set()
+
+            for item in standard_catalog:
+                all_shelf_items.append(dict(item))
+                known_ids.add(item["id"])
+
+            for c_id, c_data in configured_providers.items():
+                if c_id not in known_ids:
+                    all_shelf_items.append({
+                        "id": c_id,
+                        "name": c_id.upper(),
+                        "icon": "🔌",
+                        "url": c_data.get("base_url", "-"),
+                        "models": c_data.get("models", [f"{c_id}-model"])
+                    })
+
+            # Render Table
+            table = Table(
+                title="[bold yellow]Daftar Semua Provider AI yang Tersedia (9Router Pro & Zeline Style)[/bold yellow]",
+                show_lines=True,
+                header_style="bold cyan",
+                expand=True
+            )
+            table.add_column("No", justify="center", style="bold yellow", no_wrap=True, width=4)
+            table.add_column("Provider", style="bold", no_wrap=True, width=20)
+            table.add_column("Endpoint (Base URL)", style="dim")
+            table.add_column("Model Bawaan", style="cyan")
+            table.add_column("Status API Key", style="bold", no_wrap=True, width=24)
+
+            for idx, item in enumerate(all_shelf_items, 1):
+                p_id = item["id"]
+                cfg_data = configured_providers.get(p_id, {})
+                api_key = cfg_data.get("api_key", "").strip()
+                base_url = cfg_data.get("base_url") or item["url"]
+                models_list = cfg_data.get("models") or item["models"]
+                models_preview = ", ".join(models_list[:2])
+                if len(models_list) > 2:
+                    models_preview += f" (+{len(models_list) - 2})"
+
+                # Check status
+                if p_id in test_results:
+                    ok, msg, lat = test_results[p_id]
+                    if ok:
+                        status_str = f"[bold green]🟢 OK ({lat}s)[/bold green]"
+                    else:
+                        status_str = f"[bold red]✖ Error: {msg[:18]}[/bold red]"
+                elif api_key and "YOUR_" not in api_key:
+                    if p_id == "ollama" and api_key == "none":
+                        status_str = "[bold green]🟢 Aktif (Lokal / No Key)[/bold green]"
+                    else:
+                        masked = api_key[:5] + "..." + api_key[-4:] if len(api_key) > 9 else "••••••"
+                        status_str = f"[bold green]🟢 Terpasang ({masked})[/bold green]"
                 else:
-                    providers[p_name]["api_key"] = val.strip()
+                    status_str = "[dim]⚪ Belum Diatur[/dim]"
 
-        config.set("providers", providers, auto_save=False)
-        provider_manager.sync_with_config()
-        self.current_stage += 1
+                table.add_row(
+                    str(idx),
+                    f"{item['icon']} {item['name']}",
+                    base_url,
+                    models_preview,
+                    status_str
+                )
+
+            self.console.print(table)
+            self.console.print(
+                "\n[bold cyan]Menu Aksi:[/bold cyan]\n"
+                f" • Masukkan angka [bold yellow]1 - {len(all_shelf_items)}[/bold yellow] : Pilih provider untuk memasukkan / mengedit API Key & URL\n"
+                " • Masukkan [bold yellow]+[/bold yellow]       : Tambah Custom Provider Baru (vLLM, LM Studio, 9Router, dll.)\n"
+                " • Masukkan [bold yellow]t[/bold yellow]       : Test All (Uji koneksi & latensi semua provider serentak)\n"
+                f" • Masukkan [bold yellow]n[/bold yellow]       : {'Selesai / Tutup' if standalone else 'Lanjut ke Tahap Berikutnya [ Next > ]'}\n"
+                f" • Masukkan [bold yellow]b[/bold yellow]       : {'Kembali' if standalone else 'Kembali ke Tahap Sebelumnya [ < Back ]'}"
+            )
+
+            choice = Prompt.ask("\nPilih aksi").strip().lower()
+
+            if choice == "b":
+                if not standalone:
+                    self.current_stage = max(1, self.current_stage - 1)
+                break
+
+            if choice == "n":
+                if not standalone:
+                    # Check if at least 1 provider is configured
+                    has_any = any(
+                        p.get("api_key") and "YOUR_" not in p.get("api_key")
+                        for p in configured_providers.values()
+                    )
+                    if not has_any:
+                        proceed = Confirm.ask("[yellow]Peringatan: Belum ada provider yang dikonfigurasi API key-nya. Yakin ingin lanjut?[/yellow]", default=False)
+                        if not proceed:
+                            continue
+                    self.current_stage += 1
+                break
+
+            if choice == "t":
+                self.console.print("\n[cyan]Menguji seluruh koneksi provider...[/cyan]")
+                test_results = provider_manager.test_all()
+                continue
+
+            if choice == "+":
+                self.console.print(Panel(
+                    "[bold cyan]Tambah Custom Provider Baru (Gaya 9Router Pro)[/bold cyan]\n"
+                    "[dim]Dukung provider lokal (vLLM, Ollama, LM Studio) atau proxy OpenAI-compatible kustom.[/dim]",
+                    border_style="cyan"
+                ))
+                new_id = Prompt.ask("Nama ID Provider (contoh: vllm, lmstudio, my-proxy)").strip().lower()
+                if new_id:
+                    new_url = Prompt.ask("Base URL", default="http://localhost:8000/v1").strip()
+                    new_key = Prompt.ask("API Key (jika ada, atau 'none')", default="none").strip()
+                    new_models_str = Prompt.ask("Daftar Model (pisahkan koma)", default=f"{new_id}-model").strip()
+                    new_models = [m.strip() for m in new_models_str.split(",") if m.strip()]
+
+                    provider_manager.add_provider(new_id, new_key, new_url, new_models)
+                    self.console.print(f"[bold green]✔ Custom Provider '{new_id}' berhasil ditambahkan ke shelf![/bold green]")
+                    time.sleep(1.0)
+                continue
+
+            # Check if selection is a number
+            if choice.isdigit():
+                sel_num = int(choice)
+                if 1 <= sel_num <= len(all_shelf_items):
+                    target_item = all_shelf_items[sel_num - 1]
+                    self._configure_single_provider(target_item, configured_providers, test_results)
+                else:
+                    self.console.print(f"[red]Nomor {choice} tidak ada dalam daftar.[/red]")
+                    time.sleep(1.0)
+
+    def _configure_single_provider(
+        self,
+        item: Dict[str, Any],
+        configured_providers: Dict[str, Any],
+        test_results: Dict[str, Tuple[bool, str, float]]
+    ) -> None:
+        p_id = item["id"]
+        p_name = item["name"]
+        icon = item["icon"]
+        existing = configured_providers.get(p_id, {})
+        curr_key = existing.get("api_key", "")
+        curr_url = existing.get("base_url") or item["url"]
+        curr_models = existing.get("models") or item["models"]
+
+        self.console.print(Panel(
+            f"[bold cyan]Konfigurasi: {icon} {p_name.upper()}[/bold cyan]\n"
+            f"Endpoint Default: [dim]{item['url']}[/dim]\n"
+            f"Model Bawaan: [yellow]{', '.join(curr_models)}[/yellow]",
+            border_style="cyan"
+        ))
+
+        key_prompt = f"API Key untuk {p_name} [Enter untuk simpan yang lama]"
+        new_key = Prompt.ask(key_prompt, default=curr_key if "YOUR_" not in curr_key else "").strip()
+
+        url_prompt = f"Base URL Endpoint [Enter untuk tetap: {curr_url}]"
+        new_url = Prompt.ask(url_prompt, default=curr_url).strip()
+
+        models_prompt = f"Daftar Model (pisahkan koma) [Enter untuk tetap]"
+        new_models_str = Prompt.ask(models_prompt, default=", ".join(curr_models)).strip()
+        new_models = [m.strip() for m in new_models_str.split(",") if m.strip()]
+
+        if p_id == "ollama" and not new_key:
+            new_key = "none"
+
+        if new_key:
+            provider_manager.add_provider(p_id, new_key, new_url, new_models)
+            self.console.print(f"[bold green]✔ Pengaturan {p_name} tersimpan![/bold green]")
+
+            # Offer immediate test
+            test_now = Confirm.ask(f"Uji koneksi ke {p_name} sekarang?", default=True)
+            if test_now:
+                self.console.print(f"[dim]Menguji {p_name}...[/dim]")
+                ok, msg, lat = provider_manager.test_provider(p_id)
+                test_results[p_id] = (ok, msg, lat)
+                if ok:
+                    self.console.print(f"[bold green]✔ Berhasil terhubung! Latensi: {lat}s ({msg})[/bold green]")
+                else:
+                    self.console.print(f"[bold red]✖ Uji koneksi gagal: {msg}[/bold red]")
+                Prompt.ask("\nTekan Enter untuk kembali ke daftar provider...")
+        else:
+            self.console.print("[dim]Tidak ada perubahan API Key yang disimpan.[/dim]")
+            time.sleep(1.0)
 
     # =========================================================================
     # STAGE 3: Soul & Identity Manifest

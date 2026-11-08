@@ -53,6 +53,21 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "base_url": "https://openrouter.ai/api/v1",
             "models": ["deepseek/deepseek-r1:free", "meta-llama/llama-3.3-70b-instruct:free"]
         },
+        "gemini": {
+            "api_key": os.environ.get("GEMINI_API_KEY", ""),
+            "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+            "models": ["gemini-2.0-flash", "gemini-2.0-pro-exp"]
+        },
+        "together": {
+            "api_key": os.environ.get("TOGETHER_API_KEY", ""),
+            "base_url": "https://api.together.xyz/v1",
+            "models": ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-Coder-32B-Instruct"]
+        },
+        "mistral": {
+            "api_key": os.environ.get("MISTRAL_API_KEY", ""),
+            "base_url": "https://api.mistral.ai/v1",
+            "models": ["mistral-large-latest", "codestral-latest"]
+        },
         "ollama": {
             "api_key": "none",
             "base_url": "http://localhost:11434/v1",

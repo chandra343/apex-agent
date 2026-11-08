@@ -112,7 +112,9 @@ def main() -> None:
                 status = "✔ OK" if ok else "✖ FAILED"
                 print(f"[{status}] {p_name.upper()} ({lat}s): {msg}")
         else:
-            prov_parser.print_help()
+            # Launch interactive Provider Shelf UI (9Router Pro style)
+            from apex.gateways.setup_wizard import SetupWizard
+            SetupWizard().run_provider_shelf(standalone=True)
         return
 
     if args.command == "stats":

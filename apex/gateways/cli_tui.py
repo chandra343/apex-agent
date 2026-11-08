@@ -78,6 +78,7 @@ class PiTerminalTUI:
             self.console.print(
                 "\n[bold cyan]Available Commands:[/bold cyan]\n"
                 "• [bold]/model [name][/bold]  - Switch active AI model dynamically\n"
+                "• [bold]/provider[/bold]      - Open 9Router Pro-style AI Provider Shelf\n"
                 "• [bold]/backend [name][/bold]- Switch execution backend (local, docker, ssh)\n"
                 "• [bold]/stats[/bold]          - View token consumption and estimated costs\n"
                 "• [bold]/clear[/bold]          - Clear terminal screen\n"
@@ -107,6 +108,12 @@ class PiTerminalTUI:
             else:
                 self.console.print(f"Active backend: [bold green]{config.active_backend}[/bold green]")
                 self.console.print("Available: local, docker, ssh, modal, daytona")
+            return True
+
+        elif root_cmd in ["/provider", "/providers"]:
+            from apex.gateways.setup_wizard import SetupWizard
+            SetupWizard().run_provider_shelf(standalone=True)
+            self.print_welcome()
             return True
 
         elif root_cmd == "/stats":

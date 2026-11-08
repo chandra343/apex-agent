@@ -66,10 +66,17 @@ class ProviderManager:
             return "openai", providers.get("openai", {})
         if "deepseek" in model_lower:
             return "deepseek", providers.get("deepseek", {})
-        if "groq" in model_lower or "llama" in model_lower:
+        if "groq" in model_lower:
             return "groq", providers.get("groq", {})
         if "gemini" in model_lower:
-            return "google", providers.get("google", {})
+            return "gemini", providers.get("gemini", {})
+        if "together" in model_lower:
+            return "together", providers.get("together", {})
+        if "mistral" in model_lower or "codestral" in model_lower:
+            return "mistral", providers.get("mistral", {})
+        if "qwen" in model_lower or "ollama" in model_lower:
+            if "ollama" in providers:
+                return "ollama", providers.get("ollama", {})
 
         # Default fallback to openrouter or first available
         if "openrouter" in providers:
@@ -94,7 +101,7 @@ class ProviderManager:
         base_url = p_data.get("base_url", "").rstrip("/")
         models = p_data.get("models", [])
 
-        if not api_key or "YOUR_" in api_key:
+        if name != "ollama" and (not api_key or "YOUR_" in api_key):
             return False, "API key is not configured or still placeholder", 0.0
 
         test_model = models[0] if models else "gpt-3.5-turbo"
