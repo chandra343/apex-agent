@@ -257,6 +257,55 @@ class ApexAgent:
         if provider_name in ["anthropic", "claude-code"]:
             return self._call_anthropic(model_name, api_key, base_url, messages, tools_defs, on_token)
 
+        # Handle Google Antigravity CloudCode internal format
+        if provider_name == "antigravity":
+            ag_tok = oauth_manager.get_valid_antigravity_token()
+            if not ag_tok:
+                return {"success": False, "status_code": 401, "error": "Antigravity OAuth token missing. Silakan login opsi [a]."}
+            url = f"{base_url}:generateContent"
+            headers = {
+                "Authorization": f"Bearer {ag_tok}",
+                "Content-Type": "application/json",
+                "User-Agent": "antigravity"
+            }
+            gemini_contents = []
+            for m in messages:
+                if m.get("content"):
+                    r = "user" if m["role"] in ["user", "system"] else "model"
+                    gemini_contents.append({"role": r, "parts": [{"text": str(m["content"])}]})
+
+            payload_ag = {
+                "project": "aicode-consumers",
+                "request": {
+                    "contents": gemini_contents,
+                    "generationConfig": {"temperature": 0.3}
+                },
+                "model": model_name,
+                "userAgent": "antigravity",
+                "requestType": "agent"
+            }
+            try:
+                resp = requests.post(url, headers=headers, json=payload_ag, timeout=90)
+                if resp.status_code != 200:
+                    return {
+                        "success": False,
+                        "status_code": resp.status_code,
+                        "error": f"Antigravity HTTP {resp.status_code}: {resp.text[:250]}"
+                    }
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                text_parts = []
+                if candidates:
+                    for part in candidates[0].get("content", {}).get("parts", []):
+                        if "text" in part:
+                            text_parts.append(part["text"])
+                content = "\n".join(text_parts)
+                if on_token and content:
+                    on_token(content)
+                return {"success": True, "content": content, "tool_calls": []}
+            except Exception as e:
+                return {"success": False, "status_code": 500, "error": str(e)}
+
         # Handle GitHub Copilot OAuth session format
         if provider_name == "copilot":
             cop_tok = oauth_manager.get_valid_copilot_token()

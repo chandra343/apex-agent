@@ -69,6 +69,13 @@ class ProviderManager:
             if any(cm in model_lower or model_lower in cm for cm in copilot_models):
                 return "copilot", copilot_cfg
 
+        # 3. Check if Google Antigravity is configured and can handle the model
+        if "antigravity" in providers:
+            ag_cfg = providers["antigravity"]
+            ag_models = [m.lower() for m in ag_cfg.get("models", [])]
+            if any(am in model_lower or model_lower in am for am in ag_models):
+                return "antigravity", ag_cfg
+
         # 3. Heuristic matching across known provider ecosystems
         heuristic_map = [
             ("claude", "anthropic"),
@@ -135,7 +142,31 @@ class ProviderManager:
         models = p_data.get("models", [])
         is_local = name in ["ollama", "vllm", "lmstudio", "llamacpp", "localai"]
 
-        # 1. Copilot Provider Special Testing
+        # 1. Antigravity Provider Special Testing
+        if name == "antigravity":
+            start_t = time.time()
+            ag_token = oauth_manager.get_valid_antigravity_token()
+            if not ag_token:
+                return False, "Token Google Antigravity tidak ditemukan. Silakan login opsi [a]", 0.0
+
+            url = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
+            headers = {
+                "Authorization": f"Bearer {ag_token}",
+                "Content-Type": "application/json",
+                "User-Agent": "Antigravity/2.0"
+            }
+            try:
+                resp = requests.post(url, headers=headers, json={}, timeout=8)
+                latency = round(time.time() - start_t, 3)
+                if resp.status_code == 200:
+                    tier = resp.json().get("currentTier", {}).get("name", "Antigravity")
+                    return True, f"OK ({tier})", latency
+                return False, f"HTTP {resp.status_code}: {resp.text[:120]}", latency
+            except Exception as e:
+                latency = round(time.time() - start_t, 3)
+                return False, f"Connection error: {str(e)[:120]}", latency
+
+        # 2. Copilot Provider Special Testing
         if name == "copilot":
             start_t = time.time()
             cop_token = oauth_manager.get_valid_copilot_token()

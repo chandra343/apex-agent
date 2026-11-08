@@ -1,20 +1,31 @@
-"""Comprehensive 35+ Provider Catalog from 9Router & 9Router Pro."""
+"""Comprehensive 46+ Provider Catalog from 9Router & 9Router Pro with Full OAuth/Subscription Tiers."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
 PROVIDER_CATEGORIES: Dict[str, str] = {
-    "all": "Semua Provider (35+ Provider)",
-    "oauth": "🔑 Akun & Langganan (GitHub Copilot, Claude Code, Cursor)",
+    "all": "Semua Provider (46+ Provider)",
+    "oauth": "🔑 Akun & Langganan (Antigravity, Copilot, Claude, Codex, Cursor, Kiro)",
     "frontier": "🏛️ Frontier Commercial (Anthropic, OpenAI, Gemini, DeepSeek, xAI, Mistral)",
-    "fast": "⚡ Fast Inference (Groq, Cerebras, SambaNova, Together, Fireworks, SiliconFlow)",
-    "apac": "🌏 APAC & China (Kimi/Moonshot, GLM/Zhipu, MiniMax, Qwen DashScope, Yi)",
+    "fast": "⚡ Fast Inference (Groq, Cerebras, SambaNova, Together, Fireworks, SiliconFlow, Hyperbolic)",
+    "apac": "🌏 APAC & China (Kimi, GLM, MiniMax, Qwen DashScope, Yi, Qianfan, Hunyuan, StepFun)",
+    "cloud": "☁️ Enterprise Cloud (Azure OpenAI, AWS Bedrock, Google Vertex AI, Cloudflare)",
     "agg": "🌐 Aggregators & Free Tiers (OpenRouter, Venice, Gemini Free, OpenCode)",
     "local": "🦙 Local & Self-Hosted (Ollama, vLLM, LM Studio, llama.cpp, LocalAI)"
 }
 
 FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
     # --- 1. OAUTH & SUBSCRIPTION TIERS (Zero Extra Cost) ---
+    {
+        "id": "antigravity",
+        "name": "Google Antigravity",
+        "category": "oauth",
+        "icon": "🌌",
+        "auth_type": "oauth_session",
+        "url": "https://cloudcode-pa.googleapis.com/v1internal",
+        "models": ["gemini-2.0-flash", "gemini-2.0-pro-exp", "gemini-1.5-pro", "gemini-3-flash", "claude-3-5-sonnet"],
+        "description": "Akun Google Antigravity (Cloud Code Assist) otomatis dari ~/.gemini/antigravity-cli"
+    },
     {
         "id": "copilot",
         "name": "GitHub Copilot",
@@ -36,6 +47,16 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "description": "Import session Claude Code (~/.claude.json) atau paste OAuth token"
     },
     {
+        "id": "codex",
+        "name": "OpenAI Codex & ChatGPT Plus",
+        "category": "oauth",
+        "icon": "🟢",
+        "auth_type": "session_import",
+        "url": "https://chatgpt.com/backend-api",
+        "models": ["gpt-4o", "o3-mini", "o1", "gpt-4.5"],
+        "description": "Session token ChatGPT Plus / OpenAI Codex untuk bypass bayar token API"
+    },
+    {
         "id": "cursor",
         "name": "Cursor Session",
         "category": "oauth",
@@ -44,6 +65,16 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "url": "https://api.cursor.com/v1",
         "models": ["cursor-fast", "claude-3.5-sonnet", "gpt-4o"],
         "description": "Import auth token Cursor untuk akses model berkecepatan tinggi"
+    },
+    {
+        "id": "kiro",
+        "name": "Kiro AI Free Tier",
+        "category": "oauth",
+        "icon": "🎁",
+        "auth_type": "api_key",
+        "url": "https://api.kiro.ai/v1",
+        "models": ["kiro-claude-3.5-sonnet", "kiro-glm-4", "kiro-llama-3.3"],
+        "description": "Platform Kiro AI dengan alokasi token gratis untuk model Claude & GLM"
     },
 
     # --- 2. FRONTIER COMMERCIAL PROVIDERS ---
@@ -209,6 +240,16 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "models": ["deepseek/deepseek-r1", "meta-llama/llama-3.3-70b-instruct"],
         "description": "GPU Cloud inference performa tinggi"
     },
+    {
+        "id": "hyperbolic",
+        "name": "Hyperbolic",
+        "category": "fast",
+        "icon": "⚡",
+        "auth_type": "api_key",
+        "url": "https://api.hyperbolic.xyz/v1",
+        "models": ["deepseek-ai/DeepSeek-R1", "meta-llama/Llama-3.3-70B-Instruct"],
+        "description": "Open-access AI computing platform dengan GPU terdesentralisasi"
+    },
 
     # --- 4. APAC & CHINESE MODELS ---
     {
@@ -271,8 +312,90 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "models": ["yi-lightning", "yi-large"],
         "description": "Model Yi dari Dr. Kai-Fu Lee dengan kecepatan tinggi"
     },
+    {
+        "id": "qianfan",
+        "name": "Baidu Qianfan (ERNIE)",
+        "category": "apac",
+        "icon": "🐻",
+        "auth_type": "api_key",
+        "url": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat",
+        "models": ["ernie-4.0-8k-latest", "ernie-3.5-8k"],
+        "description": "Model Baidu ERNIE Bot flagship"
+    },
+    {
+        "id": "hunyuan",
+        "name": "Tencent Hunyuan",
+        "category": "apac",
+        "icon": "🐧",
+        "auth_type": "api_key",
+        "url": "https://api.hunyuan.cloud.tencent.com/v1",
+        "models": ["hunyuan-standard", "hunyuan-pro"],
+        "description": "Model Tencent Hunyuan untuk pemrosesan teks & kode"
+    },
+    {
+        "id": "stepfun",
+        "name": "StepFun (Jieyue)",
+        "category": "apac",
+        "icon": "🪜",
+        "auth_type": "api_key",
+        "url": "https://api.stepfun.com/v1",
+        "models": ["step-1v-8k", "step-2-16k"],
+        "description": "Model StepFun multimodal & general reasoning"
+    },
 
-    # --- 5. AGGREGATORS & FREE TIERS ---
+    # --- 5. ENTERPRISE CLOUD PLATFORMS ---
+    {
+        "id": "azure",
+        "name": "Azure OpenAI Service",
+        "category": "cloud",
+        "icon": "🔷",
+        "auth_type": "api_key",
+        "url": "https://your-resource.openai.azure.com",
+        "models": ["gpt-4o", "gpt-4o-mini", "o3-mini"],
+        "description": "Deployment Microsoft Azure OpenAI enterprise dengan SLA"
+    },
+    {
+        "id": "bedrock",
+        "name": "AWS Bedrock",
+        "category": "cloud",
+        "icon": "🟧",
+        "auth_type": "api_key",
+        "url": "https://bedrock-runtime.us-east-1.amazonaws.com",
+        "models": ["anthropic.claude-3-5-sonnet-20241022-v2:0", "meta.llama3-70b-instruct-v1:0"],
+        "description": "Amazon Web Services Bedrock foundation models"
+    },
+    {
+        "id": "vertex",
+        "name": "Google Cloud Vertex AI",
+        "category": "cloud",
+        "icon": "🌈",
+        "auth_type": "api_key",
+        "url": "https://us-central1-aiplatform.googleapis.com/v1",
+        "models": ["gemini-1.5-pro", "gemini-1.5-flash", "claude-3-5-sonnet@20240620"],
+        "description": "Google Cloud Vertex AI enterprise managed inference"
+    },
+    {
+        "id": "cloudflare",
+        "name": "Cloudflare Workers AI",
+        "category": "cloud",
+        "icon": "🟧",
+        "auth_type": "api_key",
+        "url": "https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1",
+        "models": ["@cf/meta/llama-3.3-70b-instruct", "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"],
+        "description": "Edge AI inference di 300+ kota seluruh dunia via Cloudflare"
+    },
+    {
+        "id": "ai21",
+        "name": "AI21 Labs",
+        "category": "cloud",
+        "icon": "🧬",
+        "auth_type": "api_key",
+        "url": "https://api.ai21.com/studio/v1",
+        "models": ["jamba-1.5-large", "jamba-1.5-mini"],
+        "description": "SSM-Transformer hybrid architecture (Jamba models)"
+    },
+
+    # --- 6. AGGREGATORS & FREE TIERS ---
     {
         "id": "openrouter",
         "name": "OpenRouter",
@@ -314,7 +437,7 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "description": "API gratis dari Google AI Studio hingga 15 RPM tanpa biaya"
     },
 
-    # --- 6. LOCAL & SELF-HOSTED ENGINES ---
+    # --- 7. LOCAL & SELF-HOSTED ENGINES ---
     {
         "id": "ollama",
         "name": "Ollama (Lokal)",

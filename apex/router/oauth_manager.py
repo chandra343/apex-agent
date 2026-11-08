@@ -1,6 +1,6 @@
-"""OAuth and Account Authentication Manager for Subscriptions (Copilot, Claude Code, Cursor)
+"""OAuth and Account Authentication Manager for Subscriptions:
 
-and Local Engine Auto-Detection.
+Antigravity, GitHub Copilot, Claude Code, OpenAI Codex, Cursor, Kiro AI, and Local Engines.
 """
 from __future__ import annotations
 
@@ -20,20 +20,115 @@ GITHUB_COPILOT_CLIENT_ID = "Iv1.b507a08c87ecfe98"  # Standard VS Code Client ID 
 
 
 class OAuthManager:
-    """Handles OAuth Device Code flow for GitHub Copilot, local session importing, and auto-discovery."""
+    """Handles OAuth & Session login for Antigravity, Copilot, Claude, Codex, Cursor, and Local Engines."""
 
     def __init__(self) -> None:
         pass
 
     # =========================================================================
-    # 1. GITHUB COPILOT OAUTH DEVICE CODE FLOW
+    # 1. GOOGLE ANTIGRAVITY OAUTH & SESSION IMPORT
+    # =========================================================================
+    def import_antigravity(self, console: Optional[Console] = None) -> Tuple[bool, str]:
+        """Auto-detect or import Google Antigravity OAuth session from local system."""
+        c = console or Console()
+        paths_to_check = [
+            Path.home() / ".gemini" / "antigravity-cli" / "antigravity-oauth-token",
+            Path.home() / ".config" / "antigravity" / "oauth.json",
+            Path.home() / ".antigravity" / "oauth.json"
+        ]
+
+        found_token = ""
+        found_refresh = ""
+        found_email = ""
+        source_path = ""
+
+        # Check environment first
+        env_tok = os.environ.get("ANTIGRAVITY_TOKEN") or os.environ.get("GOOGLE_ANTIGRAVITY_TOKEN")
+        if env_tok:
+            found_token = env_tok
+            source_path = "Environment Variable"
+
+        if not found_token:
+            for p in paths_to_check:
+                if p.exists():
+                    try:
+                        content = json.loads(p.read_text(encoding="utf-8"))
+                        t_obj = content.get("token")
+                        if isinstance(t_obj, dict):
+                            found_token = t_obj.get("access_token", "")
+                            found_refresh = t_obj.get("refresh_token", "")
+                        elif isinstance(t_obj, str):
+                            found_token = t_obj
+
+                        found_email = content.get("id_token_email", "")
+                        if found_token:
+                            source_path = str(p)
+                            break
+                    except Exception:
+                        pass
+
+        if not found_token:
+            return False, "Tidak ditemukan session Antigravity aktif di ~/.gemini/antigravity-cli/antigravity-oauth-token."
+
+        # Verify against Google Cloud Code Assist endpoint
+        tier_name = "Antigravity"
+        project_id = "aicode-consumers"
+        try:
+            v_url = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
+            headers = {
+                "Authorization": f"Bearer {found_token}",
+                "Content-Type": "application/json",
+                "User-Agent": "Antigravity/2.0"
+            }
+            v_resp = requests.post(v_url, headers=headers, json={}, timeout=8)
+            if v_resp.status_code == 200:
+                v_data = v_resp.json()
+                tier_name = v_data.get("currentTier", {}).get("name", "Antigravity")
+                project_id = v_data.get("cloudaicompanionProject", "aicode-consumers")
+        except Exception:
+            pass
+
+        # Save to config
+        providers = config.get("providers", {})
+        providers["antigravity"] = {
+            "api_key": found_token,
+            "refresh_token": found_refresh,
+            "email": found_email,
+            "project": project_id,
+            "base_url": "https://cloudcode-pa.googleapis.com/v1internal",
+            "models": [
+                "gemini-2.0-flash",
+                "gemini-2.0-pro-exp",
+                "gemini-1.5-pro",
+                "gemini-3-flash",
+                "claude-3-5-sonnet"
+            ]
+        }
+        config.set("providers", providers, auto_save=True)
+
+        user_info = f" ({found_email})" if found_email else ""
+        return True, f"Berhasil mengimpor session Google Antigravity{user_info} [Tier: {tier_name}] dari {source_path}!"
+
+    def get_valid_antigravity_token(self) -> Optional[str]:
+        """Get active Antigravity OAuth access token from file or config."""
+        token_path = Path.home() / ".gemini" / "antigravity-cli" / "antigravity-oauth-token"
+        if token_path.exists():
+            try:
+                content = json.loads(token_path.read_text(encoding="utf-8"))
+                t_obj = content.get("token", {})
+                if isinstance(t_obj, dict) and t_obj.get("access_token"):
+                    return t_obj["access_token"]
+            except Exception:
+                pass
+
+        providers = config.get("providers", {})
+        return providers.get("antigravity", {}).get("api_key")
+
+    # =========================================================================
+    # 2. GITHUB COPILOT OAUTH DEVICE CODE FLOW
     # =========================================================================
     def login_github_copilot(self, console: Optional[Console] = None) -> Tuple[bool, str]:
-        """Perform OAuth Device Code login for GitHub Copilot.
-        
-        Prompts user to visit https://github.com/login/device and enter the user code.
-        Polls until confirmed, exchanges for Copilot session token, and saves configuration.
-        """
+        """Perform OAuth Device Code login for GitHub Copilot."""
         c = console or Console()
         device_code_url = "https://github.com/login/device/code"
         headers = {"Accept": "application/json"}
@@ -54,7 +149,6 @@ class OAuthManager:
             interval = max(5, int(data.get("interval", 5)))
             expires_in = int(data.get("expires_in", 900))
 
-            # Display instruction panel to user
             c.print(Panel(
                 f"[bold green]AUTENTIKASI AKUN GITHUB COPILOT (OAUTH)[/bold green]\n\n"
                 f"1. Buka browser Anda: [bold cyan link={verification_uri}]{verification_uri}[/bold cyan link]\n"
@@ -81,7 +175,7 @@ class OAuthManager:
                 console=c,
                 transient=True
             ) as progress:
-                task = progress.add_task("[cyan]Menunggu otorisasi browser...[/cyan]", total=None)
+                progress.add_task("[cyan]Menunggu otorisasi browser...[/cyan]", total=None)
 
                 while time.time() - start_poll < expires_in:
                     time.sleep(interval)
@@ -107,12 +201,10 @@ class OAuthManager:
             if not gh_oauth_token:
                 return False, "Waktu tunggu otorisasi habis."
 
-            # Exchange GitHub OAuth token for Copilot Session Token
             ok, msg, copilot_token, exp = self._exchange_copilot_token(gh_oauth_token)
             if not ok:
                 return False, f"Login GitHub berhasil, namun gagal mengaktifkan Copilot: {msg}"
 
-            # Save to config
             providers = config.get("providers", {})
             providers["copilot"] = {
                 "api_key": gh_oauth_token,
@@ -123,7 +215,7 @@ class OAuthManager:
             }
             config.set("providers", providers, auto_save=True)
 
-            return True, f"Login Akun GitHub Copilot Berhasil! Kuota model Claude 3.7 & GPT-4o siap digunakan."
+            return True, "Login Akun GitHub Copilot Berhasil! Kuota Claude 3.7 & GPT-4o siap digunakan."
         except KeyboardInterrupt:
             return False, "Login dibatalkan oleh pengguna."
         except Exception as e:
@@ -159,17 +251,15 @@ class OAuthManager:
         providers = config.get("providers", {})
         copilot_cfg = providers.get("copilot", {})
         gh_key = copilot_cfg.get("api_key", "")
-        if not gh_key or "YOUR_" in gh_key:
+        if not gh_key or gh_key.startswith("YOUR_"):
             return None
 
         curr_token = copilot_cfg.get("copilot_token", "")
         expires_at = float(copilot_cfg.get("token_expires_at", 0))
 
-        # If current token is valid for at least 2 more minutes, use it
         if curr_token and expires_at > (time.time() + 120):
             return curr_token
 
-        # Otherwise refresh using the saved gh_oauth_token
         ok, msg, new_tok, new_exp = self._exchange_copilot_token(gh_key)
         if ok and new_tok:
             copilot_cfg["copilot_token"] = new_tok
@@ -181,7 +271,7 @@ class OAuthManager:
         return None
 
     # =========================================================================
-    # 2. CLAUDE CODE SESSION IMPORT
+    # 3. CLAUDE CODE SESSION IMPORT
     # =========================================================================
     def import_claude_code(self) -> Tuple[bool, str, Optional[str]]:
         """Look for Claude Code CLI credentials in ~/.claude.json or system environment."""
@@ -194,7 +284,6 @@ class OAuthManager:
         found_key = ""
         source_desc = ""
 
-        # Check environment first
         env_tok = os.environ.get("CLAUDE_CODE_TOKEN") or os.environ.get("ANTHROPIC_API_KEY")
         if env_tok and not env_tok.startswith("YOUR_"):
             found_key = env_tok
@@ -231,7 +320,45 @@ class OAuthManager:
         return False, "Tidak ditemukan konfigurasi Claude Code aktif di ~/.claude.json atau Environment.", None
 
     # =========================================================================
-    # 3. CURSOR SESSION IMPORT
+    # 4. OPENAI CODEX & CHATGPT PLUS SESSION IMPORT
+    # =========================================================================
+    def import_codex(self, manual_token: str = "") -> Tuple[bool, str]:
+        """Import OpenAI Codex / ChatGPT Plus session token."""
+        found_token = manual_token
+        source = "Input Manual"
+
+        if not found_token:
+            paths = [
+                Path.home() / ".codex" / "auth.json",
+                Path.home() / ".config" / "codex" / "config.json",
+                Path.home() / ".chatgpt" / "session.json"
+            ]
+            for p in paths:
+                if p.exists():
+                    try:
+                        content = json.loads(p.read_text(encoding="utf-8"))
+                        t = content.get("accessToken") or content.get("session_token")
+                        if t:
+                            found_token = t
+                            source = str(p)
+                            break
+                    except Exception:
+                        pass
+
+        if not found_token:
+            return False, "Tidak ditemukan file session Codex / ChatGPT."
+
+        providers = config.get("providers", {})
+        providers["codex"] = {
+            "api_key": found_token,
+            "base_url": "https://chatgpt.com/backend-api",
+            "models": ["gpt-4o", "o3-mini", "o1", "gpt-4.5"]
+        }
+        config.set("providers", providers, auto_save=True)
+        return True, f"Berhasil mengimpor session OpenAI Codex dari {source}!"
+
+    # =========================================================================
+    # 5. CURSOR SESSION IMPORT
     # =========================================================================
     def import_cursor(self) -> Tuple[bool, str, Optional[str]]:
         """Look for Cursor IDE session token in globalStorage or system."""
@@ -270,13 +397,28 @@ class OAuthManager:
         return False, "Tidak ditemukan kredensial Cursor aktif di sistem.", None
 
     # =========================================================================
-    # 4. AUTO-SCAN LOCAL AI ENGINES
+    # 6. KIRO AI FREE TIER
+    # =========================================================================
+    def import_kiro(self, api_key: str = "") -> Tuple[bool, str]:
+        """Configure Kiro AI Free Tier."""
+        key = api_key or os.environ.get("KIRO_API_KEY", "")
+        if not key:
+            key = "kiro-free-tier"
+
+        providers = config.get("providers", {})
+        providers["kiro"] = {
+            "api_key": key,
+            "base_url": "https://api.kiro.ai/v1",
+            "models": ["kiro-claude-3.5-sonnet", "kiro-glm-4", "kiro-llama-3.3"]
+        }
+        config.set("providers", providers, auto_save=True)
+        return True, "Kiro AI Platform berhasil dikonfigurasi!"
+
+    # =========================================================================
+    # 7. AUTO-SCAN LOCAL AI ENGINES
     # =========================================================================
     def scan_local_services(self) -> Dict[str, Dict[str, Any]]:
-        """Probe localhost ports for Ollama (11434), LM Studio (1234), vLLM (8000), llama.cpp (8080).
-        
-        Returns a dict of detected services with their fetched models.
-        """
+        """Probe localhost ports for Ollama (11434), LM Studio (1234), vLLM (8000), llama.cpp (8080)."""
         detected: Dict[str, Dict[str, Any]] = {}
 
         # 1. Ollama (Port 11434)
@@ -339,7 +481,6 @@ class OAuthManager:
         except Exception:
             pass
 
-        # If any detected, auto-update config
         if detected:
             providers = config.get("providers", {})
             for svc_id, svc_data in detected.items():

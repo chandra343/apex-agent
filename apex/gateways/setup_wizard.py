@@ -152,7 +152,7 @@ class SetupWizard:
 
                 # Auth Type Label
                 auth_type = item.get("auth_type", "api_key")
-                if auth_type == "oauth_device":
+                if auth_type in ["oauth_device", "oauth_session"]:
                     auth_badge = "🔑 OAuth"
                 elif auth_type == "session_import":
                     auth_badge = "📥 Session"
@@ -168,7 +168,7 @@ class SetupWizard:
                         status_str = f"[bold green]🟢 OK ({lat}s)[/bold green]"
                     else:
                         status_str = f"[bold red]✖ {msg[:16]}[/bold red]"
-                elif p_id == "copilot" and api_key and not api_key.startswith("YOUR_"):
+                elif p_id in ["copilot", "antigravity"] and api_key and not api_key.startswith("YOUR_"):
                     status_str = "[bold green]🟢 Akun Aktif[/bold green]"
                 elif api_key and not api_key.startswith("YOUR_"):
                     if auth_type == "none" or api_key == "none":
@@ -191,11 +191,14 @@ class SetupWizard:
             self.console.print(
                 "\n[bold cyan]Menu Aksi Cepat (9Router Pro & Zeline):[/bold cyan]\n"
                 f" • Masukkan angka [bold yellow]1 - {len(all_shelf_items)}[/bold yellow] : Pilih provider untuk mengatur API Key / URL / Login\n"
+                " • Masukkan [bold yellow]a[/bold yellow]       : 🌌 [bold green]Login / Import Google Antigravity OAuth[/bold green] (Gemini 2.0/3 & Claude 3.5)\n"
                 " • Masukkan [bold yellow]g[/bold yellow]       : 🐙 [bold green]Login Akun GitHub Copilot[/bold green] (OAuth Device Code — Claude 3.7 & GPT-4o)\n"
                 " • Masukkan [bold yellow]c[/bold yellow]       : 🟣 [bold green]Import / Login Claude Code[/bold green] (~/.claude.json atau session)\n"
+                " • Masukkan [bold yellow]x[/bold yellow]       : 🟢 [bold green]Import / Login OpenAI Codex & ChatGPT Plus[/bold green] (Session Token)\n"
                 " • Masukkan [bold yellow]u[/bold yellow]       : ⚡ [bold green]Import / Login Akun Cursor[/bold green] (WorkOS Session Token)\n"
+                " • Masukkan [bold yellow]k[/bold yellow]       : 🎁 [bold green]Login / Import Kiro AI Free Tier[/bold green] (Free Claude & GLM Tokens)\n"
                 " • Masukkan [bold yellow]s[/bold yellow]       : 🔍 [bold green]Auto-Scan Local AI[/bold green] (Ollama:11434, LM Studio:1234, vLLM:8000)\n"
-                " • Masukkan [bold yellow]f[/bold yellow]       : 📑 [bold cyan]Ganti Kategori / Filter Tab[/bold cyan] (All, OAuth, Frontier, Fast, APAC, Local)\n"
+                " • Masukkan [bold yellow]f[/bold yellow]       : 📑 [bold cyan]Ganti Kategori / Filter Tab[/bold cyan] (All, OAuth, Frontier, Fast, APAC, Cloud, Local)\n"
                 " • Masukkan [bold yellow]+[/bold yellow]       : ➕ Tambah Custom Provider Baru\n"
                 " • Masukkan [bold yellow]t[/bold yellow]       : 🧪 Test All (Uji koneksi & latensi semua provider serentak)\n"
                 f" • Masukkan [bold yellow]n[/bold yellow]       : {'Selesai / Tutup' if standalone else 'Lanjut ke Tahap Berikutnya [ Next > ]'}\n"
@@ -221,6 +224,44 @@ class SetupWizard:
                             continue
                     self.current_stage += 1
                 break
+
+            if choice == "a":
+                self.console.print("\n[cyan]Memeriksa kredensial Google Antigravity OAuth di sistem...[/cyan]")
+                ok, msg = oauth_manager.import_antigravity(self.console)
+                if ok:
+                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    t_ok, t_msg, t_lat = provider_manager.test_provider("antigravity")
+                    test_results["antigravity"] = (t_ok, t_msg, t_lat)
+                    if t_ok:
+                        self.console.print(f"[bold green]✔ Terverifikasi! Latensi Antigravity: {t_lat}s ({t_msg})[/bold green]")
+                    else:
+                        self.console.print(f"[yellow]Status koneksi: {t_msg}[/yellow]")
+                else:
+                    self.console.print(f"[bold red]✖ {msg}[/bold red]")
+                    manual_tok = Prompt.ask("Masukkan Access Token Google Cloud / Antigravity OAuth secara manual (Enter untuk batal)", default="").strip()
+                    if manual_tok:
+                        provider_manager.add_provider("antigravity", manual_tok, "https://cloudcode-pa.googleapis.com/v1internal", ["gemini-2.0-flash", "gemini-2.0-pro-exp", "gemini-1.5-pro", "gemini-3-flash", "claude-3-5-sonnet"])
+                        self.console.print("[bold green]✔ Google Antigravity session berhasil disimpan![/bold green]")
+                Prompt.ask("\nTekan Enter untuk melanjutkan...")
+                continue
+
+            if choice == "x":
+                self.console.print("\n[cyan]Memeriksa kredensial OpenAI Codex / ChatGPT di sistem...[/cyan]")
+                manual_tok = Prompt.ask("Masukkan Session Token OpenAI Codex / ChatGPT Plus (Enter untuk cek otomatis)", default="").strip()
+                ok, msg = oauth_manager.import_codex(manual_tok)
+                if ok:
+                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                else:
+                    self.console.print(f"[yellow]{msg}[/yellow]")
+                Prompt.ask("\nTekan Enter untuk melanjutkan...")
+                continue
+
+            if choice == "k":
+                self.console.print("\n[cyan]Mengonfigurasi Kiro AI Platform (Free Tier)...[/cyan]")
+                ok, msg = oauth_manager.import_kiro()
+                self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                Prompt.ask("\nTekan Enter untuk melanjutkan...")
+                continue
 
             if choice == "g":
                 self.console.print("\n[cyan]Memulai proses login GitHub Copilot OAuth...[/cyan]")
@@ -340,6 +381,52 @@ class SetupWizard:
         curr_key = existing.get("api_key", "")
         curr_url = existing.get("base_url") or item["url"]
         curr_models = existing.get("models") or item["models"]
+
+        # Special shortcut for Google Antigravity
+        if p_id == "antigravity":
+            self.console.print(Panel(
+                f"[bold cyan]{icon} {p_name.upper()} (OAUTH & CLOUD CODE ASSIST)[/bold cyan]\n"
+                f"Model Tersedia: [yellow]{', '.join(curr_models)}[/yellow]\n"
+                f"[dim]Apex dapat mendeteksi session aktif Google Antigravity langsung dari sistem komputer Anda.[/dim]",
+                border_style="cyan"
+            ))
+            do_import = Confirm.ask("Impor session Antigravity dari ~/.gemini/antigravity-cli sekarang?", default=True)
+            if do_import:
+                ok, msg = oauth_manager.import_antigravity(self.console)
+                if ok:
+                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    t_ok, t_msg, t_lat = provider_manager.test_provider("antigravity")
+                    test_results["antigravity"] = (t_ok, t_msg, t_lat)
+                    if t_ok:
+                        self.console.print(f"[bold green]✔ Terverifikasi! Latensi: {t_lat}s ({t_msg})[/bold green]")
+                else:
+                    self.console.print(f"[bold red]✖ {msg}[/bold red]")
+                Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
+                return
+
+        # Special shortcut for OpenAI Codex / ChatGPT Plus
+        if p_id == "codex":
+            self.console.print(Panel(
+                f"[bold cyan]{icon} {p_name.upper()} (CHATGPT PLUS & CODEX SESSION)[/bold cyan]\n"
+                f"Model Tersedia: [yellow]{', '.join(curr_models)}[/yellow]\n"
+                f"[dim]Gunakan session token ChatGPT Plus Anda untuk model GPT-4o & o1.[/dim]",
+                border_style="cyan"
+            ))
+            tok = Prompt.ask("Masukkan Session Token OpenAI Codex (Enter untuk auto-detect)", default="").strip()
+            ok, msg = oauth_manager.import_codex(tok)
+            if ok:
+                self.console.print(f"[bold green]✔ {msg}[/bold green]")
+            else:
+                self.console.print(f"[yellow]{msg}[/yellow]")
+            Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
+            return
+
+        # Special shortcut for Kiro AI
+        if p_id == "kiro":
+            oauth_manager.import_kiro()
+            self.console.print("[bold green]✔ Kiro AI Platform (Free Tier) berhasil diaktifkan![/bold green]")
+            Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
+            return
 
         # Special shortcut for GitHub Copilot
         if p_id == "copilot":
