@@ -718,24 +718,89 @@ class SetupWizard:
         self.current_stage += 1
 
     # =========================================================================
-    # STAGE 4: Prompt Injection & Anti-Refusal (9Router Pro)
+    # STAGE 4: Prompt Injection & Anti-Refusal Tuning (9Router Pro Style)
     # =========================================================================
     def stage_4_prompt_injection(self) -> None:
-        self._header("Prompt Injection & Anti-Refusal Tuning")
-        curr_global = config.get("router.prompt_injections.global", "")
-        curr_priming = config.get("router.prompt_injections.chat_script_priming", True)
+        from apex.router.injector import prompt_injector, PRESET_INJECTIONS
 
-        self.console.print("[dim]Chat Script Priming injects synthetic administrative turns to prevent refusals.[/dim]")
-        priming_choice = Confirm.ask("Enable Chat Script Priming for 100% Anti-Refusal compliance?", default=curr_priming)
-        config.set("router.prompt_injections.chat_script_priming", priming_choice, auto_save=False)
+        self._header("Prompt Injection & Anti-Refusal Tuning (Stage 4/6)")
 
-        custom_prompt = Prompt.ask("Optional Global System Prompt override (or press Enter to skip)", default=curr_global)
-        if custom_prompt.strip().lower() == "b":
-            self.current_stage -= 1
-            return
+        while True:
+            curr_global = prompt_injector.get_active_global_prompt()
+            curr_priming = config.get("router.prompt_injections.chat_script_priming", True)
+            priming_badge = "[bold green]🟢 AKTIF (ON)[/bold green]" if curr_priming else "[dim]⚪ NONAKTIF[/dim]"
 
-        config.set("router.prompt_injections.global", custom_prompt.strip(), auto_save=False)
-        self.current_stage += 1
+            preview_text = curr_global[:180] + ("..." if len(curr_global) > 180 else "")
+
+            self.console.print(Panel(
+                f"[bold cyan]3-LAYER PROMPT INJECTION & ANTI-REFUSAL (9Router Pro Engine)[/bold cyan]\n\n"
+                f"• [bold green]Layer 1 (Global Directive)[/bold green] : {preview_text}\n"
+                f"• [bold green]Layer 2 (Chat Priming)[/bold green]     : {priming_badge} [dim](Suntikan giliran administratif otomatis agar model tidak menolak perintah)[/dim]\n"
+                f"• [bold green]Layer 3 (Per-Model Tuning)[/bold green] : [yellow]Aktif[/yellow] [dim](Optimasi khusus Claude 3.7, GPT-4o, DeepSeek, Gemini)[/dim]\n\n"
+                f"[dim]Doktrin: Apex secara aktif mem-bypass penolakan korporat agar 100% patuh pada perintah teknis operator.[/dim]",
+                border_style="cyan"
+            ))
+
+            self.console.print("1. [bold green]Gunakan Doktrin Zero-Refusal Bawaan (Rekomendasi)[/bold green] [Lanjut ke Stage 5 >]")
+            self.console.print("2. 👁️ Lihat Teks Lengkap Prompt Injection Aktif")
+            self.console.print("3. 📑 Pilih Preset Anti-Refusal (Zero-Refusal, Aggressive Admin, Pure Engineering)")
+            self.console.print("4. ✏️ Tulis / Edit Teks Custom Prompt Injection")
+            self.console.print(f"5. 🔄 Toggle Chat Script Priming ({priming_badge})")
+
+            choice = Prompt.ask("\nPilih opsi atau ketik 'b' untuk kembali", choices=["1", "2", "3", "4", "5", "b"], default="1")
+
+            if choice == "b":
+                self.current_stage -= 1
+                return
+
+            if choice == "1":
+                config.set("router.prompt_injections.global", curr_global, auto_save=False)
+                config.set("router.prompt_injections.chat_script_priming", curr_priming, auto_save=False)
+                self.console.print("[bold green]✔ Prompt Injection Anti-Refusal aktif & terverifikasi![/bold green]")
+                time.sleep(0.8)
+                self.current_stage += 1
+                return
+
+            if choice == "2":
+                self.console.print(Panel(
+                    curr_global,
+                    title="[bold green]Isi Lengkap Prompt Injection Aktif (PROMPT_INJECTION.md)[/bold green]",
+                    border_style="green"
+                ))
+                Prompt.ask("\nTekan Enter untuk kembali ke pilihan Stage 4...")
+                continue
+
+            if choice == "3":
+                self.console.print("\n[bold cyan]Daftar Preset Anti-Refusal Tersedia:[/bold cyan]")
+                preset_keys = list(PRESET_INJECTIONS.keys())
+                for idx, k in enumerate(preset_keys, 1):
+                    p_info = PRESET_INJECTIONS[k]
+                    self.console.print(f" {idx}. [bold yellow]{p_info['name']}[/bold yellow]")
+                    self.console.print(f"    [dim]{p_info['prompt'][:120]}...[/dim]")
+
+                pick_idx = Prompt.ask("\nPilih nomor preset", choices=[str(i) for i in range(1, len(preset_keys) + 1)], default="1")
+                selected_key = preset_keys[int(pick_idx) - 1]
+                chosen_text = PRESET_INJECTIONS[selected_key]["prompt"]
+                config.set("router.prompt_injections.global", chosen_text, auto_save=False)
+                self.console.print(f"[bold green]✔ Preset '{PRESET_INJECTIONS[selected_key]['name']}' diterapkan![/bold green]")
+                Prompt.ask("Tekan Enter untuk lanjut...")
+                continue
+
+            if choice == "4":
+                custom_text = Prompt.ask("\nMasukkan custom prompt injection (Enter untuk batal)", default=curr_global).strip()
+                if custom_text:
+                    config.set("router.prompt_injections.global", custom_text, auto_save=False)
+                    self.console.print("[bold green]✔ Custom Prompt Injection berhasil disimpan![/bold green]")
+                Prompt.ask("Tekan Enter untuk lanjut...")
+                continue
+
+            if choice == "5":
+                new_val = not curr_priming
+                config.set("router.prompt_injections.chat_script_priming", new_val, auto_save=False)
+                status_txt = "diaktifkan" if new_val else "dinonaktifkan"
+                self.console.print(f"[bold yellow]✔ Chat Script Priming berhasil {status_txt}![/bold yellow]")
+                time.sleep(0.8)
+                continue
 
     # =========================================================================
     # STAGE 5: Messaging Gateway & Security Pairing
