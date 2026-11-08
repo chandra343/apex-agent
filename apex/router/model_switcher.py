@@ -12,15 +12,34 @@ class ModelSwitcher:
         pass
 
     def get_available_models(self) -> List[Dict[str, str]]:
-        """Return a structured list of all available models across configured providers."""
+        """Return a structured list of all available models across configured providers with capability tags."""
         models: List[Dict[str, str]] = []
+        seen = set()
         providers = config.get("providers", {})
+
         for p_name, p_data in providers.items():
             for m in p_data.get("models", []):
+                if (p_name, m) in seen:
+                    continue
+                seen.add((p_name, m))
+
+                m_low = m.lower()
+                if "thinking" in m_low or "reason" in m_low or "o3" in m_low or "o1" in m_low:
+                    tag = "🧠 Reasoning"
+                elif "sonnet" in m_low or "coder" in m_low or "codestral" in m_low:
+                    tag = "💻 Agentic Code"
+                elif "opus" in m_low or "gpt-4" in m_low or "pro" in m_low or "max" in m_low:
+                    tag = "👑 Flagship"
+                elif "flash" in m_low or "mini" in m_low or "haiku" in m_low or "turbo" in m_low:
+                    tag = "⚡ Fast"
+                else:
+                    tag = "🤖 General"
+
                 models.append({
                     "id": m,
                     "provider": p_name,
-                    "display": f"{m} ({p_name})"
+                    "tag": tag,
+                    "display": f"{m} ({p_name}) [{tag}]"
                 })
         return models
 

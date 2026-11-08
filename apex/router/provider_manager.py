@@ -243,6 +243,91 @@ class ProviderManager:
             latency = round(time.time() - start_t, 3)
             return False, f"Connection error: {str(e)[:120]}", latency
 
+    def fetch_live_models(self, name: str) -> Tuple[bool, str, List[str]]:
+        """Fetch real-time available models from upstream provider API."""
+        providers = config.get("providers", {})
+        p_data = providers.get(name, {})
+        if not p_data:
+            return False, f"Provider '{name}' tidak ditemukan di konfigurasi.", []
+
+        api_key = p_data.get("api_key", "").strip()
+        base_url = p_data.get("base_url", "").rstrip("/")
+
+        # 1. Google Antigravity
+        if name == "antigravity":
+            ag_token = oauth_manager.get_valid_antigravity_token()
+            if not ag_token:
+                return False, "Token Google Antigravity tidak aktif.", []
+            url = "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels"
+            headers = {
+                "Authorization": f"Bearer {ag_token}",
+                "Content-Type": "application/json",
+                "User-Agent": "Antigravity/2.0"
+            }
+            try:
+                resp = requests.post(url, headers=headers, json={}, timeout=10)
+                if resp.status_code == 200:
+                    raw_models = resp.json().get("models", {})
+                    fetched = []
+                    for m_id, info in raw_models.items():
+                        if not m_id.startswith("tab_") and not m_id.startswith("chat_"):
+                            fetched.append(m_id)
+                    if fetched:
+                        p_data["models"] = fetched
+                        providers["antigravity"] = p_data
+                        config.set("providers", providers, auto_save=True)
+                        return True, f"Berhasil sinkronisasi {len(fetched)} model dari Google Antigravity!", fetched
+                return False, f"HTTP {resp.status_code}: {resp.text[:120]}", []
+            except Exception as e:
+                return False, str(e), []
+
+        # 2. Local Ollama
+        if name == "ollama":
+            try:
+                resp = requests.get("http://localhost:11434/api/tags", timeout=3)
+                if resp.status_code == 200:
+                    models = [m["name"] for m in resp.json().get("models", [])]
+                    if models:
+                        p_data["models"] = models
+                        providers["ollama"] = p_data
+                        config.set("providers", providers, auto_save=True)
+                        return True, f"Berhasil membaca {len(models)} model dari Ollama lokal!", models
+                return False, "Ollama tidak sedang berjalan di port 11434.", []
+            except Exception as e:
+                return False, str(e), []
+
+        # 3. Standard OpenAI-compatible endpoints
+        if not api_key and name not in ["vllm", "lmstudio", "llamacpp"]:
+            return False, "API key belum diisi untuk provider ini.", []
+
+        url = f"{base_url}/models"
+        headers = {"Content-Type": "application/json"}
+        if api_key and api_key != "none":
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        try:
+            resp = requests.get(url, headers=headers, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                model_items = data.get("data", [])
+                models = [m["id"] for m in model_items if isinstance(m, dict) and "id" in m]
+                if models:
+                    p_data["models"] = models
+                    providers[name] = p_data
+                    config.set("providers", providers, auto_save=True)
+                    return True, f"Berhasil sinkronisasi {len(models)} model dari {name.upper()}!", models
+            return False, f"HTTP {resp.status_code}: {resp.text[:120]}", []
+        except Exception as e:
+            return False, str(e), []
+
+    def refresh_all_models(self) -> Dict[str, Tuple[bool, str, List[str]]]:
+        """Synchronize models for all configured providers."""
+        results: Dict[str, Tuple[bool, str, List[str]]] = {}
+        providers = config.get("providers", {})
+        for name in providers:
+            results[name] = self.fetch_live_models(name)
+        return results
+
     def test_all(self) -> Dict[str, Tuple[bool, str, float]]:
         """Run diagnostics on all configured providers concurrently."""
         results: Dict[str, Tuple[bool, str, float]] = {}

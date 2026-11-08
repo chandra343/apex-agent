@@ -201,6 +201,7 @@ class SetupWizard:
                 " • Masukkan [bold yellow]f[/bold yellow]       : 📑 [bold cyan]Ganti Kategori / Filter Tab[/bold cyan] (All, OAuth, Frontier, Fast, APAC, Cloud, Local)\n"
                 " • Masukkan [bold yellow]+[/bold yellow]       : ➕ Tambah Custom Provider Baru\n"
                 " • Masukkan [bold yellow]t[/bold yellow]       : 🧪 Test All (Uji koneksi & latensi semua provider serentak)\n"
+                " • Masukkan [bold yellow]r[/bold yellow]       : 🔄 [bold cyan]Sync / Refresh Live Models[/bold cyan] (Ambil model terbaru langsung dari API)\n"
                 f" • Masukkan [bold yellow]n[/bold yellow]       : {'Selesai / Tutup' if standalone else 'Lanjut ke Tahap Berikutnya [ Next > ]'}\n"
                 f" • Masukkan [bold yellow]b[/bold yellow]       : {'Kembali' if standalone else 'Kembali ke Tahap Sebelumnya [ < Back ]'}"
             )
@@ -338,6 +339,17 @@ class SetupWizard:
             if choice == "t":
                 self.console.print("\n[cyan]Menguji seluruh koneksi provider yang terkonfigurasi...[/cyan]")
                 test_results = provider_manager.test_all()
+                continue
+
+            if choice == "r":
+                self.console.print("\n[cyan]Melakukan sinkronisasi model terbaru langsung dari upstream API...[/cyan]")
+                sync_results = provider_manager.refresh_all_models()
+                for p_name, (ok, msg, m_list) in sync_results.items():
+                    if ok:
+                        self.console.print(f"[bold green]✔ {p_name.upper()}: {msg} ({', '.join(m_list[:3])}...)[/bold green]")
+                    else:
+                        self.console.print(f"[dim]• {p_name.upper()}: {msg}[/dim]")
+                Prompt.ask("\nTekan Enter untuk melihat tabel yang diperbarui...")
                 continue
 
             if choice == "+":

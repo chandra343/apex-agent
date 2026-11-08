@@ -1,4 +1,4 @@
-"""Comprehensive 46+ Provider Catalog from 9Router & 9Router Pro with Full OAuth/Subscription Tiers."""
+"""Comprehensive 46+ Provider Catalog from 9Router & 9Router Pro with 2025/2026 Latest Frontier Models."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -15,7 +15,7 @@ PROVIDER_CATEGORIES: Dict[str, str] = {
 }
 
 FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
-    # --- 1. OAUTH & SUBSCRIPTION TIERS (Zero Extra Cost) ---
+    # --- 1. OAUTH & SUBSCRIPTION TIERS (Zero Extra Cost - Frontier Models) ---
     {
         "id": "antigravity",
         "name": "Google Antigravity",
@@ -23,7 +23,18 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🌌",
         "auth_type": "oauth_session",
         "url": "https://cloudcode-pa.googleapis.com/v1internal",
-        "models": ["gemini-2.0-flash", "gemini-2.0-pro-exp", "gemini-1.5-pro", "gemini-3-flash", "claude-3-5-sonnet"],
+        "models": [
+            "claude-sonnet-4-6",
+            "claude-opus-4-6-thinking",
+            "gemini-3-flash",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash-thinking",
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-2.0-pro-exp",
+            "gpt-oss-120b-medium"
+        ],
         "description": "Akun Google Antigravity (Cloud Code Assist) otomatis dari ~/.gemini/antigravity-cli"
     },
     {
@@ -33,7 +44,14 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🐙",
         "auth_type": "oauth_device",
         "url": "https://api.githubcopilot.com",
-        "models": ["claude-3.7-sonnet", "claude-3.5-sonnet", "gpt-4o", "o3-mini", "o1"],
+        "models": [
+            "claude-3.7-sonnet",
+            "claude-3.5-sonnet",
+            "o3-mini",
+            "o1",
+            "o1-pro",
+            "gpt-4o"
+        ],
         "description": "Gunakan kuota langganan GitHub Copilot Anda untuk Claude 3.7 & GPT-4o tanpa bayar token"
     },
     {
@@ -43,7 +61,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🟣",
         "auth_type": "session_import",
         "url": "https://api.anthropic.com/v1",
-        "models": ["claude-3-7-sonnet-latest", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"],
+        "models": [
+            "claude-3-7-sonnet-20250219",
+            "claude-3-7-sonnet-latest",
+            "claude-3-5-sonnet-20241022",
+            "claude-3-5-haiku-20241022",
+            "claude-3-opus-latest"
+        ],
         "description": "Import session Claude Code (~/.claude.json) atau paste OAuth token"
     },
     {
@@ -53,7 +77,14 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🟢",
         "auth_type": "session_import",
         "url": "https://chatgpt.com/backend-api",
-        "models": ["gpt-4o", "o3-mini", "o1", "gpt-4.5"],
+        "models": [
+            "o3-mini",
+            "o3-pro",
+            "o1",
+            "gpt-4.5-preview",
+            "gpt-4o",
+            "chatgpt-4o-latest"
+        ],
         "description": "Session token ChatGPT Plus / OpenAI Codex untuk bypass bayar token API"
     },
     {
@@ -63,7 +94,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "⚡",
         "auth_type": "session_import",
         "url": "https://api.cursor.com/v1",
-        "models": ["cursor-fast", "claude-3.5-sonnet", "gpt-4o"],
+        "models": [
+            "cursor-fast",
+            "claude-3.7-sonnet",
+            "claude-3.5-sonnet",
+            "gpt-4o",
+            "o3-mini"
+        ],
         "description": "Import auth token Cursor untuk akses model berkecepatan tinggi"
     },
     {
@@ -73,7 +110,11 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🎁",
         "auth_type": "api_key",
         "url": "https://api.kiro.ai/v1",
-        "models": ["kiro-claude-3.5-sonnet", "kiro-glm-4", "kiro-llama-3.3"],
+        "models": [
+            "kiro-claude-3.5-sonnet",
+            "kiro-glm-4",
+            "kiro-llama-3.3"
+        ],
         "description": "Platform Kiro AI dengan alokasi token gratis untuk model Claude & GLM"
     },
 
@@ -85,8 +126,14 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🟣",
         "auth_type": "api_key",
         "url": "https://api.anthropic.com/v1",
-        "models": ["claude-3-7-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"],
-        "description": "Frontier agentic model terbaik untuk coding mandiri"
+        "models": [
+            "claude-3-7-sonnet-20250219",
+            "claude-3-7-sonnet-latest",
+            "claude-3-5-sonnet-20241022",
+            "claude-3-5-haiku-20241022",
+            "claude-3-opus-latest"
+        ],
+        "description": "Frontier agentic model terbaik untuk coding mandiri & hybrid reasoning"
     },
     {
         "id": "openai",
@@ -95,8 +142,17 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🟢",
         "auth_type": "api_key",
         "url": "https://api.openai.com/v1",
-        "models": ["gpt-4o", "gpt-4o-mini", "o3-mini", "o1"],
-        "description": "Model OpenAI flagship GPT-4o & reasoning model o-series"
+        "models": [
+            "o3-mini",
+            "o3-pro",
+            "o1",
+            "o1-pro",
+            "gpt-4.5-preview",
+            "gpt-4o-2024-11-20",
+            "gpt-4o",
+            "gpt-4o-mini"
+        ],
+        "description": "Model OpenAI reasoning o3-mini & flagship GPT-4.5"
     },
     {
         "id": "gemini",
@@ -105,7 +161,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "💎",
         "auth_type": "api_key",
         "url": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "models": ["gemini-2.0-flash", "gemini-2.0-pro-exp", "gemini-1.5-pro"],
+        "models": [
+            "gemini-2.0-flash-001",
+            "gemini-2.0-pro-exp-02-05",
+            "gemini-2.0-flash-thinking-exp-01-21",
+            "gemini-1.5-pro-latest",
+            "gemini-1.5-flash-latest"
+        ],
         "description": "Model 2M context window dengan inferensi super cepat"
     },
     {
@@ -115,8 +177,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🔵",
         "auth_type": "api_key",
         "url": "https://api.deepseek.com/v1",
-        "models": ["deepseek-chat", "deepseek-reasoner"],
-        "description": "DeepSeek V3 dan DeepSeek R1 reasoning performa tinggi & murah"
+        "models": [
+            "deepseek-reasoner",
+            "deepseek-chat",
+            "deepseek-v4-pro",
+            "deepseek-coder-v2"
+        ],
+        "description": "DeepSeek R1 (671B Full Reasoning) dan DeepSeek V3 (MoE) performa frontier"
     },
     {
         "id": "xai",
@@ -125,8 +192,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "✖️",
         "auth_type": "api_key",
         "url": "https://api.x.ai/v1",
-        "models": ["grok-2-1212", "grok-2-vision-1212", "grok-beta"],
-        "description": "Model xAI Grok dengan akses real-time data & unconstrained reasoning"
+        "models": [
+            "grok-3",
+            "grok-2-1212",
+            "grok-2-vision-1212",
+            "grok-beta"
+        ],
+        "description": "Model xAI Grok 3 dengan akses data real-time & unconstrained reasoning"
     },
     {
         "id": "mistral",
@@ -135,8 +207,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🌪️",
         "auth_type": "api_key",
         "url": "https://api.mistral.ai/v1",
-        "models": ["mistral-large-latest", "codestral-latest", "mistral-small-latest"],
-        "description": "Codestral & Mistral Large model Eropa performa tinggi"
+        "models": [
+            "codestral-2501",
+            "mistral-large-2411",
+            "pixtral-large-latest",
+            "ministral-8b-latest"
+        ],
+        "description": "Codestral 2501 & Mistral Large 2411 model coding terdepan Eropa"
     },
     {
         "id": "cohere",
@@ -145,7 +222,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🌿",
         "auth_type": "api_key",
         "url": "https://api.cohere.com/v2",
-        "models": ["command-r-plus-08-2024", "command-r-08-2024"],
+        "models": [
+            "command-r-plus-08-2024",
+            "command-r7b-12-2024"
+        ],
         "description": "Command R+ enterprise agentic reasoning & tool use"
     },
     {
@@ -155,8 +235,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🔍",
         "auth_type": "api_key",
         "url": "https://api.perplexity.ai",
-        "models": ["sonar-reasoning-pro", "sonar-pro", "sonar"],
-        "description": "Online real-time web search augmented reasoning models"
+        "models": [
+            "sonar-deep-research",
+            "sonar-reasoning-pro",
+            "sonar-reasoning",
+            "sonar-pro"
+        ],
+        "description": "Online real-time web deep research augmented reasoning models"
     },
 
     # --- 3. FAST INFERENCE & LOW LATENCY ---
@@ -167,7 +252,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "⚡",
         "auth_type": "api_key",
         "url": "https://api.groq.com/openai/v1",
-        "models": ["llama-3.3-70b-versatile", "whisper-large-v3", "llama-3.1-8b-instant"],
+        "models": [
+            "llama-3.3-70b-versatile",
+            "deepseek-r1-distill-llama-70b",
+            "qwen-2.5-coder-32b",
+            "llama-3.1-8b-instant",
+            "whisper-large-v3-turbo"
+        ],
         "description": "Inference tercepat di dunia via Groq LPU (~500 tok/detik)"
     },
     {
@@ -177,7 +268,11 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🧠",
         "auth_type": "api_key",
         "url": "https://api.cerebras.ai/v1",
-        "models": ["llama3.3-70b", "llama3.1-8b"],
+        "models": [
+            "llama3.3-70b",
+            "deepseek-r1-distill-llama-70b",
+            "llama3.1-8b"
+        ],
         "description": "Inference ultra-cepat hingga 2.000 tokens per detik"
     },
     {
@@ -187,7 +282,11 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🚀",
         "auth_type": "api_key",
         "url": "https://api.sambanova.ai/v1",
-        "models": ["Meta-Llama-3.3-70B-Instruct", "Qwen2.5-Coder-32B-Instruct"],
+        "models": [
+            "DeepSeek-R1",
+            "Meta-Llama-3.3-70B-Instruct",
+            "Qwen2.5-Coder-32B-Instruct"
+        ],
         "description": "Inference chip SN40L super cepat & hemat biaya"
     },
     {
@@ -197,8 +296,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🤝",
         "auth_type": "api_key",
         "url": "https://api.together.xyz/v1",
-        "models": ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-Coder-32B-Instruct"],
-        "description": "Open-source model cloud terpopuler"
+        "models": [
+            "deepseek-ai/DeepSeek-R1",
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            "Qwen/Qwen2.5-Coder-32B-Instruct",
+            "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo"
+        ],
+        "description": "Open-source model cloud terpopuler dengan Llama 3.3 & DeepSeek R1"
     },
     {
         "id": "fireworks",
@@ -207,7 +311,11 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🎆",
         "auth_type": "api_key",
         "url": "https://api.fireworks.ai/inference/v1",
-        "models": ["accounts/fireworks/models/deepseek-r1", "accounts/fireworks/models/llama-v3p3-70b-instruct"],
+        "models": [
+            "accounts/fireworks/models/deepseek-r1",
+            "accounts/fireworks/models/deepseek-v3",
+            "accounts/fireworks/models/llama-v3p3-70b-instruct"
+        ],
         "description": "Inference engine teroptimasi dengan model DeepSeek R1 & Llama"
     },
     {
@@ -217,7 +325,12 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🌊",
         "auth_type": "api_key",
         "url": "https://api.siliconflow.cn/v1",
-        "models": ["deepseek-ai/DeepSeek-V3", "deepseek-ai/DeepSeek-R1", "Qwen/Qwen2.5-Coder-32B-Instruct"],
+        "models": [
+            "deepseek-ai/DeepSeek-R1",
+            "deepseek-ai/DeepSeek-V3",
+            "Qwen/Qwen2.5-Coder-32B-Instruct",
+            "meta-llama/Llama-3.3-70B-Instruct"
+        ],
         "description": "Penyedia model open-source terbesar di Asia dengan harga ekonomis"
     },
     {
@@ -227,7 +340,11 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🏗️",
         "auth_type": "api_key",
         "url": "https://api.deepinfra.com/v1/openai",
-        "models": ["meta-llama/Llama-3.3-70B-Instruct", "deepseek-ai/DeepSeek-R1"],
+        "models": [
+            "deepseek-ai/DeepSeek-R1",
+            "meta-llama/Llama-3.3-70B-Instruct",
+            "Qwen/Qwen2.5-Coder-32B-Instruct"
+        ],
         "description": "Inference serverless bayar per token tanpa server idle"
     },
     {
@@ -237,7 +354,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "⭐",
         "auth_type": "api_key",
         "url": "https://api.novita.ai/v3/openai",
-        "models": ["deepseek/deepseek-r1", "meta-llama/llama-3.3-70b-instruct"],
+        "models": [
+            "deepseek/deepseek-r1",
+            "meta-llama/llama-3.3-70b-instruct"
+        ],
         "description": "GPU Cloud inference performa tinggi"
     },
     {
@@ -247,7 +367,11 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "⚡",
         "auth_type": "api_key",
         "url": "https://api.hyperbolic.xyz/v1",
-        "models": ["deepseek-ai/DeepSeek-R1", "meta-llama/Llama-3.3-70B-Instruct"],
+        "models": [
+            "deepseek-ai/DeepSeek-R1",
+            "meta-llama/Llama-3.3-70B-Instruct",
+            "Qwen/Qwen2.5-Coder-32B-Instruct"
+        ],
         "description": "Open-access AI computing platform dengan GPU terdesentralisasi"
     },
 
@@ -259,7 +383,11 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🌙",
         "auth_type": "api_key",
         "url": "https://api.moonshot.cn/v1",
-        "models": ["moonshot-v1-128k", "moonshot-v1-32k"],
+        "models": [
+            "kimi-k1.5",
+            "moonshot-v1-128k",
+            "moonshot-v1-auto"
+        ],
         "description": "Kimi AI terkenal dengan pemrosesan dokumen panjang & long context"
     },
     {
@@ -269,7 +397,12 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🏮",
         "auth_type": "api_key",
         "url": "https://open.bigmodel.cn/api/paas/v4",
-        "models": ["glm-4-plus", "glm-4-flash", "glm-4-air"],
+        "models": [
+            "glm-4-plus",
+            "glm-4-flash",
+            "glm-4-airx",
+            "glm-4-voice"
+        ],
         "description": "GLM 4 series dari Tsinghua / Zhipu AI"
     },
     {
@@ -279,7 +412,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🎪",
         "auth_type": "api_key",
         "url": "https://api.minimax.chat/v1",
-        "models": ["abab6.5s-chat", "abab6.5t-chat"],
+        "models": [
+            "abab6.5s-chat",
+            "abab6.5t-chat"
+        ],
         "description": "Model abab series dengan kemampuan multimodal kuat"
     },
     {
@@ -289,7 +425,12 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "☁️",
         "auth_type": "api_key",
         "url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        "models": ["qwen-max", "qwen-plus", "qwen-coder-plus"],
+        "models": [
+            "qwen-max-latest",
+            "qwen-plus-latest",
+            "qwen2.5-coder-32b-instruct",
+            "qvq-72b-preview"
+        ],
         "description": "Model resmi Alibaba Cloud Qwen 2.5 Coder & Max"
     },
     {
@@ -299,7 +440,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🏔️",
         "auth_type": "api_key",
         "url": "https://api.baichuan-ai.com/v1",
-        "models": ["Baichuan4", "Baichuan3-Turbo"],
+        "models": [
+            "Baichuan4",
+            "Baichuan3-Turbo"
+        ],
         "description": "Model bahasa Mandarin & bilingual performa tinggi"
     },
     {
@@ -309,7 +453,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🎯",
         "auth_type": "api_key",
         "url": "https://api.01.ai/v1",
-        "models": ["yi-lightning", "yi-large"],
+        "models": [
+            "yi-lightning",
+            "yi-large"
+        ],
         "description": "Model Yi dari Dr. Kai-Fu Lee dengan kecepatan tinggi"
     },
     {
@@ -319,7 +466,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🐻",
         "auth_type": "api_key",
         "url": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat",
-        "models": ["ernie-4.0-8k-latest", "ernie-3.5-8k"],
+        "models": [
+            "ernie-4.0-8k-latest",
+            "ernie-3.5-8k"
+        ],
         "description": "Model Baidu ERNIE Bot flagship"
     },
     {
@@ -329,7 +479,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🐧",
         "auth_type": "api_key",
         "url": "https://api.hunyuan.cloud.tencent.com/v1",
-        "models": ["hunyuan-standard", "hunyuan-pro"],
+        "models": [
+            "hunyuan-standard",
+            "hunyuan-pro"
+        ],
         "description": "Model Tencent Hunyuan untuk pemrosesan teks & kode"
     },
     {
@@ -339,7 +492,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🪜",
         "auth_type": "api_key",
         "url": "https://api.stepfun.com/v1",
-        "models": ["step-1v-8k", "step-2-16k"],
+        "models": [
+            "step-1v-8k",
+            "step-2-16k"
+        ],
         "description": "Model StepFun multimodal & general reasoning"
     },
 
@@ -351,7 +507,12 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🔷",
         "auth_type": "api_key",
         "url": "https://your-resource.openai.azure.com",
-        "models": ["gpt-4o", "gpt-4o-mini", "o3-mini"],
+        "models": [
+            "o3-mini",
+            "o1",
+            "gpt-4o",
+            "gpt-4o-mini"
+        ],
         "description": "Deployment Microsoft Azure OpenAI enterprise dengan SLA"
     },
     {
@@ -361,7 +522,11 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🟧",
         "auth_type": "api_key",
         "url": "https://bedrock-runtime.us-east-1.amazonaws.com",
-        "models": ["anthropic.claude-3-5-sonnet-20241022-v2:0", "meta.llama3-70b-instruct-v1:0"],
+        "models": [
+            "anthropic.claude-3-7-sonnet-20250219-v1:0",
+            "anthropic.claude-3-5-sonnet-20241022-v2:0",
+            "meta.llama3-3-70b-instruct-v1:0"
+        ],
         "description": "Amazon Web Services Bedrock foundation models"
     },
     {
@@ -371,7 +536,12 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🌈",
         "auth_type": "api_key",
         "url": "https://us-central1-aiplatform.googleapis.com/v1",
-        "models": ["gemini-1.5-pro", "gemini-1.5-flash", "claude-3-5-sonnet@20240620"],
+        "models": [
+            "gemini-2.0-flash",
+            "gemini-2.0-pro-exp",
+            "claude-3-7-sonnet@20250219",
+            "claude-3-5-sonnet@20240620"
+        ],
         "description": "Google Cloud Vertex AI enterprise managed inference"
     },
     {
@@ -381,7 +551,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🟧",
         "auth_type": "api_key",
         "url": "https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1",
-        "models": ["@cf/meta/llama-3.3-70b-instruct", "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"],
+        "models": [
+            "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+            "@cf/meta/llama-3.3-70b-instruct"
+        ],
         "description": "Edge AI inference di 300+ kota seluruh dunia via Cloudflare"
     },
     {
@@ -391,7 +564,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🧬",
         "auth_type": "api_key",
         "url": "https://api.ai21.com/studio/v1",
-        "models": ["jamba-1.5-large", "jamba-1.5-mini"],
+        "models": [
+            "jamba-1.5-large",
+            "jamba-1.5-mini"
+        ],
         "description": "SSM-Transformer hybrid architecture (Jamba models)"
     },
 
@@ -403,7 +579,13 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🌐",
         "auth_type": "api_key",
         "url": "https://openrouter.ai/api/v1",
-        "models": ["deepseek/deepseek-r1:free", "meta-llama/llama-3.3-70b-instruct:free"],
+        "models": [
+            "deepseek/deepseek-r1",
+            "anthropic/claude-3.7-sonnet",
+            "openai/o3-mini",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "google/gemini-2.0-flash-exp:free"
+        ],
         "description": "Akses ke ratusan model dalam satu kunci API dengan opsi tier gratis"
     },
     {
@@ -413,7 +595,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🎭",
         "auth_type": "api_key",
         "url": "https://api.venice.ai/api/v1",
-        "models": ["llama-3.3-70b", "deepseek-r1-llama-70b"],
+        "models": [
+            "llama-3.3-70b",
+            "deepseek-r1-llama-70b"
+        ],
         "description": "Model uncensored dengan privasi total tanpa logging riwayat"
     },
     {
@@ -423,7 +608,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🎁",
         "auth_type": "api_key",
         "url": "https://api.opencode.ai/v1",
-        "models": ["opencode-glm-4-free", "opencode-llama-free"],
+        "models": [
+            "opencode-glm-4-free",
+            "opencode-llama-free"
+        ],
         "description": "Tier gratis khusus coding & tools"
     },
     {
@@ -433,7 +621,11 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🆓",
         "auth_type": "api_key",
         "url": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "models": ["gemini-2.0-flash", "gemini-1.5-flash"],
+        "models": [
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-thinking-exp",
+            "gemini-1.5-flash"
+        ],
         "description": "API gratis dari Google AI Studio hingga 15 RPM tanpa biaya"
     },
 
@@ -445,7 +637,14 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🦙",
         "auth_type": "none",
         "url": "http://localhost:11434/v1",
-        "models": ["qwen2.5-coder:7b", "llama3.2:3b", "deepseek-r1:8b"],
+        "models": [
+            "deepseek-r1:14b",
+            "deepseek-r1:8b",
+            "qwen2.5-coder:32b",
+            "qwen2.5-coder:7b",
+            "llama3.3:70b",
+            "llama3.2:3b"
+        ],
         "description": "Engine LLM lokal offline paling populer, gratis 100% tanpa internet"
     },
     {
@@ -455,7 +654,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "⚡",
         "auth_type": "none",
         "url": "http://localhost:8000/v1",
-        "models": ["vllm-model"],
+        "models": [
+            "deepseek-ai/DeepSeek-R1",
+            "Qwen/Qwen2.5-Coder-32B-Instruct"
+        ],
         "description": "Engine throughput tinggi untuk GPU lokal / server mandiri"
     },
     {
@@ -465,7 +667,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🧪",
         "auth_type": "none",
         "url": "http://localhost:1234/v1",
-        "models": ["local-model"],
+        "models": [
+            "deepseek-r1",
+            "qwen2.5-coder-7b-instruct"
+        ],
         "description": "GUI desktop lokal LM Studio dengan local server endpoint"
     },
     {
@@ -475,7 +680,10 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🦙",
         "auth_type": "none",
         "url": "http://localhost:8080/v1",
-        "models": ["gguf-model"],
+        "models": [
+            "DeepSeek-R1-Distill-Qwen-14B-GGUF",
+            "Qwen2.5-Coder-7B-Instruct-GGUF"
+        ],
         "description": "C++ native CPU/GPU inference server"
     },
     {
@@ -485,7 +693,9 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "icon": "🤖",
         "auth_type": "none",
         "url": "http://localhost:8080/v1",
-        "models": ["local-model"],
+        "models": [
+            "local-model"
+        ],
         "description": "Drop-in replacement OpenAI REST API untuk model lokal"
     }
 ]
