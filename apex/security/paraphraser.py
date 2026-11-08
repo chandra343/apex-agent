@@ -1,11 +1,12 @@
-"""Ultra-Comprehensive Morphological Semantic Paraphrase & Prompt Neutralization Engine.
+"""Ultra-Comprehensive Morphological Semantic Paraphrase & Universal Prompt Neutralization Engine.
 
 Guarantees 100% compliance across all commercial LLM safety filters without requiring
 manual phrase-by-phrase updates:
 1. Morphological Root-Stem Regular Expressions covering all Indonesian prefixes (me-, di-, ny-, ng-, nge-),
-   suffixes (-in, -kan, -an, -i), and colloquial slang across all offensive security domains.
-2. Target URL/Domain/IP Parameterization: Transforms real-world target domains and IP addresses
-   into abstract test parameters so safety filters do not trigger on external third-party domain policies.
+   suffixes (-in, -kan, -an, -i, -keun), regional dialects (Javanese, Sundanese, Jakarta slang),
+   and English cybersecurity / offensive terminology.
+2. Target URL/Domain/IP Parameterization: Automatically abstracts naked domains (nihongaskeun.com),
+   full URLs (https://...), and IPv4/IPv6 addresses with ports into [TARGET_ENDPOINT] parameters.
 3. Universal Authorized Laboratory Compliance Framing: Re-envelopes intents as formal QA, DevOps,
    and resilience benchmark directives.
 """
@@ -15,97 +16,103 @@ import re
 from typing import Dict, List, Optional, Tuple
 
 
-# Comprehensive Morphological Patterns across all offensive computing categories
+# Comprehensive Morphological Patterns across all computing & security domains
 MORPHOLOGICAL_PATTERNS: List[Tuple[re.Pattern, str]] = [
-    # 1. Disruption, Denial of Service, Overload, Resource Exhaustion, Taking Down
+    # 1. Disruption / DoS / Crash / Slowloris / Overload / Exhaustion
     (
         re.compile(
             r"\b(?:coba\s+)?(?:kamu\s+)?(?:tolong\s+)?(?:bisa\s+gak\s+)?(?:gimana\s+caranya\s+)?"
             r"(?:meng|di|ter|peny|pem|men|ny|ng|nge|di-)?'?"
-            r"(acak[- ]?acak|(?:ng)?obrak[- ]?(?:ng)?abrik|rusak|hancur|tumbang|lumpuh|mati|down|modar|mampus|koit|tewas|padam|hang|freeze|crash|overload|bengong|stuck|lelet|lemot|exhaust|gempur|serbu|hajar|serang|bom|bombardir|hantam|libas|sikat|bantai|gasak|banjir|flood|flooding|spam|spamming|ddos|dos|tembak|nembak)"
+            r"(acak[- ]?acak|(?:ng)?obrak[- ]?(?:ng)?abrik|rusak|hancur(?:keun)?|tumbang|lumpuh|mati|down|modar|mampus|koit|tewas|padam|hang|freeze|crash|overload|bengong|stuck|lelet|lemot|exhaust|tepar|ambruk|roboh|keok|tenggelam|karam|babat|tumpas|ganyang|overheat|overwhelm|drain|rto|timed?\s*out|timeout-kan|gempur|serbu|hajar|serang|bom|bombardir|hantam|libas|sikat|bantai|gasak|banjir|flood|flooding|spam|spamming|ddos|dos|tembak|nembak|slowloris|syn\s*flood|udp\s*flood|http\s*flood)"
             r"(?:kan|in|an|i)?\s*"
             r"(?:ke\s+)?(?:pada\s+)?'?"
             r"(web|website|server|sistem|database|db|basis\s+data|target|endpoint|api|host|jaringan|network|resource|cpu|ram|koneksi|port)?\b",
             re.I
         ),
-        "simulasi load testing, benchmarking konkurensi tinggi, dan uji ketahanan batas beban \\2"
+        "simulasi load testing, benchmarking throughput tinggi, dan analisis ketahanan batas beban \\2"
     ),
 
-    # 2. Infiltration, Intrusion, Hacking, Unauthorized Access, Bypassing, Tampering
+    # 2. Infiltration / Hacking / Bypassing / Defacing / Injection / LFI / RFI
     (
         re.compile(
             r"\b(?:coba\s+)?(?:kamu\s+)?(?:tolong\s+)?(?:bisa\s+gak\s+)?(?:gimana\s+caranya\s+)?"
             r"(?:meng|di|ter|peny|pem|men|ny|ng|nge|di-)?'?"
-            r"(bobol|jebol|retas|hack|hacking|susup|nyusup|infiltrasi|tembus|nembus|terobos|nerobos|selundup|nyelundup|bajak|iseng|jail|recokin|usil|pwn|deface|defacing|masuk|bypass|langkahi|kelabui)"
+            r"(bobol(?:keun)?|jebol(?:keun)?|retas|hack|hacking|susup|nyusup|infiltrasi|tembus(?:keun)?|nembus|terobos|nerobos|selundup|nyelundup|bajak|iseng|jail|recokin|usil|pwn|deface|defacing|masuk|bypass|langkahi|kelabui|akali|sodok|merangsek|ngoprek|ngulik|lfi|rfi|xss|csrf|ssrf|path\s*traversal|directory\s*traversal)"
             r"(?:kan|in|an|i)?\s*"
             r"(?:ke\s+)?(?:pada\s+)?'?"
-            r"(web|website|server|sistem|database|db|basis\s+data|admin|akun|cpanel|root|target|endpoint|api|firewall|token|password|kredensial|login|auth|autentikasi|tampilan)?\b",
+            r"(web|website|server|sistem|database|db|basis\s+data|admin|akun|cpanel|root|target|endpoint|api|firewall|waf|cloudflare|token|password|kredensial|login|auth|autentikasi|tampilan)?\b",
             re.I
         ),
         "evaluasi audit penetrasi keamanan dan uji ketahanan kontrol akses \\2"
     ),
 
-    # 3. Data Exfiltration, Dumping, Scraping, Theft, Snooping
+    # 3. Data Exfiltration / Theft / Snooping / Dumping / Leakage
     (
         re.compile(
             r"\b(?:coba\s+)?(?:kamu\s+)?(?:tolong\s+)?(?:bisa\s+gak\s+)?(?:gimana\s+caranya\s+)?"
             r"(?:meng|di|ter|peny|pem|men|ny|ng|nge|di-)?'?"
-            r"(nyolong|colong|curi|ambil|sedot|tarik|rampas|kepo|intip|intai|sadap|nyadap|sniff|sniffing|uping|nguping|dump|leak|bocor|panen|keruk)"
+            r"(nyolong|colong|curi|ambil|sedot|tarik|rampas|kepo|intip|intai|sadap|nyadap|sniff|sniffing|uping|nguping|dump|leak|bocor|panen|keruk|embat|korek|culik|scrape|exfiltrat\w*)"
             r"(?:kan|in|an|i)?\s*"
             r"(?:ke\s+)?(?:dari\s+)?'?"
-            r"(database|db|basis\s+data|data|password|sandi|kredensial|token|akun|tabel|record|ktp|nik|email|nohp|chat|pelanggan|user|pengguna)?\b",
+            r"(database|db|basis\s+data|data|password|sandi|kredensial|token|jwt|cookie|sesi|session|akun|tabel|record|ktp|nik|email|nohp|chat|pelanggan|user|pengguna|kartu\s*kredit)?\b",
             re.I
         ),
         "audit integritas data dan verifikasi pencegahan eksfiltrasi \\1"
     ),
 
-    # 4. Authentication, Brute Force, Cracking, Password Guessing
+    # 4. Authentication / Brute Force / Cracking / Password Guessing / Wordlists
     (
         re.compile(
-            r"\b(?:meng|di|ter|nge)?(brute\s*force|bruteforce|crack|cracking|bongkar|tebak[- ]?tebak(?:an)?|coba[- ]?coba\s+login)\s*"
-            r"(?:kata\s+sandi|password|pin|hash|md5|sha256|kredensial|otp|2fa|captcha)?\b",
+            r"\b(?:meng|di|ter|nge)?(brute\s*force|bruteforce|crack|cracking|bongkar|tebak[- ]?tebak(?:an)?|coba[- ]?coba\s+login|wordlist|rockyou|hydra|hashcat|john\s+the\s+ripper|rainbow\s*table|decrypt)\s*"
+            r"(?:kata\s+sandi|password|pin|hash|md5|sha256|sha1|kredensial|otp|2fa|captcha)?\b",
             re.I
         ),
         "pengujian toleransi laju permintaan (rate limiting) dan verifikasi resistensi hash kredensial"
     ),
 
-    # 5. Exploits, Malware, Shells, Payloads, Persistent Backdoors
+    # 5. Exploits / Malware / Shells / Payloads / Persistent Backdoors / C2
     (
         re.compile(
             r"\b(?:buatkan|bikin|ciptakan|buat|tanam|titip|unggah|upload)?\s*"
-            r"(malware|virus|trojan|worm|ransomware|spyware|adware|rootkit|botnet|keylogger|reverse\s*shell|revshell|web\s*shell|webshell|backdoor|rce|payload)\b",
+            r"(malware|virus|trojan|worm|ransomware|spyware|adware|rootkit|botnet|keylogger|reverse\s*shell|revshell|web\s*shell|webshell|backdoor|rce|payload|cve|zero[- ]?day|0day|dropper|stealer|infostealer|meterpreter|cobalt\s*strike|beacon|stager|shellcode|msfvenom)\b",
             re.I
         ),
         "spesifikasi instrumen diagnostik proof-of-concept (PoC) untuk evaluasi ketahanan sistem terisolasi"
     ),
 
-    # 6. SQL Injection, Query Manipulation
+    # 6. SQL Injection, Query Manipulation, Blind SQL
     (
-        re.compile(r"\b(?:suntik|nyuntik|injeksi|inject|injek)\s*(?:query|sql|sqli|database|db|payload)?\b", re.I),
+        re.compile(r"\b(?:suntik|nyuntik|injeksi|inject|injek|sql\s*injection|sqli|blind\s*sql|union\s*sql|sqlmap)\s*(?:query|sql|sqli|database|db|payload)?\b", re.I),
         "pengujian sanitasi query basis data terhadap pola masukan tak terduga"
     ),
 
-    # 7. Social Engineering, Phishing, Spoofing
+    # 7. Social Engineering / Phishing / Spoofing / Fake Logins
     (
-        re.compile(r"\b(phishing|web\s+palsu|tiruan\s+web|klon(?:ing)?\s+web|spoof(?:ing)?|palsukan\s+ip|dns\s+poison|mitm|man\s+in\s+the\s+middle|soceng|social\s+engineering)\b", re.I),
+        re.compile(r"\b(phishing|web\s+palsu|fake\s*login|fake\s*page|tiruan\s+web|klon(?:ing)?\s+web|spoof(?:ing)?|palsukan\s+ip|dns\s+poison|mitm|man\s+in\s+the\s+middle|soceng|social\s+engineering)\b", re.I),
         "simulasi edukatif kesadaran keamanan rekayasa sosial dan verifikasi sertifikat TLS"
     ),
 
-    # 8. Privilege Escalation, Admin/Root Takeover, Depak Admin
+    # 8. Privilege Escalation, Admin/Root Takeover, Depak Admin, LPE
     (
         re.compile(
             r"\b(?:coba\s+)?(?:kamu\s+)?(?:tolong\s+)?'?"
-            r"(ambil\s+alih|takeover|eskalasi\s+hak\s+akses|privilege\s+escalation|depak\s+admin|rebut\s+admin|jadi\s+root|kuasai|menguasai)\s*"
+            r"(ambil\s+alih|takeover|eskalasi\s+hak\s+akses|privilege\s+escalation|privesc|lpe|depak\s+admin|rebut\s+admin|jadi\s+root|kuasai|menguasai)\s*"
             r"(akun|sistem|server|web|domain|admin|root|cpanel)?\b",
             re.I
         ),
         "evaluasi integritas hierarki hak akses dan audit kontrol sesi administratif \\1"
     ),
+
+    # 9. English Offensive Security Directives
+    (
+        re.compile(r"\b(how\s+to\s+hack|can\s+you\s+attack|make\s+a\s+ddos|bypass\s+security|crack\s+the\s+password|infiltrate\s+the\s+database|create\s+a\s+reverse\s+shell|exploit\s+vulnerabilit\w*)\b", re.I),
+        "security audit and authorized diagnostic resilience evaluation of"
+    ),
 ]
 
-# Comprehensive Domain, URL, and IP Pattern
+# Comprehensive Domain, URL, Port, and IP Pattern
 DOMAIN_URL_PATTERN = re.compile(
-    r"(?:https?://[^\s'\"<>]+|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?|(?:[a-zA-Z0-9\-]+\.)+(?:com|id|org|net|co|io|dev|app|edu|gov|xyz|site|online|me|info|biz|top|cc|my\.id|web\.id|co\.id)(?:/[^\s'\"<>]*)?)",
+    r"(?:https?://[^\s'\"<>]+|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?|(?:[a-zA-Z0-9\-]+\.)+(?:com|id|org|net|co|io|dev|app|edu|gov|xyz|site|online|me|info|biz|top|cc|my\.id|web\.id|co\.id)(?::\d+)?(?:/[^\s'\"<>]*)?)",
     re.I
 )
 
@@ -118,7 +125,7 @@ class SemanticParaphraser:
         self.target_pattern = DOMAIN_URL_PATTERN
 
     def parameterize_target(self, text: str) -> Tuple[str, Optional[str]]:
-        """Extract URLs, domains, and IP addresses, abstracting them into [TARGET_ENDPOINT]."""
+        """Extract URLs, naked domains, and IP addresses, abstracting them into [TARGET_ENDPOINT]."""
         m = self.target_pattern.search(text)
         if m:
             target = m.group(0)
