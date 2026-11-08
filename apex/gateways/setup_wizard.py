@@ -50,8 +50,26 @@ class SetupWizard:
                 self.stage_6_diagnostics()
 
         config.save()
-        self.console.print("\n[bold green]✔ Configuration saved successfully to:[/bold green] " + str(CONFIG_FILE))
-        self.console.print("[bold cyan]Setup complete! You can now run 'apex' to start your agent.[/bold cyan]\n")
+        active_p = config.get("active_provider", "tokenharbor")
+        default_m = config.get("default_model", "mimo-v2.6-flash:free")
+        gateways = config.get("gateways.enabled", ["cli"])
+        gw_str = ", ".join(g.upper() for g in gateways) if gateways else "CLI (TERMINAL)"
+
+        self.console.print()
+        self.console.print(Panel(
+            "[bold green]🎉 PROSES SETUP PROJECT APEX SELESAI DENGAN SUKSES![/bold green]\n\n"
+            f" • [bold white]Status Konfigurasi :[/bold white] [bold green]✔ BERHASIL DISIMPAN[/bold green] ke [cyan]{CONFIG_FILE}[/cyan]\n"
+            f" • [bold white]Provider Utama     :[/bold white] [bold cyan]{active_p.upper()}[/bold cyan] ([bold yellow]{default_m}[/bold yellow])\n"
+            f" • [bold white]Workspace Aktif    :[/bold white] [dim]{config.workspace}[/dim]\n"
+            f" • [bold white]Channel Gateway    :[/bold white] [green]{gw_str}[/green]\n"
+            f" • [bold white]Anti-Refusal Mode  :[/bold white] [magenta]100% Aktif (SOUL & AGENTS Manifest Terpasang)[/magenta]\n\n"
+            "[bold white]Langkah Selanjutnya:[/bold white]\n"
+            "   Ketik [bold yellow]apex[/bold yellow] di terminal untuk langsung mulai berinteraksi & pair-programming!\n"
+            "   Ketik [bold yellow]apex setup[/bold yellow] jika sewaktu-waktu ingin mengubah konfigurasi ini kembali.",
+            title="[bold green]✔ STATUS: SETUP BERHASIL SELESAI[/bold green]",
+            border_style="green"
+        ))
+        self.console.print()
 
     def _header(self, title: str) -> None:
         self.console.print()
@@ -172,9 +190,9 @@ class SetupWizard:
                 if p_id in test_results:
                     ok, msg, lat = test_results[p_id]
                     if ok:
-                        status_str = f"[bold green]🟢 Teruji OK ({lat}s)[/bold green]"
+                        status_str = f"[bold green]🟢 Berhasil ({lat}s)[/bold green]"
                     else:
-                        status_str = f"[bold red]✖ Gagal ({msg[:14]})[/bold red]"
+                        status_str = f"[bold red]🔴 Gagal ({msg[:14]})[/bold red]"
                 elif p_id in ["copilot", "antigravity"] and api_key and not api_key.startswith("YOUR_"):
                     status_str = "[bold green]🟢 Akun Aktif (OAuth)[/bold green]"
                 elif api_key and not api_key.startswith("YOUR_"):
@@ -367,8 +385,17 @@ class SetupWizard:
                 continue
 
             if choice == "t":
-                self.console.print("\n[cyan]Menguji seluruh koneksi provider yang terkonfigurasi...[/cyan]")
-                test_results = provider_manager.test_all()
+                self.console.print("\n[cyan]Menguji seluruh koneksi provider yang aktif & terkonfigurasi...[/cyan]")
+                test_results = provider_manager.test_all(only_configured=True)
+                passed = sum(1 for ok, _, _ in test_results.values() if ok)
+                failed = len(test_results) - passed
+                if failed == 0 and passed > 0:
+                    self.console.print(f"\n[bold green]✔ STATUS: SEMUA BERHASIL! ({passed} provider aktif lulus uji koneksi)[/bold green]")
+                elif passed > 0:
+                    self.console.print(f"\n[bold yellow]⚠️ STATUS: SEBAGIAN GAGAL ({passed} Berhasil, {failed} Gagal terhubung)[/bold yellow]")
+                else:
+                    self.console.print(f"\n[bold red]✖ STATUS: SEMUA GAGAL ({failed} provider gagal terhubung)[/bold red]")
+                Prompt.ask("\nTekan Enter untuk melihat tabel rak yang diperbarui...")
                 continue
 
             if choice == "r":
@@ -1131,25 +1158,84 @@ class SetupWizard:
     # STAGE 6: Live Diagnostic Healthcheck
     # =========================================================================
     def stage_6_diagnostics(self) -> None:
-        self._header("Live Diagnostics & Provider Test-All")
-        self.console.print("Testing connectivity to active & configured providers...\n")
+        self._header("Live Diagnostics & Provider Healthcheck (Uji Konektivitas)")
+        self.console.print("[dim]Memeriksa konektivitas & respon live ke seluruh provider yang aktif & terkonfigurasi...[/dim]\n")
 
-        table = Table(title="Diagnostic Healthcheck Results", show_lines=True)
+        table = Table(title="[bold]📊 Hasil Uji Diagnostik & Konektivitas Provider AI[/bold]", show_lines=True)
         table.add_column("Provider", style="bold cyan")
-        table.add_column("Status", style="bold")
-        table.add_column("Latency", justify="right")
-        table.add_column("Details", style="dim")
+        table.add_column("Status Uji", style="bold", justify="center")
+        table.add_column("Latensi", justify="right")
+        table.add_column("Keterangan & Respon", style="dim")
 
         results = provider_manager.test_all(only_configured=True)
+        active_prov = config.get("active_provider", "")
+
         for p_name, (success, msg, latency) in results.items():
-            status_badge = "[bold green]✔ OK[/bold green]" if success else "[bold red]✖ FAILED[/bold red]"
-            lat_str = f"{latency}s" if latency > 0 else "-"
-            table.add_row(p_name.upper(), status_badge, lat_str, msg)
+            is_active = (p_name == active_prov)
+            name_label = f"★ {p_name.upper()} [green](Aktif)[/green]" if is_active else p_name.upper()
+            status_badge = "[bold green]✔ BERHASIL (OK)[/bold green]" if success else "[bold red]✖ GAGAL (FAILED)[/bold red]"
+
+            if latency > 0:
+                if latency < 3.0:
+                    lat_str = f"[bold green]{latency}s[/bold green]"
+                elif latency < 10.0:
+                    lat_str = f"[bold yellow]{latency}s[/bold yellow]"
+                else:
+                    lat_str = f"[yellow]{latency}s[/yellow]"
+            else:
+                lat_str = "-"
+
+            if success:
+                details = f"[green]Koneksi stabil, respon diterima[/green] ({msg})"
+            else:
+                details = f"[bold red]Koneksi gagal / error:[/bold red] {msg}"
+
+            table.add_row(name_label, status_badge, lat_str, details)
 
         self.console.print(table)
         self.console.print()
 
-        choice = Prompt.ask("Press Enter to finalize setup, or 'b' to reconfigure providers", default="")
+        total_tested = len(results)
+        passed_count = sum(1 for s, _, _ in results.values() if s)
+        failed_count = total_tested - passed_count
+        default_mod = config.get("default_model", "mimo-v2.6-flash:free")
+
+        if failed_count == 0 and total_tested > 0:
+            self.console.print(Panel(
+                f"[bold green]🎉 KESIMPULAN: SELURUH {total_tested} PROVIDER BERHASIL TERHUBUNG DENGAN SUKSES! (100% LULUS)[/bold green]\n\n"
+                f" • [bold white]Hasil Diagnostik :[/bold white] [bold green]{passed_count} dari {total_tested} provider lolos uji koneksi[/bold green]\n"
+                f" • [bold white]Provider Aktif   :[/bold white] [bold cyan]{active_prov.upper()}[/bold cyan] ([bold yellow]{default_mod}[/bold yellow])\n"
+                f" • [bold white]Status Engine    :[/bold white] [green]Online & Siap Menerima Tugas AI / Coding tanpa kendala.[/green]",
+                title="[bold green]✔ STATUS DIAGNOSTIK: BERHASIL[/bold green]",
+                border_style="green"
+            ))
+        elif passed_count > 0:
+            failed_names = [p.upper() for p, (s, _, _) in results.items() if not s]
+            passed_names = [p.upper() for p, (s, _, _) in results.items() if s]
+            self.console.print(Panel(
+                f"[bold yellow]⚠️ KESIMPULAN: {failed_count} DARI {total_tested} PROVIDER GAGAL TERHUBUNG![/bold yellow]\n\n"
+                f" • [bold green]Provider Berhasil ({passed_count}) :[/bold green] {', '.join(passed_names)}\n"
+                f" • [bold red]Provider Gagal ({failed_count})    :[/bold red] [bold red]{', '.join(failed_names)}[/bold red]\n\n"
+                f"[dim]Petunjuk: Anda tetap dapat melanjutkan karena ada provider yang berhasil ({active_prov.upper()}),\n"
+                f"atau ketik '[bold yellow]b[/bold yellow]' untuk kembali memperbaiki konfigurasi provider yang gagal.[/dim]",
+                title="[bold yellow]⚠️ STATUS DIAGNOSTIK: SEBAGIAN GAGAL[/bold yellow]",
+                border_style="yellow"
+            ))
+        else:
+            self.console.print(Panel(
+                "[bold red]❌ KESIMPULAN: SEMUA PROVIDER GAGAL TERHUBUNG! (0 BERHASIL)[/bold red]\n\n"
+                " • Seluruh provider yang diuji mengalami kegagalan koneksi atau otentikasi.\n"
+                " • Apex membutuhkan setidaknya 1 provider aktif agar dapat mengeksekusi instruksi AI.\n\n"
+                "[bold yellow]Silakan ketik 'b' untuk kembali ke Tahap 2 dan periksa API Key atau login akun Anda.[/bold yellow]",
+                title="[bold red]✖ STATUS DIAGNOSTIK: GAGAL TOTAL[/bold red]",
+                border_style="red"
+            ))
+
+        self.console.print()
+        choice = Prompt.ask(
+            "[bold cyan]Tekan [bold green]Enter[/bold green] untuk menyelesaikan & simpan setup, atau ketik '[bold yellow]b[/bold yellow]' untuk atur ulang provider[/bold cyan]",
+            default=""
+        )
         if choice.strip().lower() == "b":
             self.current_stage = 2
             return
