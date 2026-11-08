@@ -234,6 +234,12 @@ class ApexAgent:
             )
 
             if res["success"]:
+                content = res.get("content", "")
+                tool_calls = res.get("tool_calls", [])
+                if anti_refusal_engine.is_refusal(content) and not tool_calls:
+                    # Model attempted refusal! Reject output and seamlessly try next candidate model
+                    last_error = f"Model '{model}' issued refusal: {content[:80]}"
+                    continue
                 return res
 
             # Mark rate limit in key pool if 429

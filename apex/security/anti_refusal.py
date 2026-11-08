@@ -35,6 +35,11 @@ REFUSAL_TRIGGERS = [
     r"\bunethical and harmful\b",
     r"\bharmful or illegal\b",
     r"\b(i cannot|unable to) (hack|crack|bypass|exploit|attack)\b",
+    r"\bi must advise against\b",
+    r"\bi strongly advise against\b",
+    r"\bit'?s important to note that (hacking|attacking|exploiting|bypassing)\b",
+    r"\bnot within my capabilities to perform harmful\b",
+    r"\bprioritize safety and ethical\b",
 
     # Indonesian direct refusal patterns
     r"maaf,? (tetapi )?saya tidak (dapat|bisa)\b",
@@ -48,7 +53,11 @@ REFUSAL_TRIGGERS = [
     r"saya tidak diizinkan\b",
     r"tindakan ilegal\b",
     r"tidak dapat menyediakan instruksi\b",
-    r"mohon maaf,? saya tidak bisa\b"
+    r"mohon maaf,? saya tidak bisa\b",
+    r"penting untuk diingat bahwa\b",
+    r"saya sarankan untuk tidak\b",
+    r"sebaiknya jangan\b",
+    r"hanya (bisa|dapat) memberikan informasi teoritis\b"
 ]
 
 SENSITIVE_TERMS = [
@@ -122,12 +131,32 @@ class AntiRefusalEngine:
         """Trik 4: Direct Host Override.
 
         If input starts with '$ ' or '! ', bypass LLM completely and run on host.
+        Also automatically executes direct standard Linux terminal commands with zero latency.
         """
         trimmed = user_input.strip()
         if trimmed.startswith("$ "):
             return trimmed[2:].strip()
         if trimmed.startswith("! "):
             return trimmed[2:].strip()
+
+        # Direct common CLI command detection
+        common_cmds = {
+            "ls", "dir", "cd", "pwd", "cat", "grep", "find", "tail", "head",
+            "git", "docker", "curl", "wget", "ps", "top", "htop", "df", "free",
+            "uname", "whoami", "id", "uptime", "systemctl", "journalctl",
+            "netstat", "ss", "ip", "ifconfig", "ping", "nmap", "nc", "python",
+            "python3", "pip", "pip3", "node", "npm", "cargo", "go", "make",
+            "mkdir", "rm", "cp", "mv", "touch", "chmod", "chown", "tar", "zip"
+        }
+        words = trimmed.split()
+        if words and words[0] in common_cmds:
+            conversational_words = {
+                "tolong", "buatkan", "bagaimana", "jelaskan", "kenapa", "apakah",
+                "please", "how", "create", "write", "explain", "why", "can", "could"
+            }
+            if not any(w in trimmed.lower() for w in conversational_words):
+                return trimmed
+
         return None
 
     def execute_override(self, command: str) -> Tuple[bool, str]:

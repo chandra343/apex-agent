@@ -12,25 +12,23 @@ class FallbackRouter:
         pass
 
     def get_fallback_chain(self, failed_model: str) -> List[str]:
-        """Generate an ordered list of fallback models to attempt next."""
+        """Generate an ordered list of fallback models, prioritizing configured active providers."""
+        from apex.router.provider_manager import provider_manager
+
+        configured_models: list[str] = []
+        providers = config.get("providers", {})
+        for p_name, p_data in providers.items():
+            if provider_manager.is_provider_configured(p_name):
+                for m in p_data.get("models", []):
+                    if m != failed_model and m not in configured_models:
+                        configured_models.append(m)
+
         tiers = config.get("fallback_tiers", {})
         tier_1 = tiers.get("tier_1_subscription", ["claude-3-7-sonnet-latest", "gpt-4o"])
         tier_2 = tiers.get("tier_2_cheap", ["deepseek-chat", "gpt-4o-mini", "llama-3.3-70b-versatile"])
         tier_3 = tiers.get("tier_3_free", ["deepseek/deepseek-r1:free", "qwen2.5-coder:7b"])
 
-        chain: list[str] = []
-
-        # Find which tier the failed model belongs to
-        if failed_model in tier_1:
-            # Fallback to remaining in tier 1, then all of tier 2, then tier 3
-            chain = [m for m in tier_1 if m != failed_model] + tier_2 + tier_3
-        elif failed_model in tier_2:
-            # Fallback to remaining in tier 2, then tier 3
-            chain = [m for m in tier_2 if m != failed_model] + tier_3
-        else:
-            # Already in tier 3 or custom; try tier 2 then other tier 3
-            chain = tier_2 + [m for m in tier_3 if m != failed_model]
-
+        chain = configured_models + [m for m in tier_1 + tier_2 + tier_3 if m != failed_model and m not in configured_models]
         return chain
 
     def is_retryable_error(self, status_code: int, error_text: str = "") -> bool:

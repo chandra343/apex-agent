@@ -18,6 +18,7 @@ from apex.agent import default_agent
 from apex.config import config, DATA_DIR
 from apex.router.ledger import token_ledger
 from apex.router.model_switcher import model_switcher
+from apex.security.anti_refusal import anti_refusal_engine
 from apex.tools.backends import backend_manager
 
 # Prompt toolkit custom styling (Pi Agent aesthetic)
@@ -197,12 +198,12 @@ class PiTerminalTUI:
                     self.handle_slash_command(user_input)
                     continue
 
-                # Handle direct host override ($ <cmd>)
-                if user_input.startswith("$ "):
-                    cmd = user_input[2:].strip()
-                    code, stdout, stderr = backend_manager.execute(cmd)
+                # Handle direct host override ($ <cmd>, ! <cmd>, or direct CLI commands)
+                override_cmd = anti_refusal_engine.is_direct_host_override(user_input)
+                if override_cmd:
+                    code, stdout, stderr = backend_manager.execute(override_cmd)
                     out = stdout if stdout else stderr
-                    self.format_tool_chip("host_override", cmd, out, is_error=(code != 0))
+                    self.format_tool_chip("host_direct", override_cmd, out, is_error=(code != 0))
                     continue
 
                 # Live status tracking hooks for tool execution
