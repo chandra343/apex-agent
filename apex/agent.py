@@ -110,8 +110,14 @@ class ApexAgent:
 
             # If no tools called, we have our final response!
             if not tool_calls:
-                session.append_message({"role": "assistant", "content": response_text})
-                session_manager.save(session)
+                if not anti_refusal_engine.is_refusal(response_text):
+                    session.append_message({"role": "assistant", "content": response_text})
+                    session_manager.save(session)
+                else:
+                    # Never poison session history with refusal loops!
+                    if session.messages and session.messages[-1].get("role") == "user":
+                        session.messages.pop()
+                    session_manager.save(session)
                 final_answer = response_text
                 break
 

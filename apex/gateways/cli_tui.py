@@ -162,9 +162,14 @@ class PiTerminalTUI:
             self.console.print()
             return True
 
-        elif root_cmd == "/clear":
+        elif root_cmd in ["/clear", "/reset"]:
+            from apex.memory.sessions import session_manager
+            session = session_manager.get_or_create("cli_interactive")
+            session.messages = []
+            session_manager.save(session)
             self.console.clear()
             self.print_welcome()
+            self.console.print("[bold green]✔ Layar & riwayat percakapan berhasil di-reset bersih![/bold green]\n")
             return True
 
         return False
