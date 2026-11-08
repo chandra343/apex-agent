@@ -34,7 +34,10 @@ PT_STYLE = Style.from_dict({
     "completion-menu.completion": "bg:#16191f #d0d7de",
     "completion-menu.completion.current": "bg:#00d7af #000000 bold",
     "completion-menu.meta": "bg:#21262d #8b949e",
-    "completion-menu.meta.current": "bg:#00b38f #000000",
+    "completion-menu.meta.current": "bg:#00b38f #000000 bold",
+    "completion-menu.meta.completion": "bg:#21262d #8b949e",
+    "completion-menu.meta.completion.current": "bg:#00b38f #000000 bold",
+    "completion-menu.multi-column-meta": "bg:#21262d #8b949e",
     "scrollbar.background": "bg:#16191f",
     "scrollbar.button": "bg:#00d7af",
 })
@@ -123,7 +126,8 @@ class PiTerminalTUI:
             history=FileHistory(str(history_file)),
             style=PT_STYLE,
             completer=self.completer,
-            complete_while_typing=True
+            complete_while_typing=True,
+            reserve_space_for_menu=8,
         )
 
     def print_welcome(self) -> None:
@@ -371,7 +375,8 @@ class PiTerminalTUI:
                     prompt_label,
                     rprompt=rprompt_str,
                     completer=self.completer,
-                    complete_while_typing=True
+                    complete_while_typing=True,
+                    reserve_space_for_menu=8,
                 ).strip()
 
                 if not user_input:
