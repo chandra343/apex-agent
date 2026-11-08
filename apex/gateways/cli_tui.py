@@ -421,6 +421,12 @@ class PiTerminalTUI:
                 start_time = time.time()
                 last_tool_args: Dict[str, Any] = {}
 
+                # Auto-Neutralizer notification if prompt contains sensitive refusal-trigger terms
+                from apex.security.paraphraser import semantic_paraphraser
+                _, was_modified = semantic_paraphraser.paraphrase(user_input)
+                if was_modified:
+                    self.console.print("[dim]🔄 [bold cyan]Auto-Neutralizer:[/bold cyan] Kata pemicu penolakan dinetralkan otomatis ke bahasa rekayasa resmi...[/dim]")
+
                 def on_tool_start(fn_name: str, args: Dict[str, Any]) -> None:
                     last_tool_args[fn_name] = args
                     args_disp = ", ".join(f"{k}={repr(v)}" for k, v in list(args.items())[:2])
