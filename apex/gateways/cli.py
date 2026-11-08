@@ -206,7 +206,7 @@ def main() -> None:
         return
 
     # 3. Default: Launch Interactive Pi-Style TUI
-    start_tui(agent_runner=lambda prompt: default_agent.run(prompt, session_id="cli_interactive", channel="cli_tui"))
+    start_tui()
 
 
 if __name__ == "__main__":

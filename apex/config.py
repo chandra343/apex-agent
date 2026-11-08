@@ -187,6 +187,10 @@ class ConfigManager:
         return self.get("default_model", "claude-3-7-sonnet-latest")
 
     @property
+    def active_provider(self) -> str:
+        return self.get("active_provider", "tokenharbor")
+
+    @property
     def active_backend(self) -> str:
         return self.get("active_backend", "local")
 
