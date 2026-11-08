@@ -41,6 +41,7 @@ def _build_default_providers() -> dict[str, Any]:
 DEFAULT_CONFIG: dict[str, Any] = {
     "version": "1.0.0",
     "default_model": "claude-3-7-sonnet-latest",
+    "active_provider": "antigravity",
     "active_backend": "local",
     "anti_refusal_mode": "auto",
     "providers": _build_default_providers(),

@@ -101,10 +101,36 @@ class ProviderManager:
         config.set("providers", providers, auto_save=True)
         return True, f"Model '{found_target}' berhasil dihapus dari provider '{p_name}'."
 
+    def set_active_provider(self, provider_name: str, model_name: Optional[str] = None) -> Tuple[bool, str]:
+        """Set the designated primary provider and default model to use."""
+        p_name = provider_name.strip().lower()
+        providers = config.get("providers", {})
+        if p_name not in providers:
+            return False, f"Provider '{p_name}' belum terdaftar di konfigurasi."
+
+        p_data = providers[p_name]
+        p_models = p_data.get("models", [])
+
+        target_model = model_name.strip() if model_name else ""
+        if not target_model:
+            target_model = p_models[0] if p_models else config.default_model
+
+        config.set("active_provider", p_name, auto_save=False)
+        config.set("default_model", target_model, auto_save=True)
+        return True, f"Provider aktif diatur ke '{p_name}' dengan model '{target_model}'!"
+
     def get_provider_for_model(self, model_name: str) -> Optional[Tuple[str, Dict[str, Any]]]:
         """Find the matching provider configuration for a given model."""
         providers = config.get("providers", {})
         model_lower = model_name.lower()
+
+        # 0. Check if designated active_provider can serve this model
+        active_p = config.get("active_provider")
+        if active_p and active_p in providers:
+            active_cfg = providers[active_p]
+            active_models = [m.lower() for m in active_cfg.get("models", [])]
+            if model_lower in active_models:
+                return active_p, active_cfg
 
         # 1. Exact match in model list of configured providers
         for name, p_data in providers.items():

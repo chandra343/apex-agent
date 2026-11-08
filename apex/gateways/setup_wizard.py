@@ -122,9 +122,13 @@ class SetupWizard:
                             "description": "Custom registered provider"
                         })
 
-            # Render Category Tabs
-            cat_display = f"Kategori Aktif: [bold green]{PROVIDER_CATEGORIES.get(current_category, current_category)}[/bold green]\n"
-            cat_display += "[dim]Pilihan Tab [f]: [all] Semua (35+) | [oauth] 🔑 Akun | [frontier] 🏛️ Frontier | [fast] ⚡ Fast | [apac] 🌏 APAC | [agg] 🌐 Aggregator | [local] 🦙 Lokal[/dim]"
+            # Render Category Tabs & Active Provider Info
+            active_p = config.get("active_provider", "antigravity")
+            active_m = config.default_model
+
+            cat_display = f"Kategori Aktif : [bold green]{PROVIDER_CATEGORIES.get(current_category, current_category)}[/bold green]\n"
+            cat_display += f"Provider Aktif : [bold green]★ {active_p.upper()}[/bold green] [dim](Model Utama: {active_m})[/dim]\n"
+            cat_display += "[dim]Pilihan Tab [f]: [all] Semua (47+) | [oauth] 🔑 Akun | [frontier] 🏛️ Frontier | [fast] ⚡ Fast | [apac] 🌏 APAC | [agg] 🌐 Aggregator | [local] 🦙 Lokal[/dim]"
             self.console.print(Panel(cat_display, border_style="dim", padding=(0, 1)))
 
             # Render Table
@@ -138,10 +142,11 @@ class SetupWizard:
             table.add_column("Provider", style="bold", min_width=16)
             table.add_column("Tipe Auth", style="magenta", no_wrap=True, width=13)
             table.add_column("Model Utama", style="cyan", min_width=18)
-            table.add_column("Status API Key / Akun", style="bold", min_width=18)
+            table.add_column("Status API Key / Akun", style="bold", min_width=20)
 
             for idx, item in enumerate(all_shelf_items, 1):
                 p_id = item["id"]
+                is_active = (p_id.lower() == active_p.lower())
                 cfg_data = configured_providers.get(p_id, {})
                 api_key = cfg_data.get("api_key", "").strip()
                 base_url = cfg_data.get("base_url") or item["url"]
@@ -181,9 +186,17 @@ class SetupWizard:
                 else:
                     status_str = "[dim]⚪ Belum Diatur[/dim]"
 
+                # If active provider, attach prominent active badge
+                if is_active:
+                    status_str = f"[bold green]★ AKTIF [/bold green]{status_str}"
+
+                prov_label = f"{item['icon']} {item['name']}"
+                if is_active:
+                    prov_label = f"[bold green]★ {item['icon']} {item['name']}[/bold green]"
+
                 table.add_row(
                     str(idx),
-                    f"{item['icon']} {item['name']}",
+                    prov_label,
                     auth_badge,
                     models_preview,
                     status_str
@@ -193,6 +206,7 @@ class SetupWizard:
             self.console.print(
                 "\n[bold cyan]Menu Aksi Cepat (9Router Pro & Zeline):[/bold cyan]\n"
                 f" • Masukkan angka [bold yellow]1 - {len(all_shelf_items)}[/bold yellow] : Pilih provider untuk mengatur API Key / URL / Login\n"
+                " • Masukkan [bold yellow]p[/bold yellow]       : 🎯 [bold green]Pilih / Masukkan Provider yang Mau Digunakan (Aktifkan)[/bold green]\n"
                 " • Masukkan [bold yellow]a[/bold yellow]       : 🌌 [bold green]Login / Import Google Antigravity OAuth[/bold green] (Gemini 2.0/3 & Claude 3.5)\n"
                 " • Masukkan [bold yellow]g[/bold yellow]       : 🐙 [bold green]Login Akun GitHub Copilot[/bold green] (OAuth Device Code — Claude 3.7 & GPT-4o)\n"
                 " • Masukkan [bold yellow]c[/bold yellow]       : 🟣 [bold green]Import / Login Claude Code[/bold green] (~/.claude.json atau session)\n"
@@ -211,6 +225,10 @@ class SetupWizard:
             )
 
             choice = Prompt.ask("\nPilih aksi").strip().lower()
+
+            if choice in ["p", "use", "pilih", "aktif"]:
+                self._select_active_provider_dialog(all_shelf_items)
+                continue
 
             if choice in ["+m", "m+", "addm", "add-model"]:
                 self._add_custom_model_dialog(all_shelf_items)
@@ -392,6 +410,81 @@ class SetupWizard:
                     self.console.print(f"[red]Nomor {choice} tidak ada dalam daftar.[/red]")
                     time.sleep(1.0)
 
+    def _select_active_provider_dialog(self, all_shelf_items: list[dict[str, Any]]) -> None:
+        """Interactive dialog to select the active provider to be used for queries and tasks."""
+        self.console.print(Panel(
+            "[bold cyan]🎯 Pilih / Masukkan Provider yang Mau Digunakan[/bold cyan]\n"
+            "[dim]Tentukan provider AI mana yang akan dijadikan mesin utama untuk mengeksekusi chat dan perintah.[/dim]",
+            border_style="cyan"
+        ))
+
+        curr_active = config.get("active_provider", "antigravity")
+        curr_model = config.default_model
+        self.console.print(f"Provider yang sedang aktif saat ini: [bold green]★ {curr_active.upper()}[/bold green] (Model: [yellow]{curr_model}[/yellow])\n")
+
+        p_pick = Prompt.ask(
+            f"Masukkan nomor provider (1 - {len(all_shelf_items)}) atau nama ID provider yang mau digunakan",
+            default=curr_active
+        ).strip().lower()
+
+        if not p_pick:
+            return
+
+        target_p_id = p_pick
+        target_item = None
+        if p_pick.isdigit():
+            idx = int(p_pick)
+            if 1 <= idx <= len(all_shelf_items):
+                target_item = all_shelf_items[idx - 1]
+                target_p_id = target_item["id"]
+        else:
+            for itm in all_shelf_items:
+                if itm["id"].lower() == p_pick:
+                    target_item = itm
+                    break
+
+        configured = config.get("providers", {})
+        if target_p_id not in configured:
+            from apex.catalog import find_catalog_entry
+            cat_entry = find_catalog_entry(target_p_id)
+            if cat_entry:
+                configured[target_p_id] = {
+                    "api_key": "none" if cat_entry.get("auth_type") == "none" else "",
+                    "base_url": cat_entry.get("url", ""),
+                    "models": list(cat_entry.get("models", []))
+                }
+                config.set("providers", configured, auto_save=True)
+            else:
+                self.console.print(f"[red]Provider '{target_p_id}' tidak ditemukan.[/red]")
+                time.sleep(1.0)
+                return
+
+        p_models = configured[target_p_id].get("models", [])
+        if not p_models and target_item:
+            p_models = target_item.get("models", [])
+
+        # Ask which model to use from this provider
+        selected_model = ""
+        if p_models:
+            self.console.print(f"\nModel yang tersedia di provider [bold cyan]{target_p_id.upper()}[/bold cyan]:")
+            for m_i, m_name in enumerate(p_models[:8], 1):
+                self.console.print(f"  {m_i}. {m_name}")
+            m_pick = Prompt.ask(f"Pilih model yang mau digunakan (nomor atau nama, Enter untuk default '{p_models[0]}')", default=p_models[0]).strip()
+            if m_pick.isdigit() and 1 <= int(m_pick) <= len(p_models):
+                selected_model = p_models[int(m_pick) - 1]
+            elif m_pick:
+                selected_model = m_pick
+            else:
+                selected_model = p_models[0]
+
+        ok, msg = provider_manager.set_active_provider(target_p_id, selected_model)
+        if ok:
+            self.console.print(f"[bold green]✔ {msg}[/bold green]")
+        else:
+            self.console.print(f"[yellow]{msg}[/yellow]")
+
+        Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
+
     def _add_custom_model_dialog(self, all_shelf_items: list[dict[str, Any]]) -> None:
         """Interactive dialog to add a custom AI model to any provider."""
         self.console.print(Panel(
@@ -510,6 +603,7 @@ class SetupWizard:
 
             self.console.print(
                 "[bold cyan]Pilihan Aksi untuk Provider Ini:[/bold cyan]\n"
+                " 0. 🎯 [bold green]Jadikan Provider Ini Sebagai Provider yang Digunakan (Aktifkan)[/bold green]\n"
                 " 1. ➕ [bold green]Tambah Model AI Baru ke Provider Ini[/bold green]\n"
                 " 2. ➖ [bold red]Hapus Model Tertentu dari Provider Ini[/bold red]\n"
                 " 3. 📝 Edit Seluruh Daftar Model Sekaligus (Pisahkan Koma)\n"
@@ -519,7 +613,21 @@ class SetupWizard:
                 " 7. 🧪 Uji Koneksi Provider Ini\n"
                 " 8. ↩️  Kembali ke Shelf\n"
             )
-            sub_choice = Prompt.ask("Pilih aksi [1-8]", default="8").strip()
+            sub_choice = Prompt.ask("Pilih aksi [0-8]", default="8").strip()
+
+            if sub_choice == "0":
+                target_m = curr_models[0] if curr_models else config.default_model
+                if len(curr_models) > 1:
+                    m_pick = Prompt.ask(f"\nPilih model yang mau digunakan (Enter untuk '{target_m}')", default=target_m).strip()
+                    if m_pick:
+                        target_m = m_pick
+                ok, msg = provider_manager.set_active_provider(p_id, target_m)
+                if ok:
+                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                else:
+                    self.console.print(f"[yellow]{msg}[/yellow]")
+                Prompt.ask("\nTekan Enter untuk lanjut...")
+                continue
 
             if sub_choice == "1":
                 new_m = Prompt.ask("\nMasukkan nama / ID model AI baru (contoh: mistral-small-3, qwen-custom)").strip()

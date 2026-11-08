@@ -58,6 +58,9 @@ def main() -> None:
     prov_add.add_argument("--url", default="", help="Custom base URL")
     prov_add.add_argument("--models", nargs="*", default=[], help="Model IDs list")
     prov_sub.add_parser("test-all", help="Ping and test all configured providers")
+    prov_use = prov_sub.add_parser("use", help="Select active provider to use")
+    prov_use.add_argument("name", help="Provider name or ID")
+    prov_use.add_argument("model", nargs="?", default="", help="Optional model name to activate")
 
     # Stats
     subparsers.add_parser("stats", help="View token usage, RPM/TPM, and estimated costs")
@@ -176,6 +179,12 @@ def main() -> None:
             base_url = args.url or f"https://api.{args.name}.com/v1"
             provider_manager.add_provider(args.name, args.key, base_url, models)
             print(f"✔ Provider '{args.name}' registered successfully.")
+        elif args.action == "use":
+            ok, msg = provider_manager.set_active_provider(args.name, args.model)
+            if ok:
+                print(f"✔ {msg}")
+            else:
+                print(f"✖ {msg}")
         elif args.action == "test-all":
             print("Testing all providers...")
             results = provider_manager.test_all()
