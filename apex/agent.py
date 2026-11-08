@@ -15,6 +15,7 @@ from apex.router.fallback import fallback_router
 from apex.router.injector import prompt_injector
 from apex.router.key_pool import key_pool
 from apex.router.ledger import token_ledger
+from apex.router.oauth_manager import oauth_manager
 from apex.router.provider_manager import provider_manager
 from apex.security.anti_refusal import anti_refusal_engine
 from apex.security.approval_gates import approval_gate
@@ -253,15 +254,31 @@ class ApexAgent:
         tools_defs = tool_registry.get_all_tool_definitions()
 
         # Handle Anthropic Messages format
-        if provider_name == "anthropic":
+        if provider_name in ["anthropic", "claude-code"]:
             return self._call_anthropic(model_name, api_key, base_url, messages, tools_defs, on_token)
 
-        # Standard OpenAI-compatible format (OpenAI, DeepSeek, Groq, OpenRouter, Ollama)
-        url = f"{base_url}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
+        # Handle GitHub Copilot OAuth session format
+        if provider_name == "copilot":
+            cop_tok = oauth_manager.get_valid_copilot_token()
+            if not cop_tok:
+                return {"success": False, "status_code": 401, "error": "Copilot session token expired or invalid. Please re-authenticate."}
+            url = "https://api.githubcopilot.com/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {cop_tok}",
+                "Editor-Version": "vscode/1.85.1",
+                "Editor-Plugin-Version": "copilot/1.144.0",
+                "User-Agent": "GithubCopilot/1.144.0",
+                "Openai-Intent": "conversation-panel",
+                "Content-Type": "application/json"
+            }
+        else:
+            # Standard OpenAI-compatible format (OpenAI, DeepSeek, Groq, OpenRouter, Ollama, vLLM, etc.)
+            url = f"{base_url}/chat/completions"
+            headers = {
+                "Content-Type": "application/json"
+            }
+            if api_key and api_key != "none":
+                headers["Authorization"] = f"Bearer {api_key}"
 
         # Filter out internal tracking fields from messages
         clean_messages = []

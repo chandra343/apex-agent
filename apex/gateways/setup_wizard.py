@@ -13,6 +13,8 @@ from rich.table import Table
 
 from apex.config import config, CONFIG_FILE, PKG_ROOT
 from apex.gateways.file_picker import pick_file
+from apex.router.catalog import FULL_PROVIDER_CATALOG, PROVIDER_CATEGORIES, get_providers_by_category
+from apex.router.oauth_manager import oauth_manager
 from apex.router.provider_manager import provider_manager
 
 
@@ -78,20 +80,9 @@ class SetupWizard:
         self.run_provider_shelf()
 
     def run_provider_shelf(self, standalone: bool = False) -> None:
-        """Interactive Provider Shelf UI/UX ala 9Router Pro & Zeline."""
-        standard_catalog = [
-            {"id": "anthropic", "name": "Anthropic", "icon": "🟣", "url": "https://api.anthropic.com/v1", "models": ["claude-3-7-sonnet-latest", "claude-3-5-haiku-latest"]},
-            {"id": "openai", "name": "OpenAI", "icon": "🟢", "url": "https://api.openai.com/v1", "models": ["gpt-4o", "gpt-4o-mini", "o3-mini"]},
-            {"id": "deepseek", "name": "DeepSeek", "icon": "🔵", "url": "https://api.deepseek.com/v1", "models": ["deepseek-chat", "deepseek-reasoner"]},
-            {"id": "groq", "name": "Groq", "icon": "⚡", "url": "https://api.groq.com/openai/v1", "models": ["llama-3.3-70b-versatile", "whisper-large-v3"]},
-            {"id": "gemini", "name": "Google Gemini", "icon": "💎", "url": "https://generativelanguage.googleapis.com/v1beta/openai", "models": ["gemini-2.0-flash", "gemini-2.0-pro-exp"]},
-            {"id": "openrouter", "name": "OpenRouter", "icon": "🌐", "url": "https://openrouter.ai/api/v1", "models": ["deepseek/deepseek-r1:free", "meta-llama/llama-3.3-70b-instruct:free"]},
-            {"id": "together", "name": "Together AI", "icon": "🤝", "url": "https://api.together.xyz/v1", "models": ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-Coder-32B-Instruct"]},
-            {"id": "mistral", "name": "Mistral AI", "icon": "🌪️", "url": "https://api.mistral.ai/v1", "models": ["mistral-large-latest", "codestral-latest"]},
-            {"id": "ollama", "name": "Ollama (Lokal)", "icon": "🦙", "url": "http://localhost:11434/v1", "models": ["qwen2.5-coder:7b", "llama3.2:3b"]},
-        ]
-
+        """Interactive Provider Shelf UI/UX ala 9Router Pro & Zeline dengan 35+ Provider dan Login Akun."""
         test_results: Dict[str, Tuple[bool, str, float]] = {}
+        current_category = "all"
 
         while True:
             if not standalone:
@@ -99,43 +90,55 @@ class SetupWizard:
             else:
                 self.console.clear()
                 self.console.print(Panel.fit(
-                    "[bold cyan]AI PROVIDER SHELF & MANAGER[/bold cyan]\n"
-                    "[dim]Kelola seluruh endpoint dan API key provider AI Anda dengan mudah.[/dim]",
+                    "[bold cyan]AI PROVIDER SHELF & ACCOUNT MANAGER (9Router Pro Style)[/bold cyan]\n"
+                    "[dim]Kelola seluruh endpoint, API key, dan login akun (GitHub Copilot, Claude Code, Cursor, Local AI).[/dim]",
                     border_style="cyan"
                 ))
 
             configured_providers = config.get("providers", {})
 
-            # Merge standard catalog with any custom providers from config
+            # Filter catalog items by current category
+            category_catalog = get_providers_by_category(current_category)
+
             all_shelf_items: list[dict[str, Any]] = []
             known_ids = set()
 
-            for item in standard_catalog:
+            for item in category_catalog:
                 all_shelf_items.append(dict(item))
                 known_ids.add(item["id"])
 
-            for c_id, c_data in configured_providers.items():
-                if c_id not in known_ids:
-                    all_shelf_items.append({
-                        "id": c_id,
-                        "name": c_id.upper(),
-                        "icon": "🔌",
-                        "url": c_data.get("base_url", "-"),
-                        "models": c_data.get("models", [f"{c_id}-model"])
-                    })
+            # If 'all' or custom items, merge custom user-added providers
+            if current_category in ["all", "local"]:
+                for c_id, c_data in configured_providers.items():
+                    if c_id not in known_ids:
+                        all_shelf_items.append({
+                            "id": c_id,
+                            "name": c_id.upper(),
+                            "category": "custom",
+                            "icon": "🔌",
+                            "auth_type": "custom",
+                            "url": c_data.get("base_url", "-"),
+                            "models": c_data.get("models", [f"{c_id}-model"]),
+                            "description": "Custom registered provider"
+                        })
+
+            # Render Category Tabs
+            cat_display = f"Kategori Aktif: [bold green]{PROVIDER_CATEGORIES.get(current_category, current_category)}[/bold green]\n"
+            cat_display += "[dim]Pilihan Tab [f]: [all] Semua (35+) | [oauth] 🔑 Akun | [frontier] 🏛️ Frontier | [fast] ⚡ Fast | [apac] 🌏 APAC | [agg] 🌐 Aggregator | [local] 🦙 Lokal[/dim]"
+            self.console.print(Panel(cat_display, border_style="dim", padding=(0, 1)))
 
             # Render Table
             table = Table(
-                title="[bold yellow]Daftar Semua Provider AI yang Tersedia (9Router Pro & Zeline Style)[/bold yellow]",
+                title=f"[bold yellow]Daftar Provider AI — {len(all_shelf_items)} Pilihan[/bold yellow]",
                 show_lines=True,
                 header_style="bold cyan",
                 expand=True
             )
-            table.add_column("No", justify="center", style="bold yellow", no_wrap=True, width=4)
-            table.add_column("Provider", style="bold", no_wrap=True, width=20)
-            table.add_column("Endpoint (Base URL)", style="dim")
-            table.add_column("Model Bawaan", style="cyan")
-            table.add_column("Status API Key", style="bold", no_wrap=True, width=24)
+            table.add_column("No", justify="center", style="bold yellow", no_wrap=True, width=3)
+            table.add_column("Provider", style="bold", min_width=16)
+            table.add_column("Tipe Auth", style="magenta", no_wrap=True, width=13)
+            table.add_column("Model Utama", style="cyan", min_width=18)
+            table.add_column("Status API Key / Akun", style="bold", min_width=18)
 
             for idx, item in enumerate(all_shelf_items, 1):
                 p_id = item["id"]
@@ -147,36 +150,54 @@ class SetupWizard:
                 if len(models_list) > 2:
                     models_preview += f" (+{len(models_list) - 2})"
 
+                # Auth Type Label
+                auth_type = item.get("auth_type", "api_key")
+                if auth_type == "oauth_device":
+                    auth_badge = "🔑 OAuth"
+                elif auth_type == "session_import":
+                    auth_badge = "📥 Session"
+                elif auth_type == "none":
+                    auth_badge = "🦙 Lokal"
+                else:
+                    auth_badge = "🔑 API Key"
+
                 # Check status
                 if p_id in test_results:
                     ok, msg, lat = test_results[p_id]
                     if ok:
                         status_str = f"[bold green]🟢 OK ({lat}s)[/bold green]"
                     else:
-                        status_str = f"[bold red]✖ Error: {msg[:18]}[/bold red]"
-                elif api_key and "YOUR_" not in api_key:
-                    if p_id == "ollama" and api_key == "none":
-                        status_str = "[bold green]🟢 Aktif (Lokal / No Key)[/bold green]"
+                        status_str = f"[bold red]✖ {msg[:16]}[/bold red]"
+                elif p_id == "copilot" and api_key and not api_key.startswith("YOUR_"):
+                    status_str = "[bold green]🟢 Akun Aktif[/bold green]"
+                elif api_key and not api_key.startswith("YOUR_"):
+                    if auth_type == "none" or api_key == "none":
+                        status_str = "[bold green]🟢 Aktif (Lokal)[/bold green]"
                     else:
-                        masked = api_key[:5] + "..." + api_key[-4:] if len(api_key) > 9 else "••••••"
-                        status_str = f"[bold green]🟢 Terpasang ({masked})[/bold green]"
+                        masked = api_key[:4] + "..." + api_key[-3:] if len(api_key) > 7 else "••••••"
+                        status_str = f"[bold green]🟢 OK ({masked})[/bold green]"
                 else:
                     status_str = "[dim]⚪ Belum Diatur[/dim]"
 
                 table.add_row(
                     str(idx),
                     f"{item['icon']} {item['name']}",
-                    base_url,
+                    auth_badge,
                     models_preview,
                     status_str
                 )
 
             self.console.print(table)
             self.console.print(
-                "\n[bold cyan]Menu Aksi:[/bold cyan]\n"
-                f" • Masukkan angka [bold yellow]1 - {len(all_shelf_items)}[/bold yellow] : Pilih provider untuk memasukkan / mengedit API Key & URL\n"
-                " • Masukkan [bold yellow]+[/bold yellow]       : Tambah Custom Provider Baru (vLLM, LM Studio, 9Router, dll.)\n"
-                " • Masukkan [bold yellow]t[/bold yellow]       : Test All (Uji koneksi & latensi semua provider serentak)\n"
+                "\n[bold cyan]Menu Aksi Cepat (9Router Pro & Zeline):[/bold cyan]\n"
+                f" • Masukkan angka [bold yellow]1 - {len(all_shelf_items)}[/bold yellow] : Pilih provider untuk mengatur API Key / URL / Login\n"
+                " • Masukkan [bold yellow]g[/bold yellow]       : 🐙 [bold green]Login Akun GitHub Copilot[/bold green] (OAuth Device Code — Claude 3.7 & GPT-4o)\n"
+                " • Masukkan [bold yellow]c[/bold yellow]       : 🟣 [bold green]Import / Login Claude Code[/bold green] (~/.claude.json atau session)\n"
+                " • Masukkan [bold yellow]u[/bold yellow]       : ⚡ [bold green]Import / Login Akun Cursor[/bold green] (WorkOS Session Token)\n"
+                " • Masukkan [bold yellow]s[/bold yellow]       : 🔍 [bold green]Auto-Scan Local AI[/bold green] (Ollama:11434, LM Studio:1234, vLLM:8000)\n"
+                " • Masukkan [bold yellow]f[/bold yellow]       : 📑 [bold cyan]Ganti Kategori / Filter Tab[/bold cyan] (All, OAuth, Frontier, Fast, APAC, Local)\n"
+                " • Masukkan [bold yellow]+[/bold yellow]       : ➕ Tambah Custom Provider Baru\n"
+                " • Masukkan [bold yellow]t[/bold yellow]       : 🧪 Test All (Uji koneksi & latensi semua provider serentak)\n"
                 f" • Masukkan [bold yellow]n[/bold yellow]       : {'Selesai / Tutup' if standalone else 'Lanjut ke Tahap Berikutnya [ Next > ]'}\n"
                 f" • Masukkan [bold yellow]b[/bold yellow]       : {'Kembali' if standalone else 'Kembali ke Tahap Sebelumnya [ < Back ]'}"
             )
@@ -190,20 +211,91 @@ class SetupWizard:
 
             if choice == "n":
                 if not standalone:
-                    # Check if at least 1 provider is configured
                     has_any = any(
-                        p.get("api_key") and "YOUR_" not in p.get("api_key")
+                        p.get("api_key") and not p.get("api_key").startswith("YOUR_")
                         for p in configured_providers.values()
                     )
                     if not has_any:
-                        proceed = Confirm.ask("[yellow]Peringatan: Belum ada provider yang dikonfigurasi API key-nya. Yakin ingin lanjut?[/yellow]", default=False)
+                        proceed = Confirm.ask("[yellow]Peringatan: Belum ada provider yang terkonfigurasi. Tetap lanjut?[/yellow]", default=False)
                         if not proceed:
                             continue
                     self.current_stage += 1
                 break
 
+            if choice == "g":
+                self.console.print("\n[cyan]Memulai proses login GitHub Copilot OAuth...[/cyan]")
+                ok, msg = oauth_manager.login_github_copilot(self.console)
+                if ok:
+                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    # Test connection immediately
+                    self.console.print("[dim]Menguji token Copilot...[/dim]")
+                    t_ok, t_msg, t_lat = provider_manager.test_provider("copilot")
+                    test_results["copilot"] = (t_ok, t_msg, t_lat)
+                    if t_ok:
+                        self.console.print(f"[bold green]✔ Terverifikasi! Latensi Copilot: {t_lat}s ({t_msg})[/bold green]")
+                    else:
+                        self.console.print(f"[bold red]✖ Uji koneksi gagal: {t_msg}[/bold red]")
+                else:
+                    self.console.print(f"[bold red]✖ {msg}[/bold red]")
+                Prompt.ask("\nTekan Enter untuk melanjutkan...")
+                continue
+
+            if choice == "c":
+                self.console.print("\n[cyan]Memeriksa kredensial Claude Code di sistem...[/cyan]")
+                ok, msg, tok = oauth_manager.import_claude_code()
+                if ok:
+                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                else:
+                    self.console.print(f"[yellow]{msg}[/yellow]")
+                    manual_tok = Prompt.ask("Masukkan Session Token / API Key Claude Code secara manual (Enter untuk batal)", default="").strip()
+                    if manual_tok:
+                        provider_manager.add_provider("claude-code", manual_tok, "https://api.anthropic.com/v1", ["claude-3-7-sonnet-latest", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"])
+                        self.console.print("[bold green]✔ Claude Code session berhasil disimpan![/bold green]")
+                Prompt.ask("\nTekan Enter untuk melanjutkan...")
+                continue
+
+            if choice == "u":
+                self.console.print("\n[cyan]Memeriksa kredensial Cursor di sistem...[/cyan]")
+                ok, msg, tok = oauth_manager.import_cursor()
+                if ok:
+                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                else:
+                    self.console.print(f"[yellow]{msg}[/yellow]")
+                    manual_tok = Prompt.ask("Masukkan WorkOS Cursor Session Token (Enter untuk batal)", default="").strip()
+                    if manual_tok:
+                        provider_manager.add_provider("cursor", manual_tok, "https://api.cursor.com/v1", ["cursor-fast", "claude-3.5-sonnet", "gpt-4o"])
+                        self.console.print("[bold green]✔ Cursor session berhasil disimpan![/bold green]")
+                Prompt.ask("\nTekan Enter untuk melanjutkan...")
+                continue
+
+            if choice == "s":
+                self.console.print("\n[cyan]Memindai engine AI lokal (Ollama:11434, LM Studio:1234, vLLM:8000, llama.cpp:8080)...[/cyan]")
+                detected = oauth_manager.scan_local_services()
+                if detected:
+                    self.console.print(Panel(
+                        "\n".join([f"🟢 [bold]{v['name']}[/bold] aktif di [dim]{v['base_url']}[/dim] (Model: {', '.join(v['models'][:3])})" for v in detected.values()]),
+                        title="[bold green]Engine AI Lokal Ditemukan & Diaktifkan![/bold green]",
+                        border_style="green"
+                    ))
+                else:
+                    self.console.print("[yellow]Tidak ada server lokal yang sedang berjalan di port default.[/yellow]")
+                Prompt.ask("\nTekan Enter untuk melanjutkan...")
+                continue
+
+            if choice == "f":
+                self.console.print("\n[bold cyan]Pilihan Kategori:[/bold cyan]")
+                cat_keys = list(PROVIDER_CATEGORIES.keys())
+                for i, k in enumerate(cat_keys, 1):
+                    self.console.print(f" {i}. [bold yellow]{k}[/bold yellow] - {PROVIDER_CATEGORIES[k]}")
+                c_pick = Prompt.ask("\nPilih kategori (nama atau nomor)", default="all").strip().lower()
+                if c_pick.isdigit() and 1 <= int(c_pick) <= len(cat_keys):
+                    current_category = cat_keys[int(c_pick) - 1]
+                elif c_pick in PROVIDER_CATEGORIES:
+                    current_category = c_pick
+                continue
+
             if choice == "t":
-                self.console.print("\n[cyan]Menguji seluruh koneksi provider...[/cyan]")
+                self.console.print("\n[cyan]Menguji seluruh koneksi provider yang terkonfigurasi...[/cyan]")
                 test_results = provider_manager.test_all()
                 continue
 
@@ -249,15 +341,67 @@ class SetupWizard:
         curr_url = existing.get("base_url") or item["url"]
         curr_models = existing.get("models") or item["models"]
 
+        # Special shortcut for GitHub Copilot
+        if p_id == "copilot":
+            self.console.print(Panel(
+                f"[bold cyan]{icon} {p_name.upper()} (OAUTH & LANGGANAN)[/bold cyan]\n"
+                f"Model Tersedia: [yellow]{', '.join(curr_models)}[/yellow]\n"
+                f"[dim]Anda dapat login otomatis via browser (OAuth Device Code) tanpa perlu mengetik token manual.[/dim]",
+                border_style="cyan"
+            ))
+            do_oauth = Confirm.ask("Mulai login via GitHub OAuth sekarang?", default=True)
+            if do_oauth:
+                ok, msg = oauth_manager.login_github_copilot(self.console)
+                if ok:
+                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    ok_t, msg_t, lat_t = provider_manager.test_provider("copilot")
+                    test_results["copilot"] = (ok_t, msg_t, lat_t)
+                    if ok_t:
+                        self.console.print(f"[bold green]✔ Terverifikasi! Latensi: {lat_t}s ({msg_t})[/bold green]")
+                else:
+                    self.console.print(f"[bold red]✖ {msg}[/bold red]")
+                Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
+                return
+
+        # Special shortcut for local engines (Ollama, LM Studio, etc.)
+        if item.get("auth_type") == "none":
+            self.console.print(Panel(
+                f"[bold cyan]{icon} {p_name.upper()} (LOCAL ENGINE)[/bold cyan]\n"
+                f"Default Endpoint: [dim]{item['url']}[/dim]\n"
+                f"Model Bawaan: [yellow]{', '.join(curr_models)}[/yellow]\n"
+                f"[dim]Engine lokal gratis dan tidak membutuhkan API Key (bebas token).[/dim]",
+                border_style="cyan"
+            ))
+            new_url = Prompt.ask("Base URL Endpoint", default=curr_url).strip()
+            new_models_str = Prompt.ask("Daftar Model (pisahkan koma)", default=", ".join(curr_models)).strip()
+            new_models = [m.strip() for m in new_models_str.split(",") if m.strip()]
+
+            provider_manager.add_provider(p_id, "none", new_url, new_models)
+            self.console.print(f"[bold green]✔ Pengaturan {p_name} tersimpan![/bold green]")
+
+            test_now = Confirm.ask(f"Uji koneksi ke {p_name} sekarang?", default=True)
+            if test_now:
+                self.console.print(f"[dim]Menguji {p_name}...[/dim]")
+                ok, msg, lat = provider_manager.test_provider(p_id)
+                test_results[p_id] = (ok, msg, lat)
+                if ok:
+                    self.console.print(f"[bold green]✔ Berhasil terhubung! Latensi: {lat}s ({msg})[/bold green]")
+                else:
+                    self.console.print(f"[bold red]✖ Uji koneksi gagal: {msg}[/bold red]")
+                Prompt.ask("\nTekan Enter untuk kembali ke daftar provider...")
+            return
+
+        # Standard API Key / Session Provider
         self.console.print(Panel(
             f"[bold cyan]Konfigurasi: {icon} {p_name.upper()}[/bold cyan]\n"
+            f"Deskripsi: [dim]{item.get('description', '-')}[/dim]\n"
             f"Endpoint Default: [dim]{item['url']}[/dim]\n"
             f"Model Bawaan: [yellow]{', '.join(curr_models)}[/yellow]",
             border_style="cyan"
         ))
 
         key_prompt = f"API Key untuk {p_name} [Enter untuk simpan yang lama]"
-        new_key = Prompt.ask(key_prompt, default=curr_key if "YOUR_" not in curr_key else "").strip()
+        new_key = Prompt.ask(key_prompt, default=curr_key if not curr_key.startswith("YOUR_") else "").strip()
 
         url_prompt = f"Base URL Endpoint [Enter untuk tetap: {curr_url}]"
         new_url = Prompt.ask(url_prompt, default=curr_url).strip()
@@ -265,9 +409,6 @@ class SetupWizard:
         models_prompt = f"Daftar Model (pisahkan koma) [Enter untuk tetap]"
         new_models_str = Prompt.ask(models_prompt, default=", ".join(curr_models)).strip()
         new_models = [m.strip() for m in new_models_str.split(",") if m.strip()]
-
-        if p_id == "ollama" and not new_key:
-            new_key = "none"
 
         if new_key:
             provider_manager.add_provider(p_id, new_key, new_url, new_models)
