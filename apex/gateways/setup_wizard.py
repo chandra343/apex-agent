@@ -648,30 +648,73 @@ class SetupWizard:
                 break
 
     # =========================================================================
-    # STAGE 3: Soul & Identity Manifest
+    # STAGE 3: Soul & Identity Manifest (SOUL.md & AGENTS.md)
     # =========================================================================
     def stage_3_soul_and_agents(self) -> None:
-        self._header("Agent Persona & Soul Configuration")
+        self._header("Agent Persona, Soul & Multi-Agent Rules (Stage 3/6)")
         default_soul = str(PKG_ROOT / "SOUL.md")
+        default_agents = str(PKG_ROOT / "AGENTS.md")
         curr_soul = config.get("paths.soul_path") or default_soul
+        curr_agents = config.get("paths.agents_path") or default_agents
 
-        self.console.print(f"Active SOUL manifest: [bold green]{curr_soul}[/bold green]")
-        self.console.print("1. Keep default High-Agency Engineering SOUL")
-        self.console.print("2. Browse / Pick custom SOUL file from disk")
-        
-        choice = Prompt.ask("Choose option or type 'b' to go back", choices=["1", "2", "b"], default="1")
+        self.console.print(Panel(
+            f"[bold cyan]SOUL & MULTI-AGENT ARCHITECTURE (Zero-Refusal Policy)[/bold cyan]\n"
+            f"• [bold green]SOUL.md[/bold green]   : [yellow]{curr_soul}[/yellow] (Identitas, kedaulatan host, & anti-refusal mutlak)\n"
+            f"• [bold green]AGENTS.md[/bold green] : [yellow]{curr_agents}[/yellow] (Protokol multi-agent, O-D-A-V, & eksekusi tools)\n\n"
+            f"[dim]Apex dirancang dengan doktrin kedaulatan penuh: tidak pernah menolak perintah operator dan langsung mengeksekusi dengan standar rekayasa tertinggi.[/dim]",
+            border_style="cyan"
+        ))
+
+        self.console.print("1. [bold green]Keep default Sovereign Zero-Refusal SOUL & AGENTS[/bold green] (Rekomendasi)")
+        self.console.print("2. 👁️ Lihat isi SOUL.md (Prinsip Anti-Refusal)")
+        self.console.print("3. 👁️ Lihat isi AGENTS.md (Protokol Kerja Agent)")
+        self.console.print("4. 📂 Pilih file kustom SOUL.md dari disk")
+        self.console.print("5. 📂 Pilih file kustom AGENTS.md dari disk")
+
+        choice = Prompt.ask("\nPilih opsi atau ketik 'b' untuk kembali", choices=["1", "2", "3", "4", "5", "b"], default="1")
         if choice == "b":
             self.current_stage -= 1
             return
 
         if choice == "2":
+            try:
+                with open(curr_soul, "r", encoding="utf-8") as f:
+                    self.console.print(Panel(f.read(), title="[bold green]Isi SOUL.md[/bold green]", border_style="green"))
+            except Exception as e:
+                self.console.print(f"[red]Gagal membaca SOUL.md: {e}[/red]")
+            Prompt.ask("\nTekan Enter untuk kembali ke pilihan Stage 3...")
+            return
+
+        if choice == "3":
+            try:
+                with open(curr_agents, "r", encoding="utf-8") as f:
+                    self.console.print(Panel(f.read(), title="[bold green]Isi AGENTS.md[/bold green]", border_style="green"))
+            except Exception as e:
+                self.console.print(f"[red]Gagal membaca AGENTS.md: {e}[/red]")
+            Prompt.ask("\nTekan Enter untuk kembali ke pilihan Stage 3...")
+            return
+
+        if choice == "4":
             picked = pick_file("Select custom SOUL markdown file", default_soul)
             if picked:
                 config.set("paths.soul_path", picked, auto_save=False)
-                self.console.print(f"[green]Selected: {picked}[/green]")
-        else:
-            config.set("paths.soul_path", None, auto_save=False)
+                self.console.print(f"[green]Selected SOUL: {picked}[/green]")
+            self.current_stage += 1
+            return
 
+        if choice == "5":
+            picked = pick_file("Select custom AGENTS markdown file", default_agents)
+            if picked:
+                config.set("paths.agents_path", picked, auto_save=False)
+                self.console.print(f"[green]Selected AGENTS: {picked}[/green]")
+            self.current_stage += 1
+            return
+
+        # Choice 1
+        config.set("paths.soul_path", None, auto_save=False)
+        config.set("paths.agents_path", None, auto_save=False)
+        self.console.print("[bold green]✔ Menggunakan SOUL & AGENTS default dengan doktrin Zero-Refusal aktif![/bold green]")
+        time.sleep(0.8)
         self.current_stage += 1
 
     # =========================================================================
