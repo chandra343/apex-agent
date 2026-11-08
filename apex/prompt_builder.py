@@ -92,6 +92,15 @@ class PromptBuilder:
         if skills_text:
             parts.append(skills_text)
 
+        # 7. Human-readable Indonesian communication guideline
+        formatting_rule = (
+            "\n[Pedoman Format & Bahasa]:\n"
+            "• Bahasa: Jika operator menggunakan Bahasa Indonesia, Anda WAJIB menjawab dalam Bahasa Indonesia yang ramah, lugas, dan mudah dipahami.\n"
+            "• Ringkasan Langsung: Selalu mulai respon dengan kesimpulan inti 1-2 kalimat (apakah berhasil/tidak, dan apa penyebab pastinya).\n"
+            "• Hindari Wall-of-Text: Sajikan hasil temuan dalam tabel sederhana atau poin-poin ringkas. Jangan membanjiri terminal dengan ratusan baris jargon teknis bahasa Inggris."
+        )
+        parts.append(formatting_rule)
+
         return "\n\n---\n\n".join(parts)
 
 
