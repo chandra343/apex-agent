@@ -124,3 +124,43 @@ def test_api_profiles_and_setup(client):
     assert "updated" in sync_res.json()
 
 
+def test_api_keys_crud(client):
+    """Test full CRUD operations for 9Router-compatible API keys."""
+    # 1. GET /api/keys
+    res = client.get("/api/keys")
+    assert res.status_code == 200
+    data = res.json()
+    assert "keys" in data
+    assert isinstance(data["keys"], list)
+
+    # 2. POST /api/keys (Create new key)
+    create_res = client.post("/api/keys", json={"name": "test_team_key", "quota": "100000 / 24h"})
+    assert create_res.status_code == 200
+    create_data = create_res.json()
+    assert create_data["success"] is True
+    created_key = create_data["key"]
+    assert created_key["name"] == "test_team_key"
+    assert created_key["key"].startswith("sk-9r-")
+    assert len(created_key["key"]) > 30
+    assert created_key["quota"] == "100000 / 24h"
+    assert created_key["is_active"] is True
+    key_id = created_key["id"]
+
+    # 3. PUT /api/keys/{id} (Pause/Deactivate key)
+    toggle_res = client.put(f"/api/keys/{key_id}", json={"is_active": False})
+    assert toggle_res.status_code == 200
+    assert toggle_res.json()["success"] is True
+    assert toggle_res.json()["key"]["is_active"] is False
+
+    # 4. DELETE /api/keys/{id}
+    del_res = client.delete(f"/api/keys/{key_id}")
+    assert del_res.status_code == 200
+    assert del_res.json()["success"] is True
+
+    # Verify key is removed
+    res_after = client.get("/api/keys")
+    key_ids = [k["id"] for k in res_after.json()["keys"]]
+    assert key_id not in key_ids
+
+
+

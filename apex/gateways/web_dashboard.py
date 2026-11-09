@@ -17,12 +17,18 @@ Features implemented:
    - CLI Tools (One-click integration configs for Claude Code, Cursor, Cline, Codex, Pi, Aider)
    - Console Log [DEBUG] (Live streaming proxy interception logs with latencies & status codes)
    - Profile & Settings [SYSTEM] (Host/port, profiles, auto-sync, auto-repair)
-2. Interactive Login & Auth Guard Modal:
+2. Professional API Key Management (Persistent in ~/.apex/api_keys.json):
+   - Cryptographically random sk-9r-... format keys
+   - Eye icon to reveal / mask key
+   - One-click full key copy
+   - Active / Paused toggle switches
+   - Modal for creating keys (no ugly browser alert/prompt)
+3. Interactive Login & Auth Guard Modal:
    - Password authentication (default: 123456)
    - Account switcher & OAuth provider login links
-3. Dynamic Accent Themes:
+4. Dynamic Accent Themes:
    - 9Router Orange, Violet Pro, Emerald, Cyan, Rose
-4. Dual Language:
+5. Dual Language:
    - English & Bahasa Indonesia
 """
 from __future__ import annotations
@@ -31,6 +37,7 @@ import asyncio
 import json
 import os
 import platform
+import secrets
 import shutil
 import time
 from pathlib import Path
@@ -64,6 +71,44 @@ app.add_middleware(
 
 UPLOADS_DIR = DATA_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+KEYS_FILE = DATA_DIR / "api_keys.json"
+
+
+def get_api_keys_storage() -> List[Dict[str, Any]]:
+    """Retrieve all API keys from persistent disk storage, initializing default if absent."""
+    if not KEYS_FILE.exists():
+        default_key = {
+            "id": "key_master_default",
+            "name": "Default Key",
+            "key": f"sk-9r-{secrets.token_hex(20)}",
+            "is_active": True,
+            "created_at": time.strftime("%Y-%m-%d"),
+            "quota": "Unlimited",
+            "rpm": 60,
+            "tpm": 200000,
+        }
+        KEYS_FILE.write_text(json.dumps([default_key], indent=2))
+        return [default_key]
+    try:
+        data = json.loads(KEYS_FILE.read_text())
+        if not data or not isinstance(data, list):
+            raise ValueError("Invalid format")
+        return data
+    except Exception:
+        default_key = {
+            "id": "key_master_default",
+            "name": "Default Key",
+            "key": f"sk-9r-{secrets.token_hex(20)}",
+            "is_active": True,
+            "created_at": time.strftime("%Y-%m-%d"),
+            "quota": "Unlimited",
+            "rpm": 60,
+            "tpm": 200000,
+        }
+        KEYS_FILE.write_text(json.dumps([default_key], indent=2))
+        return [default_key]
+
 
 # ---------------------------------------------------------
 # Embedded 9Router & 9Router Pro Complete Dashboard SPA
@@ -326,66 +371,56 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </main>
 
         <!-- ======================================================== -->
-        <!-- VIEW 2: ENDPOINT & KEYS (9Router Pro Multi-Key & Quota) -->
+        <!-- VIEW 2: ENDPOINT & KEYS (Real 9Router Architecture) -->
         <!-- ======================================================== -->
         <main id="view-endpoint" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
             <div>
                 <h1 class="text-2xl font-bold text-white tracking-tight">Endpoint &amp; API Keys</h1>
-                <p class="text-xs text-[#8e8e93] mt-1">OpenAI &amp; Claude Unified Gateway with Per-Key Token Quotas &amp; Chat Console</p>
+                <p class="text-xs text-[#8e8e93] mt-1">OpenAI &amp; Claude Unified Gateway with Authentication Keys &amp; Chat Console</p>
             </div>
 
-            <!-- Local Gateway Banner -->
+            <!-- Card 1: API Endpoint -->
             <div class="bg-dark-card border border-dark-border rounded-2xl p-6 shadow-xl space-y-4">
                 <div class="flex items-center justify-between flex-wrap gap-3">
                     <div class="flex items-center gap-3">
                         <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
                         <div>
                             <div class="font-bold text-sm text-white">Local Gateway Active</div>
-                            <div class="text-[11px] text-slate-400 font-mono">http://127.0.0.1:8000/v1</div>
+                            <div class="text-[11px] text-slate-400 font-mono">Pintu gerbang lokal untuk semua AI coding assistants</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] bg-orange-950/80 text-orange-400 border border-orange-800/60 px-2.5 py-1 rounded-lg font-mono">
                             ⚡ RTK Token Saver (-34%)
                         </span>
-                        <span class="text-[10px] bg-violet-950/80 text-violet-300 border border-violet-800/60 px-2.5 py-1 rounded-lg font-mono">
-                            ★ 9Router Pro Quotas
+                        <span class="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2.5 py-1 rounded-lg font-mono">
+                            ● 3-Tier Fallback Standby
                         </span>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
-                    <div class="p-3 bg-dark-sidebar rounded-xl border border-dark-border flex items-center justify-between">
-                        <div class="min-w-0">
-                            <div class="text-[10px] text-slate-400 font-medium">OPENAI &amp; CLAUDE BASE URL</div>
-                            <div class="font-mono text-slate-200 truncate font-semibold">http://127.0.0.1:8000/v1</div>
-                        </div>
-                        <button onclick="copyText('http://127.0.0.1:8000/v1')" class="px-2.5 py-1 bg-dark-card hover:bg-dark-border text-slate-300 rounded-lg text-[11px] transition-all">
-                            <i class="fa-solid fa-copy"></i> Copy
-                        </button>
-                    </div>
-
-                    <div class="p-3 bg-dark-sidebar rounded-xl border border-dark-border flex items-center justify-between">
-                        <div class="min-w-0">
-                            <div class="text-[10px] text-slate-400 font-medium">MASTER GATEWAY KEY</div>
-                            <div class="font-mono text-slate-200 truncate font-semibold">sk-apex-master-live</div>
-                        </div>
-                        <button onclick="copyText('sk-apex-master-live')" class="px-2.5 py-1 bg-dark-card hover:bg-dark-border text-slate-300 rounded-lg text-[11px] transition-all">
+                <div class="space-y-2 pt-1 text-xs">
+                    <div class="p-3 bg-dark-sidebar rounded-xl border border-dark-border flex items-center justify-between gap-3">
+                        <span class="text-xs font-mono px-2 py-1 rounded shrink-0 bg-[#2c1b18] text-orange-400 font-semibold border border-orange-500/30">Local /v1</span>
+                        <input id="input-endpoint-url" type="text" readonly value="http://127.0.0.1:8000/v1" class="flex-1 bg-transparent border-0 text-slate-200 font-mono text-xs focus:outline-none">
+                        <button onclick="copyEndpointUrl()" id="btn-copy-endpoint" class="px-3 py-1.5 bg-dark-card hover:bg-dark-border border border-dark-border text-slate-200 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 shrink-0">
                             <i class="fa-solid fa-copy"></i> Copy
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Per-Key Quota & Reseller Management Table (9Router Pro Feature) -->
-            <div class="bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-xl space-y-3 p-5">
-                <div class="flex items-center justify-between">
+            <!-- Card 2: API Keys Management (Real 9Router Architecture) -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-xl space-y-4 p-6">
+                <div class="flex items-center justify-between flex-wrap gap-2">
                     <div>
-                        <h3 class="font-bold text-sm text-white">Generated API Keys (Per-Key Token Quotas)</h3>
-                        <p class="text-[11px] text-slate-400">Atur batas kuota token per kunci (misal: 100,000 token / 24 jam) untuk reseller atau tim.</p>
+                        <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                            <i class="fa-solid fa-key text-orange-400"></i> API Keys
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Gunakan API Key ini untuk mengautentikasi panggilan dari Claude Code, Cursor, Cline, dan Codex.</p>
                     </div>
-                    <button onclick="createNewApiKeyPrompt()" class="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all">
-                        <i class="fa-solid fa-plus text-[10px]"></i> Create New Key
+                    <button onclick="openCreateKeyModal()" class="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md">
+                        <i class="fa-solid fa-plus text-[10px]"></i> Create API Key
                     </button>
                 </div>
 
@@ -393,29 +428,54 @@ HTML_PAGE = r"""<!DOCTYPE html>
                     <table class="w-full text-left text-xs text-slate-200 font-mono">
                         <thead class="bg-dark-sidebar text-slate-400 uppercase text-[10px] tracking-wider border-b border-dark-border">
                             <tr>
-                                <th class="p-3">Key Label</th>
-                                <th class="p-3">API Key Prefix</th>
-                                <th class="p-3">Token Quota</th>
-                                <th class="p-3">RPM / TPM Limit</th>
-                                <th class="p-3">Expiry</th>
-                                <th class="p-3 text-right">Action</th>
+                                <th class="p-3.5">Name</th>
+                                <th class="p-3.5">API Key</th>
+                                <th class="p-3.5">Token Quota</th>
+                                <th class="p-3.5">Created</th>
+                                <th class="p-3.5">Status</th>
+                                <th class="p-3.5 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody id="api-keys-table-body" class="divide-y divide-dark-border">
                             <tr>
-                                <td class="p-3 font-bold text-orange-400">Master Default</td>
-                                <td class="p-3">sk-apex-master-live••••</td>
-                                <td class="p-3 text-emerald-400">Unlimited</td>
-                                <td class="p-3">60 RPM / 200k TPM</td>
-                                <td class="p-3 text-slate-400">Never</td>
-                                <td class="p-3 text-right"><span class="text-slate-500">System</span></td>
+                                <td colspan="6" class="p-6 text-center text-slate-500 font-sans">Memuat API Keys...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Interactive Chat Console Tester -->
+            <!-- Card 3: Quick Integration Instructions -->
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-[#a1a1aa]">One-Click IDE &amp; Terminal Setup</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 space-y-2 hover:border-orange-500/40 transition-all">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-400"></i> Claude Code</span>
+                            <button onclick="copyClaudeCodeCommand()" class="text-slate-400 hover:text-white" title="Copy"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                        <pre class="bg-dark-sidebar p-2 rounded-lg text-[10px] font-mono text-slate-300 overflow-x-auto">export ANTHROPIC_BASE_URL="http://127.0.0.1:8000/v1"</pre>
+                    </div>
+
+                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 space-y-2 hover:border-orange-500/40 transition-all">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-cube text-slate-300"></i> Cursor IDE</span>
+                            <button onclick="copyText('http://127.0.0.1:8000/v1')" class="text-slate-400 hover:text-white" title="Copy"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                        <div class="text-[10px] text-slate-400">Settings &gt; Models &gt; Override OpenAI Base URL &gt; <code class="text-orange-300">http://127.0.0.1:8000/v1</code></div>
+                    </div>
+
+                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 space-y-2 hover:border-orange-500/40 transition-all">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-robot text-purple-400"></i> Cline / Roo Code</span>
+                            <button onclick="copyText('http://127.0.0.1:8000/v1')" class="text-slate-400 hover:text-white" title="Copy"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                        <div class="text-[10px] text-slate-400">Provider: OpenAI Compatible, Base URL: <code class="text-orange-300">http://127.0.0.1:8000/v1</code></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 4: Interactive Chat Console & Playground -->
             <div class="space-y-3 pt-2">
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-[#a1a1aa]">Interactive Chat Console &amp; Playground</h3>
@@ -867,7 +927,55 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
     </div>
 
-    <!-- MODAL 1: LOGIN / AUTH GUARD (9Router Architecture) -->
+    <!-- MODAL 1: CREATE API KEY (Matching 9Router Architecture) -->
+    <div id="modal-create-key" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-dark-card border border-dark-borderLight rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div class="flex items-center justify-between border-b border-dark-border pb-3">
+                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                    <i class="fa-solid fa-key text-orange-400"></i> Create API Key
+                </h3>
+                <button onclick="closeCreateKeyModal()" class="text-slate-400 hover:text-white text-base">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="form-create-key" onsubmit="handleCreateKeySubmit(event)" class="space-y-3.5">
+                <div>
+                    <label class="block text-slate-300 mb-1 font-medium">Key Name / Label</label>
+                    <input type="text" id="input-new-key-name" required placeholder="Misal: Cursor IDE, Claude Code, Cline, My Laptop" class="w-full bg-dark-sidebar border border-dark-border rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-orange-500 font-sans">
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 mb-1 font-medium">Token Quota (Opsional)</label>
+                    <input type="text" id="input-new-key-quota" placeholder="Misal: 100000 atau biarkan kosong untuk Unlimited" class="w-full bg-dark-sidebar border border-dark-border rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-orange-500 font-mono">
+                    <p class="text-[10px] text-slate-500 mt-1">Kosongkan jika ingin kuota tanpa batas (Unlimited).</p>
+                </div>
+
+                <div id="create-key-success-box" class="hidden p-3.5 bg-dark-sidebar border border-emerald-600/50 rounded-xl space-y-2.5">
+                    <div class="flex items-center gap-2 text-emerald-400 font-semibold">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>API Key Berhasil Dibuat!</span>
+                    </div>
+                    <div class="p-2.5 bg-black/60 rounded-lg border border-dark-border font-mono text-orange-400 text-xs break-all select-all" id="created-key-value"></div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">
+                        Salin API Key ini sekarang. Kunci ini siap digunakan untuk otentikasi di client mana saja.
+                    </p>
+                    <button type="button" onclick="copyCreatedKeyValue()" id="btn-copy-created-key" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all shadow">
+                        <i class="fa-solid fa-copy"></i> Salin Kunci ke Clipboard
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2" id="create-key-footer-buttons">
+                    <button type="button" onclick="closeCreateKeyModal()" class="px-4 py-2 bg-dark-sidebar hover:bg-dark-border text-slate-300 rounded-xl transition-all">Batal</button>
+                    <button type="submit" id="btn-submit-create-key" class="px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl transition-all shadow-md">
+                        Generate Key
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: LOGIN / AUTH GUARD (9Router Architecture) -->
     <div id="modal-login" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-dark-card border border-dark-borderLight rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
             <div class="flex items-center justify-between border-b border-dark-border pb-3">
@@ -911,7 +1019,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- MODAL 2: CONFIGURE PROVIDER / ADD KEY -->
+    <!-- MODAL 3: CONFIGURE PROVIDER / ADD KEY -->
     <div id="modal-provider" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-dark-card border border-dark-borderLight rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs">
             <div class="flex items-center justify-between border-b border-dark-border pb-3">
@@ -986,7 +1094,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- MODAL 3: ADD SECRET VAULT -->
+    <!-- MODAL 4: ADD SECRET VAULT -->
     <div id="modal-add-vault" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-dark-card border border-dark-borderLight rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
             <div class="flex items-center justify-between border-b border-dark-border pb-3">
@@ -1020,6 +1128,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
     <script>
         let currentTab = 'providers';
         let cachedProviders = [];
+        let cachedApiKeys = [];
+        let visibleKeyIds = new Set();
+        let newlyCreatedKey = "";
         let activeWs = null;
         let currentSession = 'web_session';
         let autoScrollLog = true;
@@ -1095,6 +1206,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
             };
             document.getElementById('breadcrumb-title').innerText = titleMap[tab] || 'Endpoint Proxy';
 
+            if (tab === 'endpoint') loadApiKeys();
             if (tab === 'providers') loadProviders();
             if (tab === 'proxy-pools') loadVault();
             if (tab === 'usage') loadStatus();
@@ -1102,6 +1214,176 @@ HTML_PAGE = r"""<!DOCTYPE html>
             if (tab === 'cli-tools') loadTools();
             if (tab === 'settings') loadSettings();
         }
+
+        // ======================= API KEYS MANAGEMENT =======================
+
+        async function loadApiKeys() {
+            try {
+                const res = await fetch('/api/keys').then(r => r.json());
+                cachedApiKeys = res.keys || [];
+                renderApiKeysTable(cachedApiKeys);
+            } catch (e) {
+                console.error("Gagal load API keys:", e);
+            }
+        }
+
+        function maskApiKey(keyStr) {
+            if (!keyStr || keyStr.length <= 14) return keyStr || "";
+            return keyStr.slice(0, 10) + '••••••••••••••••' + keyStr.slice(-4);
+        }
+
+        function toggleKeyVisibility(id) {
+            if (visibleKeyIds.has(id)) {
+                visibleKeyIds.delete(id);
+            } else {
+                visibleKeyIds.add(id);
+            }
+            renderApiKeysTable(cachedApiKeys);
+        }
+
+        function renderApiKeysTable(keys) {
+            const tbody = document.getElementById('api-keys-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (!keys || keys.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500 font-sans">Belum ada API Key. Klik "+ Create API Key" untuk membuat.</td></tr>`;
+                return;
+            }
+
+            keys.forEach(k => {
+                const isVisible = visibleKeyIds.has(k.id);
+                const displayKey = isVisible ? k.key : maskApiKey(k.key);
+                const tr = document.createElement('tr');
+                tr.className = `hover:bg-dark-card/50 transition-colors ${k.is_active ? '' : 'opacity-60'}`;
+                tr.innerHTML = `
+                    <td class="p-3.5 font-bold text-white font-sans">${k.name}</td>
+                    <td class="p-3.5">
+                        <div class="flex items-center gap-2">
+                            <code class="text-xs ${isVisible ? 'text-orange-400 font-semibold' : 'text-slate-300'} font-mono">${displayKey}</code>
+                            <button onclick="toggleKeyVisibility('${k.id}')" title="${isVisible ? 'Hide key' : 'Show key'}" class="text-slate-400 hover:text-white p-1 rounded transition-colors">
+                                <i class="fa-solid ${isVisible ? 'fa-eye-slash' : 'fa-eye'} text-xs"></i>
+                            </button>
+                            <button onclick="copyText('${k.key}')" title="Copy full key" class="text-slate-400 hover:text-white p-1 rounded transition-colors">
+                                <i class="fa-solid fa-copy text-xs"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td class="p-3.5 text-cyan-400">${k.quota || 'Unlimited'}</td>
+                    <td class="p-3.5 text-slate-400 text-[11px]">${k.created_at || '-'}</td>
+                    <td class="p-3.5">
+                        <div onclick="toggleApiKeyActive('${k.id}', ${!k.is_active})" title="${k.is_active ? 'Pause key' : 'Resume key'}" class="w-8 h-4 rounded-full p-0.5 transition-colors cursor-pointer ${k.is_active ? 'bg-orange-600' : 'bg-slate-700'}">
+                            <div class="w-3 h-3 rounded-full bg-white transition-transform ${k.is_active ? 'translate-x-4' : 'translate-x-0'} shadow-sm"></div>
+                        </div>
+                    </td>
+                    <td class="p-3.5 text-right font-sans">
+                        <button onclick="handleDeleteApiKey('${k.id}', '${k.name}')" class="text-rose-400 hover:text-rose-300 p-1.5 rounded hover:bg-rose-500/10 transition-all" title="Delete key">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openCreateKeyModal() {
+            document.getElementById('input-new-key-name').value = '';
+            document.getElementById('input-new-key-quota').value = '';
+            document.getElementById('create-key-success-box').classList.add('hidden');
+            document.getElementById('create-key-footer-buttons').classList.remove('hidden');
+            document.getElementById('modal-create-key').classList.remove('hidden');
+            document.getElementById('input-new-key-name').focus();
+        }
+
+        function closeCreateKeyModal() {
+            document.getElementById('modal-create-key').classList.add('hidden');
+        }
+
+        async function handleCreateKeySubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('input-new-key-name').value.trim();
+            const quota = document.getElementById('input-new-key-quota').value.trim();
+            const btn = document.getElementById('btn-submit-create-key');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating...`;
+
+            try {
+                const res = await fetch('/api/keys', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name, quota })
+                }).then(r => r.json());
+
+                if (res.success && res.key) {
+                    newlyCreatedKey = res.key.key;
+                    document.getElementById('created-key-value').innerText = newlyCreatedKey;
+                    document.getElementById('create-key-success-box').classList.remove('hidden');
+                    document.getElementById('create-key-footer-buttons').classList.add('hidden');
+                    appendConsoleLog(`[API Key] Generated new key '${name}' (${res.key.key.slice(0, 10)}...)`);
+                    loadApiKeys();
+                } else {
+                    alert("Gagal membuat key.");
+                }
+            } catch (err) {
+                alert("Error: " + err);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `Generate Key`;
+            }
+        }
+
+        function copyCreatedKeyValue() {
+            if (newlyCreatedKey) {
+                copyText(newlyCreatedKey);
+                const btn = document.getElementById('btn-copy-created-key');
+                btn.innerHTML = `<i class="fa-solid fa-check"></i> Berhasil Disalin!`;
+                setTimeout(() => {
+                    btn.innerHTML = `<i class="fa-solid fa-copy"></i> Salin Kunci ke Clipboard`;
+                    closeCreateKeyModal();
+                }, 1500);
+            }
+        }
+
+        async function toggleApiKeyActive(id, newStatus) {
+            try {
+                await fetch(`/api/keys/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ is_active: newStatus })
+                });
+                loadApiKeys();
+                appendConsoleLog(`[API Key] Toggled key ${id} active status: ${newStatus}`);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function handleDeleteApiKey(id, name) {
+            if (!confirm(`Hapus API Key '${name}'? Kunci ini tidak akan bisa digunakan lagi.`)) return;
+            try {
+                await fetch(`/api/keys/${id}`, { method: 'DELETE' });
+                loadApiKeys();
+                appendConsoleLog(`[API Key] Deleted key '${name}'`);
+            } catch (e) {
+                alert("Error: " + e);
+            }
+        }
+
+        function copyEndpointUrl() {
+            copyText('http://127.0.0.1:8000/v1');
+            const btn = document.getElementById('btn-copy-endpoint');
+            btn.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i> Copied!`;
+            setTimeout(() => {
+                btn.innerHTML = `<i class="fa-solid fa-copy"></i> Copy`;
+            }, 1500);
+        }
+
+        function copyClaudeCodeCommand() {
+            const activeKey = (cachedApiKeys.find(k => k.is_active) || {}).key || 'sk-9r-your-key-here';
+            const cmd = `export ANTHROPIC_BASE_URL="http://127.0.0.1:8000/v1"\nexport ANTHROPIC_API_KEY="${activeKey}"`;
+            copyText(cmd);
+        }
+
+        // ======================= PROVIDERS HUB =======================
 
         async function loadProviders() {
             try {
@@ -1272,7 +1554,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
                 alertBox.innerText = `❌ Error: ${err}`;
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = `Simpan & Hubungkan`;
+                btn.innerHTML = `Simpan &amp; Hubungkan`;
             }
         }
 
@@ -1404,30 +1686,6 @@ HTML_PAGE = r"""<!DOCTYPE html>
         function saveTokenSaverSettings() {
             alert("✅ Pengaturan RTK Token Saver berhasil disimpan ke config disk.");
             appendConsoleLog("[RTK] Token Saver compression settings saved.");
-        }
-
-        // ======================= API KEYS & PER-KEY QUOTAS =======================
-
-        function createNewApiKeyPrompt() {
-            const name = prompt("Masukkan nama/label untuk API Key baru: (misal: Reseller-Client-1)");
-            if (!name) return;
-            const quota = prompt("Batas Token Quota (kosongkan jika unlimited):", "100000") || "Unlimited";
-            const tbody = document.getElementById('api-keys-table-body');
-            const randomSuffix = Math.random().toString(36).substring(2, 8);
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="p-3 font-bold text-slate-200">${name}</td>
-                <td class="p-3">sk-apex-${randomSuffix}••••</td>
-                <td class="p-3 text-cyan-400 font-bold">${quota} / 24h</td>
-                <td class="p-3">30 RPM / 60k TPM</td>
-                <td class="p-3 text-slate-400">30 days</td>
-                <td class="p-3 text-right">
-                    <button onclick="this.closest('tr').remove()" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-            alert(`✅ API Key 'sk-apex-${randomSuffix}' dibuat dengan kuota ${quota} tokens!`);
-            appendConsoleLog(`[API Key] Generated new key '${name}' with quota ${quota}`);
         }
 
         // ======================= CHAT CONSOLE LOGIC =======================
@@ -1822,6 +2080,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         window.addEventListener('DOMContentLoaded', () => {
             loadProviders();
+            loadApiKeys();
             connectWs();
         });
     </script>
@@ -1859,6 +2118,67 @@ async def get_system_status() -> Dict[str, Any]:
             "user": os.environ.get("USER", "apex_operator")
         }
     }
+
+
+# ---------------------------------------------------------
+# API Keys REST Endpoints (9Router Persistent Key Manager)
+# ---------------------------------------------------------
+
+@app.get("/api/keys")
+async def list_keys_endpoint() -> Dict[str, Any]:
+    """List all registered API keys."""
+    return {"keys": get_api_keys_storage()}
+
+
+@app.post("/api/keys")
+async def create_key_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate and register a new standard sk-9r API key."""
+    name = payload.get("name", "").strip() or "New Key"
+    quota = payload.get("quota", "").strip() or "Unlimited"
+    new_k = {
+        "id": f"key_{secrets.token_hex(6)}",
+        "name": name,
+        "key": f"sk-9r-{secrets.token_hex(20)}",
+        "is_active": True,
+        "created_at": time.strftime("%Y-%m-%d"),
+        "quota": f"{quota} / 24h" if quota != "Unlimited" and "24h" not in quota else quota,
+        "rpm": 60,
+        "tpm": 200000,
+    }
+    keys = get_api_keys_storage()
+    keys.append(new_k)
+    KEYS_FILE.write_text(json.dumps(keys, indent=2))
+    return {"success": True, "key": new_k}
+
+
+@app.put("/api/keys/{key_id}")
+async def update_key_endpoint(key_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Update active status or metadata of an API key."""
+    keys = get_api_keys_storage()
+    found = False
+    for k in keys:
+        if k["id"] == key_id:
+            if "is_active" in payload:
+                k["is_active"] = bool(payload["is_active"])
+            if "name" in payload:
+                k["name"] = payload["name"]
+            found = True
+            break
+    if found:
+        KEYS_FILE.write_text(json.dumps(keys, indent=2))
+        return {"success": True, "key": k}
+    raise HTTPException(status_code=404, detail="Key not found")
+
+
+@app.delete("/api/keys/{key_id}")
+async def delete_key_endpoint(key_id: str) -> Dict[str, Any]:
+    """Delete an API key."""
+    keys = get_api_keys_storage()
+    new_keys = [k for k in keys if k["id"] != key_id]
+    if len(new_keys) != len(keys):
+        KEYS_FILE.write_text(json.dumps(new_keys, indent=2))
+        return {"success": True}
+    raise HTTPException(status_code=404, detail="Key not found")
 
 
 @app.get("/api/vault")
