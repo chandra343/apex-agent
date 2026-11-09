@@ -171,3 +171,31 @@ def test_workflow_and_memory_tools():
     assert "tersimpan" in m_set
     m_rec = manage_cognitive_memory("recall", query="redis")
     assert "6379" in m_rec
+
+
+def test_web_dashboard_9router_and_vault():
+    from fastapi.testclient import TestClient
+    from apex.gateways.web_dashboard import app
+
+    client = TestClient(app)
+
+    # 1. Test 9Router Providers Hub API
+    p_res = client.get("/api/providers")
+    assert p_res.status_code == 200
+    p_data = p_res.json()
+    assert "providers" in p_data
+    assert len(p_data["providers"]) > 0
+    assert "active_provider" in p_data
+
+    # 2. Test Vault Web API
+    v_post = client.post("/api/vault", json={"key": "WEB_KEY_9ROUTER", "value": "secret999", "description": "Test"})
+    assert v_post.status_code == 200
+    assert v_post.json()["success"] is True
+
+    v_list = client.get("/api/vault")
+    assert v_list.status_code == 200
+    assert any(s["key"] == "WEB_KEY_9ROUTER" for s in v_list.json()["secrets"])
+
+    v_del = client.delete("/api/vault/WEB_KEY_9ROUTER")
+    assert v_del.status_code == 200
+    assert v_del.json()["success"] is True
