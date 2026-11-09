@@ -38,6 +38,7 @@ from apex.tools.learning_ops import record_learned_lesson, consult_learned_lesso
 from apex.tools.devops import run_project_tests, create_git_patch
 from apex.tools.network_diag import benchmark_http_endpoint, check_ssl_certificate, lookup_dns_records
 from apex.tools.config_ops import manage_system_config
+from apex.tools.provider_ops import manage_ai_providers
 
 
 class ToolRegistry:
@@ -475,6 +476,31 @@ class ToolRegistry:
             },
             "required": ["action"]
         }, lambda args: manage_system_config(args["action"], args.get("key_path"), args.get("value")), is_safe=False)
+
+        # AI Provider Management Tool
+        self.register("manage_ai_providers", "Search, switch, test, add, or configure AI providers and models dynamically", {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["list", "search", "use", "add", "test", "fetch_models", "scan_local", "remove"],
+                    "description": "Operation to perform on providers"
+                },
+                "provider_name": {"type": "string", "description": "Provider ID (e.g. 'groq', 'deepseek', 'ollama', 'anthropic')"},
+                "api_key": {"type": "string", "description": "API key or token when adding or configuring"},
+                "base_url": {"type": "string", "description": "Custom base URL endpoint"},
+                "model_name": {"type": "string", "description": "Model ID to activate or register"},
+                "query": {"type": "string", "description": "Search keyword (e.g. 'free', 'coding', 'fast', 'groq', 'sonnet')"}
+            },
+            "required": ["action"]
+        }, lambda args: manage_ai_providers(
+            args["action"],
+            args.get("provider_name"),
+            args.get("api_key"),
+            args.get("base_url"),
+            args.get("model_name"),
+            args.get("query")
+        ), is_safe=False)
 
     def _run_shell_wrapper(self, args: Dict[str, Any]) -> Tuple[bool, str]:
         cmd = args["command"]

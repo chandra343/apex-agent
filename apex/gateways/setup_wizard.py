@@ -224,7 +224,9 @@ class SetupWizard:
             self.console.print(
                 "\n[bold cyan]Menu Aksi Cepat (9Router Pro & Zeline):[/bold cyan]\n"
                 f" • Masukkan angka [bold yellow]1 - {len(all_shelf_items)}[/bold yellow] : Pilih provider untuk mengatur API Key / URL / Login\n"
-                " • Masukkan [bold yellow]p[/bold yellow]       : 🎯 [bold green]Pilih / Masukkan Provider yang Mau Digunakan (Aktifkan)[/bold green]\n"
+                " • Masukkan [bold yellow]/[/bold yellow] atau [bold yellow]cari[/bold yellow] : 🔍 [bold green]Cari Provider atau Model AI (Fuzzy Search & Quick Select)[/bold green]\n"
+                " • Masukkan [bold yellow]+[/bold yellow] atau [bold yellow]add[/bold yellow]  : ➕ [bold green]Tambah Provider AI Baru (Katalog / Custom / Auto-Scan Local)[/bold green]\n"
+                " • Masukkan [bold yellow]p[/bold yellow]       : 🎯 [bold green]Pilih / Ganti Provider yang Mau Digunakan (Aktifkan)[/bold green]\n"
                 " • Masukkan [bold yellow]a[/bold yellow]       : 🌌 [bold green]Login / Import Google Antigravity OAuth[/bold green] (Gemini 2.0/3 & Claude 3.5)\n"
                 " • Masukkan [bold yellow]g[/bold yellow]       : 🐙 [bold green]Login Akun GitHub Copilot[/bold green] (OAuth Device Code — Claude 3.7 & GPT-4o)\n"
                 " • Masukkan [bold yellow]c[/bold yellow]       : 🟣 [bold green]Import / Login Claude Code[/bold green] (~/.claude.json atau session)\n"
@@ -233,7 +235,6 @@ class SetupWizard:
                 " • Masukkan [bold yellow]k[/bold yellow]       : 🎁 [bold green]Login / Import Kiro AI Free Tier[/bold green] (Free Claude & GLM Tokens)\n"
                 " • Masukkan [bold yellow]s[/bold yellow]       : 🔍 [bold green]Auto-Scan Local AI[/bold green] (Ollama:11434, LM Studio:1234, vLLM:8000)\n"
                 " • Masukkan [bold yellow]f[/bold yellow]       : 📑 [bold cyan]Ganti Kategori / Filter Tab[/bold cyan] (All, OAuth, Frontier, Fast, APAC, Cloud, Local)\n"
-                " • Masukkan [bold yellow]+[/bold yellow]       : ➕ Tambah Custom Provider Baru\n"
                 " • Masukkan [bold yellow]+m[/bold yellow]      : ➕ [bold green]Tambah Model AI Baru ke Provider[/bold green]\n"
                 " • Masukkan [bold yellow]t[/bold yellow]       : 🧪 Test All (Uji koneksi & latensi semua provider serentak)\n"
                 " • Masukkan [bold yellow]r[/bold yellow]       : 🔄 [bold cyan]Sync / Refresh Live Models[/bold cyan] (Ambil model terbaru langsung dari API)\n"
@@ -243,6 +244,14 @@ class SetupWizard:
             )
 
             choice = Prompt.ask("\nPilih aksi").strip().lower()
+
+            if choice in ["/", "cari", "search", "find"]:
+                self._search_providers_dialog()
+                continue
+
+            if choice in ["+", "add", "tambah"]:
+                self._add_provider_smart_dialog(all_shelf_items)
+                continue
 
             if choice in ["p", "use", "pilih", "aktif"]:
                 self._select_active_provider_dialog(all_shelf_items)
@@ -507,10 +516,189 @@ class SetupWizard:
         ok, msg = provider_manager.set_active_provider(target_p_id, selected_model)
         if ok:
             self.console.print(f"[bold green]✔ {msg}[/bold green]")
+            self.console.print(f"[dim]Menguji konektivitas live ke {target_p_id.upper()}...[/dim]")
+            t_ok, t_msg, t_lat = provider_manager.test_provider(target_p_id)
+            if t_ok:
+                self.console.print(f"[bold green]🟢 Terhubung & Siap Digunakan! Latensi: {t_lat}s ({t_msg})[/bold green]")
+            else:
+                self.console.print(f"[bold yellow]⚠️ Peringatan koneksi: {t_msg}[/bold yellow]")
+                self.console.print("[dim]Tips: Periksa API Key atau Base URL jika terjadi galat saat eksekusi.[/dim]")
         else:
             self.console.print(f"[yellow]{msg}[/yellow]")
 
         Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
+
+    def _search_providers_dialog(self) -> None:
+        """Interactive fuzzy search for providers, models, or categories."""
+        self.console.print(Panel(
+            "[bold cyan]🔍 Cari Provider atau Model AI[/bold cyan]\n"
+            "[dim]Ketik kata kunci nama provider, nama model (misal: 'sonnet', 'r1', 'qwen'), atau kategori ('free', 'local', 'fast', 'coding').[/dim]",
+            border_style="cyan"
+        ))
+        q = Prompt.ask("Masukkan kata kunci pencarian").strip()
+        if not q:
+            return
+
+        matches = provider_manager.search_providers(q)
+        if not matches:
+            self.console.print(f"[yellow]Tidak ditemukan provider atau model yang cocok dengan '{q}'.[/yellow]")
+            Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
+            return
+
+        table = Table(
+            title=f"[bold]Ditemukan {len(matches)} Provider Cocok untuk: '{q}'[/bold]",
+            show_lines=True,
+            header_style="bold cyan"
+        )
+        table.add_column("No", style="bold yellow", width=3, justify="center")
+        table.add_column("Provider", style="bold white", min_width=18)
+        table.add_column("Alasan Cocok", style="cyan")
+        table.add_column("Model Utama", style="dim", min_width=20)
+        table.add_column("Status", style="bold", justify="center")
+
+        for idx, m in enumerate(matches, 1):
+            is_act = m.get("is_active")
+            is_conf = m.get("is_configured")
+            status_badge = "[bold green]★ AKTIF[/bold green]" if is_act else ("[green]Siap Digunakan[/green]" if is_conf else "[dim]Belum Diatur[/dim]")
+            reasons = ", ".join(m.get("reasons", []))
+            models_sample = ", ".join(m.get("models", [])[:3])
+            table.add_row(
+                str(idx),
+                f"{m.get('icon', '🤖')} {m.get('name')}",
+                reasons,
+                models_sample,
+                status_badge
+            )
+
+        self.console.print(table)
+        self.console.print("\n[dim]Ketik nomor untuk langsung mengaktifkan atau mengatur provider tersebut, atau Enter untuk kembali.[/dim]")
+        pick = Prompt.ask("Pilih nomor provider", default="").strip()
+        if pick.isdigit() and 1 <= int(pick) <= len(matches):
+            chosen = matches[int(pick) - 1]
+            p_id = chosen["id"]
+            if not chosen.get("is_configured"):
+                self._configure_single_provider(chosen, config.get("providers", {}), {})
+            else:
+                models = chosen.get("models", [])
+                target_m = models[0] if models else config.default_model
+                ok, msg = provider_manager.set_active_provider(p_id, target_m)
+                if ok:
+                    self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                    t_ok, t_msg, t_lat = provider_manager.test_provider(p_id)
+                    if t_ok:
+                        self.console.print(f"[bold green]🟢 Uji koneksi sukses! Latensi: {t_lat}s ({t_msg})[/bold green]")
+                    else:
+                        self.console.print(f"[yellow]⚠️ Respon uji koneksi: {t_msg}[/yellow]")
+                time.sleep(1.0)
+
+    def _add_provider_smart_dialog(self, all_shelf_items: list[dict[str, Any]]) -> None:
+        """Smart multi-option wizard to add catalog providers, custom OpenAI endpoints, or auto-scan local AI."""
+        self.console.print(Panel(
+            "[bold cyan]➕ Tambah / Konfigurasi Provider AI Baru[/bold cyan]\n"
+            "[dim]Pilih salah satu metode cepat di bawah ini untuk menambahkan provider:[/dim]\n\n"
+            " 1. 🏛️ [bold white]Pilih dari Katalog Resmi (47+ Provider)[/bold white] — Auto-fill URL & Model bawaan\n"
+            " 2. 🔌 [bold white]Tambah Custom OpenAI-Compatible Endpoint[/bold white] — vLLM, RunPod, Proxy, Gateway kustom\n"
+            " 3. 🦙 [bold white]Auto-Scan & Deteksi Engine AI Lokal[/bold white] — Otomatis scan Ollama, LM Studio, vLLM di port lokal\n"
+            " 4. ↩️  Batal dan kembali ke shelf",
+            border_style="cyan"
+        ))
+        method = Prompt.ask("Pilih metode penambahan [1-4]", default="1").strip()
+
+        if method == "1":
+            kw = Prompt.ask("Ketik nama atau ID provider dari katalog (misal: groq, deepseek, mistral, openrouter, together)").strip().lower()
+            if not kw:
+                return
+            entry = find_catalog_entry(kw)
+            if not entry:
+                matches = provider_manager.search_providers(kw)
+                if matches:
+                    self.console.print("\nProvider katalog yang mendekati:")
+                    for idx_m, m_item in enumerate(matches[:5], 1):
+                        self.console.print(f" {idx_m}. {m_item.get('icon', '🤖')} {m_item['name']} ([cyan]{m_item['id']}[/cyan])")
+                    c_pick = Prompt.ask("Pilih nomor provider", default="1").strip()
+                    if c_pick.isdigit() and 1 <= int(c_pick) <= len(matches[:5]):
+                        entry = find_catalog_entry(matches[int(c_pick) - 1]["id"])
+            if not entry:
+                self.console.print(f"[red]Provider '{kw}' tidak ditemukan di katalog resmi.[/red]")
+                time.sleep(1.0)
+                return
+
+            p_id = entry["id"]
+            self.console.print(f"\n[bold green]✔ Terpilih: {entry.get('icon', '🤖')} {entry['name']}[/bold green]")
+            self.console.print(f"Endpoint Default : [dim]{entry.get('url')}[/dim]")
+            self.console.print(f"Model Utama      : [yellow]{', '.join(entry.get('models', [])[:3])}...[/yellow]\n")
+
+            key_val = ""
+            import os
+            env_cand = os.environ.get(f"{p_id.upper().replace('-', '_')}_API_KEY")
+            if env_cand:
+                use_env = Confirm.ask(f"Ditemukan env var {p_id.upper().replace('-', '_')}_API_KEY ({env_cand[:4]}••••). Gunakan ini?", default=True)
+                if use_env:
+                    key_val = env_cand
+
+            if not key_val and entry.get("auth_type") != "none":
+                key_val = Prompt.ask(f"Masukkan API Key untuk {entry['name']}").strip()
+
+            ok, msg, detail = provider_manager.add_provider_smart(
+                p_id,
+                api_key=key_val,
+                base_url=entry.get("url", ""),
+                models=entry.get("models", []),
+                auto_fetch=True,
+                verify_now=True
+            )
+            self.console.print(f"[bold green]✔ {msg}[/bold green]")
+            if detail.get("test_success"):
+                make_act = Confirm.ask("Uji koneksi sukses! Jadikan provider ini sebagai provider aktif utama sekarang?", default=True)
+                if make_act:
+                    first_m = detail.get("models", [config.default_model])[0]
+                    provider_manager.set_active_provider(p_id, first_m)
+                    self.console.print(f"[bold green]✔ Provider aktif sekarang: {p_id.upper()} ({first_m})[/bold green]")
+            Prompt.ask("\nTekan Enter untuk lanjut...")
+
+        elif method == "2":
+            new_id = Prompt.ask("Nama ID Provider Kustom (misal: my-vllm, cloud-proxy)").strip().lower()
+            if not new_id:
+                return
+            new_url = Prompt.ask("Base URL Endpoint (contoh: http://192.168.1.50:8000/v1)", default="http://localhost:8000/v1").strip()
+            new_key = Prompt.ask("API Key (jika ada, atau 'none')", default="none").strip()
+            fetch_models_choice = Confirm.ask("Coba deteksi daftar model otomatis dari endpoint (/models)?", default=True)
+            
+            custom_models = []
+            if not fetch_models_choice:
+                models_str = Prompt.ask("Daftar model (pisahkan koma)", default=f"{new_id}-model").strip()
+                custom_models = [m.strip() for m in models_str.split(",") if m.strip()]
+
+            ok, msg, detail = provider_manager.add_provider_smart(
+                new_id,
+                api_key=new_key,
+                base_url=new_url,
+                models=custom_models or None,
+                auto_fetch=fetch_models_choice,
+                verify_now=True
+            )
+            self.console.print(f"[bold green]✔ {msg}[/bold green]")
+            if detail.get("test_success"):
+                make_act = Confirm.ask("Uji koneksi sukses! Jadikan provider ini sebagai provider aktif utama?", default=True)
+                if make_act:
+                    first_m = detail.get("models", [config.default_model])[0]
+                    provider_manager.set_active_provider(new_id, first_m)
+                    self.console.print(f"[bold green]✔ Provider aktif sekarang: {new_id.upper()} ({first_m})[/bold green]")
+            Prompt.ask("\nTekan Enter untuk lanjut...")
+
+        elif method == "3":
+            self.console.print("\n[cyan]Memindai engine AI lokal (Ollama:11434, LM Studio:1234, vLLM:8000, llama.cpp:8080)...[/cyan]")
+            scan_res = provider_manager.scan_and_register_local_engines()
+            reg = scan_res.get("registered", [])
+            if reg:
+                self.console.print(Panel(
+                    "\n".join([f"🟢 [bold]{v['name']}[/bold] terdeteksi di [dim]{v['url']}[/dim] (Model: {', '.join(v['models'][:3])})" for v in reg]),
+                    title="[bold green]Engine AI Lokal Ditemukan & Didaftarkan![/bold green]",
+                    border_style="green"
+                ))
+            else:
+                self.console.print("[yellow]Tidak ada server AI lokal yang sedang berjalan di port default.[/yellow]")
+            Prompt.ask("\nTekan Enter untuk kembali ke shelf...")
 
     def _add_custom_model_dialog(self, all_shelf_items: list[dict[str, Any]]) -> None:
         """Interactive dialog to add a custom AI model to any provider."""

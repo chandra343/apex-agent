@@ -810,6 +810,96 @@ async def sync_env_endpoint() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------
+# Provider Management REST Endpoints
+# ---------------------------------------------------------
+
+@app.get("/api/providers")
+async def list_providers_endpoint(category: str = "all") -> Dict[str, Any]:
+    """Retrieve all providers (configured + catalog) with active indicators."""
+    summary = provider_manager.get_provider_shelf_summary(category=category)
+    return {
+        "providers": summary,
+        "active_provider": config.active_provider,
+        "active_model": config.default_model,
+        "count": len(summary)
+    }
+
+
+@app.get("/api/providers/search")
+async def search_providers_endpoint(q: str = "") -> Dict[str, Any]:
+    """Search providers and models by query keyword."""
+    matches = provider_manager.search_providers(q)
+    return {"query": q, "matches": matches, "count": len(matches)}
+
+
+@app.post("/api/providers/use")
+async def set_active_provider_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Switch active provider and model with live latency test."""
+    p_name = payload.get("provider", "").strip().lower()
+    m_name = payload.get("model", "").strip() or None
+    ok, msg = provider_manager.set_active_provider(p_name, m_name)
+    if not ok:
+        return {"success": False, "message": msg}
+    t_ok, t_msg, t_lat = provider_manager.test_provider(p_name)
+    return {
+        "success": True,
+        "message": msg,
+        "active_provider": config.active_provider,
+        "active_model": config.default_model,
+        "test_success": t_ok,
+        "test_message": t_msg,
+        "latency_seconds": t_lat
+    }
+
+
+@app.post("/api/providers/add")
+async def add_provider_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Add or configure an AI provider with catalog defaults & key verification."""
+    p_name = payload.get("name", "").strip().lower()
+    key = payload.get("api_key", "").strip()
+    url = payload.get("base_url", "").strip()
+    models = payload.get("models")
+    auto_fetch = payload.get("auto_fetch", True)
+    verify_now = payload.get("verify_now", True)
+    make_active = payload.get("make_active", False)
+
+    ok, msg, detail = provider_manager.add_provider_smart(
+        p_name,
+        api_key=key,
+        base_url=url,
+        models=models,
+        auto_fetch=auto_fetch,
+        verify_now=verify_now
+    )
+    if ok and make_active:
+        first_m = detail.get("models", [config.default_model])[0]
+        provider_manager.set_active_provider(p_name, first_m)
+    return {"success": ok, "message": msg, "detail": detail}
+
+
+@app.post("/api/providers/remove")
+async def remove_provider_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove a provider from configuration."""
+    p_name = payload.get("name", "").strip().lower()
+    ok = provider_manager.remove_provider(p_name)
+    return {"success": ok, "message": f"Provider '{p_name}' {'berhasil dihapus' if ok else 'tidak ditemukan'}"}
+
+
+@app.post("/api/providers/scan-local")
+async def scan_local_providers_endpoint() -> Dict[str, Any]:
+    """Auto-scan host for local AI engines."""
+    return provider_manager.scan_and_register_local_engines()
+
+
+@app.post("/api/providers/fetch-models")
+async def fetch_models_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Fetch live models from provider API endpoint."""
+    p_name = payload.get("name", "").strip().lower()
+    ok, msg, models = provider_manager.fetch_live_models(p_name)
+    return {"success": ok, "message": msg, "models": models}
+
+
+# ---------------------------------------------------------
 # WebSocket Real-Time Chat
 # ---------------------------------------------------------
 

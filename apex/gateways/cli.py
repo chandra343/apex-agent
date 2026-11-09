@@ -79,17 +79,29 @@ def main() -> None:
     model_parser.add_argument("--provider", "-p", default="", help="Target provider ID (e.g. ollama, openai, vllm)")
 
     # Provider
-    prov_parser = subparsers.add_parser("provider", help="Manage AI providers")
+    prov_parser = subparsers.add_parser("provider", help="Manage AI providers (browse shelf, search, add, test, switch)")
     prov_sub = prov_parser.add_subparsers(dest="action")
-    prov_add = prov_sub.add_parser("add", help="Add or update a provider")
-    prov_add.add_argument("name", help="Provider name (e.g. deepseek, groq)")
-    prov_add.add_argument("key", help="API key")
-    prov_add.add_argument("--url", default="", help="Custom base URL")
+    prov_sub.add_parser("list", help="List all configured AI providers and active status")
+    prov_search = prov_sub.add_parser("search", help="Search providers and models by keyword (e.g. free, fast, sonnet)")
+    prov_search.add_argument("query", help="Keyword or category to search")
+    prov_add = prov_sub.add_parser("add", help="Add or configure an AI provider")
+    prov_add.add_argument("name", help="Provider name or ID (e.g. deepseek, groq, vllm)")
+    prov_add.add_argument("key", nargs="?", default="", help="API key (optional if in catalog/env)")
+    prov_add.add_argument("--url", default="", help="Custom base URL endpoint")
     prov_add.add_argument("--models", nargs="*", default=[], help="Model IDs list")
-    prov_sub.add_parser("test-all", help="Ping and test all configured providers")
-    prov_use = prov_sub.add_parser("use", help="Select active provider to use")
+    prov_add.add_argument("--test", action="store_true", help="Test connection immediately after adding")
+    prov_add.add_argument("--use", action="store_true", help="Set as active provider immediately")
+    prov_use = prov_sub.add_parser("use", help="Select active provider and default model to use")
     prov_use.add_argument("name", help="Provider name or ID")
     prov_use.add_argument("model", nargs="?", default="", help="Optional model name to activate")
+    prov_test = prov_sub.add_parser("test", help="Test connection and latency of a provider")
+    prov_test.add_argument("name", nargs="?", default="", help="Provider name to test (or omit for all)")
+    prov_sub.add_parser("test-all", help="Ping and test all configured providers")
+    prov_rm = prov_sub.add_parser("rm", aliases=["delete", "remove"], help="Remove a provider")
+    prov_rm.add_argument("name", help="Provider name or ID")
+    prov_sub.add_parser("scan", help="Auto-scan localhost for local AI engines (Ollama, LM Studio, vLLM)")
+    prov_fetch = prov_sub.add_parser("fetch-models", help="Fetch live models from provider API endpoint")
+    prov_fetch.add_argument("name", help="Provider name or ID")
 
     # Stats
     subparsers.add_parser("stats", help="View token usage, RPM/TPM, and estimated costs")
@@ -248,23 +260,137 @@ def main() -> None:
         return
 
     if args.command == "provider":
-        if args.action == "add":
-            models = args.models or [args.name]
-            base_url = args.url or f"https://api.{args.name}.com/v1"
-            provider_manager.add_provider(args.name, args.key, base_url, models)
-            print(f"✔ Provider '{args.name}' registered successfully.")
+        from rich.console import Console
+        from rich.table import Table
+        c = Console()
+
+        if args.action == "list":
+            summary = provider_manager.get_provider_shelf_summary()
+            table = Table(title="🤖 Daftar Provider AI Terdaftar di Apex", show_lines=True, border_style="cyan")
+            table.add_column("Provider", style="bold cyan")
+            table.add_column("Status", justify="center")
+            table.add_column("Kredensial", justify="center")
+            table.add_column("Base URL", style="dim")
+            table.add_column("Jumlah Model", justify="right")
+
+            for item in summary:
+                if not item.get("is_configured") and not item.get("has_key"):
+                    continue
+                is_act = item.get("is_active")
+                badge = "[bold green]★ AKTIF[/bold green]" if is_act else "[green]Siap Digunakan[/green]"
+                key_str = item.get("masked_key") or "[dim]none[/dim]"
+                table.add_row(
+                    f"{item.get('icon', '')} {item['id'].upper()}",
+                    badge,
+                    key_str,
+                    item.get("url", "")[:35],
+                    f"{item.get('model_count', 0)} model"
+                )
+            c.print(table)
+            c.print(f"[dim]Provider aktif saat ini: [bold green]{config.active_provider.upper()}[/bold green] (Model: [yellow]{config.default_model}[/yellow])[/dim]\n")
+
+        elif args.action == "search":
+            q = getattr(args, "query", "")
+            matches = provider_manager.search_providers(q)
+            if not matches:
+                c.print(f"[yellow]Tidak ada provider atau model yang cocok dengan '{q}'.[/yellow]\n")
+                return
+            table = Table(title=f"🔍 Hasil Pencarian Provider AI untuk '{q}'", show_lines=True, border_style="cyan")
+            table.add_column("Provider", style="bold cyan")
+            table.add_column("Alasan Cocok", style="white")
+            table.add_column("Model Terpilih", style="dim")
+            table.add_column("Status", justify="center")
+            for m in matches:
+                is_act = m.get("is_active")
+                badge = "[bold green]★ AKTIF[/bold green]" if is_act else ("[green]Siap[/green]" if m.get("is_configured") else "[dim]Tersedia[/dim]")
+                table.add_row(
+                    f"{m.get('icon', '')} {m['name']} ({m['id']})",
+                    ", ".join(m.get("reasons", [])),
+                    ", ".join(m.get("models", [])[:3]),
+                    badge
+                )
+            c.print(table)
+            c.print("[dim]Gunakan 'apex provider use <id>' untuk mengaktifkan provider yang dipilih.[/dim]\n")
+
+        elif args.action == "add":
+            ok, msg, detail = provider_manager.add_provider_smart(
+                args.name,
+                api_key=args.key,
+                base_url=args.url,
+                models=args.models or None,
+                auto_fetch=True,
+                verify_now=getattr(args, "test", False)
+            )
+            if ok:
+                c.print(f"[bold green]✔ {msg}[/bold green]")
+                if getattr(args, "use", False):
+                    first_m = detail.get("models", [config.default_model])[0]
+                    provider_manager.set_active_provider(args.name, first_m)
+                    c.print(f"[bold green]✔ Provider aktif sekarang diatur ke: {args.name.upper()} ({first_m})[/bold green]")
+            else:
+                c.print(f"[bold red]✖ {msg}[/bold red]")
+
         elif args.action == "use":
             ok, msg = provider_manager.set_active_provider(args.name, args.model)
             if ok:
-                print(f"✔ {msg}")
+                c.print(f"[bold green]✔ {msg}[/bold green]")
+                c.print(f"[dim]Menguji konektivitas live ke {args.name.upper()}...[/dim]")
+                t_ok, t_msg, t_lat = provider_manager.test_provider(args.name)
+                if t_ok:
+                    c.print(f"[bold green]🟢 Uji koneksi berhasil! Latensi: {t_lat}s ({t_msg})[/bold green]\n")
+                else:
+                    c.print(f"[bold yellow]⚠️ Peringatan respon: {t_msg}[/bold yellow]\n")
             else:
-                print(f"✖ {msg}")
-        elif args.action == "test-all":
-            print("Testing all providers...")
-            results = provider_manager.test_all()
-            for p_name, (ok, msg, lat) in results.items():
-                status = "✔ OK" if ok else "✖ FAILED"
-                print(f"[{status}] {p_name.upper()} ({lat}s): {msg}")
+                c.print(f"[bold red]✖ {msg}[/bold red]\n")
+
+        elif args.action in ("test", "test-all"):
+            target_p = getattr(args, "name", "").strip().lower()
+            if target_p:
+                c.print(f"[dim]Menguji konektivitas provider {target_p.upper()}...[/dim]")
+                t_ok, t_msg, t_lat = provider_manager.test_provider(target_p)
+                status = "[bold green]✔ OK[/bold green]" if t_ok else "[bold red]✖ GAGAL[/bold red]"
+                c.print(f"{status} {target_p.upper()} ({t_lat}s): {t_msg}\n")
+            else:
+                c.print("[cyan]Menguji seluruh provider aktif & terkonfigurasi...[/cyan]")
+                results = provider_manager.test_all()
+                table = Table(title="📊 Hasil Uji Konektivitas Provider AI", show_lines=True, border_style="cyan")
+                table.add_column("Provider", style="bold cyan")
+                table.add_column("Status", justify="center")
+                table.add_column("Latensi", justify="right")
+                table.add_column("Pesan / Respon", style="dim")
+                for p_name, (ok, msg, lat) in results.items():
+                    status = "[bold green]✔ OK[/bold green]" if ok else "[bold red]✖ FAILED[/bold red]"
+                    table.add_row(p_name.upper(), status, f"{lat}s", msg[:60])
+                c.print(table)
+                c.print()
+
+        elif args.action in ("rm", "delete", "remove"):
+            if provider_manager.remove_provider(args.name):
+                c.print(f"[bold green]✔ Provider '{args.name}' berhasil dihapus dari konfigurasi.[/bold green]\n")
+            else:
+                c.print(f"[red]✖ Provider '{args.name}' tidak ditemukan.[/red]\n")
+
+        elif args.action == "scan":
+            c.print("[cyan]Memindai engine AI lokal di host (Ollama, LM Studio, vLLM, llama.cpp)...[/cyan]")
+            scan_res = provider_manager.scan_and_register_local_engines()
+            reg = scan_res.get("registered", [])
+            if reg:
+                c.print(f"[bold green]✔ Berhasil mendeteksi & mendaftarkan {len(reg)} engine AI lokal:[/bold green]")
+                for item in reg:
+                    c.print(f"  • [bold cyan]{item['name']}[/bold cyan] di [dim]{item['url']}[/dim] (Model: {', '.join(item['models'][:3])})")
+            else:
+                c.print("[yellow]Tidak ditemukan server AI lokal yang sedang aktif di port default.[/yellow]")
+            c.print()
+
+        elif args.action == "fetch-models":
+            c.print(f"[cyan]Mengambil daftar model langsung dari API {args.name.upper()}...[/cyan]")
+            f_ok, f_msg, models = provider_manager.fetch_live_models(args.name)
+            if f_ok:
+                c.print(f"[bold green]✔ {f_msg}[/bold green]")
+                c.print(f"Model tersedia ({len(models)}): [yellow]{', '.join(models[:10])}[/yellow]\n")
+            else:
+                c.print(f"[bold red]✖ {f_msg}[/bold red]\n")
+
         else:
             # Launch interactive Provider Shelf UI (9Router Pro style)
             from apex.gateways.setup_wizard import SetupWizard

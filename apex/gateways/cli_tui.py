@@ -234,10 +234,64 @@ class PiTerminalTUI:
             return True
 
         elif root_cmd in ["/provider", "/providers"]:
-            from apex.gateways.setup_wizard import SetupWizard
-            SetupWizard().run_provider_shelf(standalone=True)
-            self.print_welcome()
-            return True
+            from apex.router.provider_manager import provider_manager
+            if len(parts) > 1 and parts[1] == "use":
+                p_target = parts[2] if len(parts) > 2 else ""
+                m_target = parts[3] if len(parts) > 3 else None
+                if not p_target:
+                    self.console.print("[red]Gunakan: /provider use <nama_provider> [nama_model][/red]\n")
+                else:
+                    ok, msg = provider_manager.set_active_provider(p_target, m_target)
+                    if ok:
+                        self.console.print(f"[bold green]✔ {msg}[/bold green]")
+                        t_ok, t_msg, t_lat = provider_manager.test_provider(p_target)
+                        if t_ok:
+                            self.console.print(f"[bold green]🟢 Uji koneksi sukses! Latensi: {t_lat}s[/bold green]\n")
+                        else:
+                            self.console.print(f"[yellow]⚠️ Respon koneksi: {t_msg}[/yellow]\n")
+                    else:
+                        self.console.print(f"[red]✖ {msg}[/red]\n")
+                return True
+            elif len(parts) > 1 and parts[1] == "search":
+                q = " ".join(parts[2:]) if len(parts) > 2 else ""
+                matches = provider_manager.search_providers(q)
+                if not matches:
+                    self.console.print(f"[yellow]Tidak ada hasil untuk '{q}'.[/yellow]\n")
+                else:
+                    self.console.print(f"[bold cyan]🔍 Hasil Pencarian Provider AI untuk '{q}':[/bold cyan]")
+                    for m in matches[:6]:
+                        self.console.print(f"  • {m.get('icon', '🤖')} [bold]{m['name']}[/bold] (`{m['id']}`) — {', '.join(m.get('reasons', []))}")
+                    self.console.print("[dim]Gunakan: /provider use <id> untuk mengaktifkan.[/dim]\n")
+                return True
+            elif len(parts) > 1 and parts[1] == "test":
+                p_target = parts[2] if len(parts) > 2 else ""
+                if p_target:
+                    t_ok, t_msg, t_lat = provider_manager.test_provider(p_target)
+                    badge = "[bold green]✔ OK[/bold green]" if t_ok else "[bold red]✖ GAGAL[/bold red]"
+                    self.console.print(f"{badge} {p_target.upper()} ({t_lat}s): {t_msg}\n")
+                else:
+                    res = provider_manager.test_all()
+                    for p, (ok, msg, lat) in res.items():
+                        badge = "[bold green]✔ OK[/bold green]" if ok else "[bold red]✖ FAILED[/bold red]"
+                        self.console.print(f"[{badge}] {p.upper()} ({lat}s): {msg[:60]}")
+                    self.console.print()
+                return True
+            elif len(parts) > 1 and parts[1] == "scan":
+                scan_res = provider_manager.scan_and_register_local_engines()
+                reg = scan_res.get("registered", [])
+                if reg:
+                    self.console.print(f"[bold green]✔ Terdeteksi {len(reg)} engine lokal:[/bold green]")
+                    for item in reg:
+                        self.console.print(f"  • {item['name']} di {item['url']} (Model: {', '.join(item['models'][:3])})")
+                else:
+                    self.console.print("[yellow]Tidak ada engine AI lokal yang aktif di port default.[/yellow]")
+                self.console.print()
+                return True
+            else:
+                from apex.gateways.setup_wizard import SetupWizard
+                SetupWizard().run_provider_shelf(standalone=True)
+                self.print_welcome()
+                return True
 
         elif root_cmd == "/setup":
             from apex.gateways.setup_wizard import run_setup, check_setup_health, repair_setup
