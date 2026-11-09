@@ -34,7 +34,8 @@ Features implemented:
 from __future__ import annotations
 
 import asyncio
-from collections import deque
+from collections import deque, defaultdict
+import ipaddress
 import json
 import os
 import platform
@@ -42,8 +43,9 @@ import re
 import secrets
 import shutil
 import time
+import urllib.parse
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -115,6 +117,11 @@ def get_api_keys_storage() -> List[Dict[str, Any]]:
         }
         KEYS_FILE.write_text(json.dumps([default_key], indent=2))
         return [default_key]
+
+
+def save_api_keys_storage(keys: List[Dict[str, Any]]) -> None:
+    """Save API keys list to persistent disk storage."""
+    KEYS_FILE.write_text(json.dumps(keys, indent=2))
 
 
 def get_combos_storage() -> List[Dict[str, Any]]:
@@ -251,8 +258,116 @@ def record_mitm(
     return entry
 
 
+KEY_REQUEST_TIMESTAMPS: Dict[str, deque] = defaultdict(deque)
+THINK_PATTERN = re.compile(r"<think>(.*?)</think>", re.DOTALL | re.IGNORECASE)
+REASONING_MODELS = {"o1", "o1-mini", "o1-preview", "o3", "o3-mini", "deepseek-reasoner", "r1"}
+
+REFERENCE_CLIENT_HEADERS = {
+    "antigravity": {
+        "User-Agent": "Antigravity/2.0 (Linux; x86_64)",
+        "X-Client-Name": "antigravity-cli",
+        "X-Client-Version": "2.0.0"
+    },
+    "claude_code": {
+        "User-Agent": "claude-code/0.2.29 (external-terminal)",
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "output-128k-2025-02-19,prompt-caching-2024-07-31"
+    },
+    "copilot": {
+        "User-Agent": "VSCode/1.85.1 GithubCopilot/1.144.0",
+        "Editor-Version": "vscode/1.85.1",
+        "Editor-Plugin-Version": "copilot-chat/0.12.0"
+    },
+    "codex": {
+        "User-Agent": "codex-cli/0.1.0",
+        "OpenAI-Beta": "assistants=v2"
+    }
+}
+
+
+def extract_thinking_and_content(text: str) -> Tuple[str, str]:
+    """Extract <think>...</think> reasoning traces from model response for cross-surface streaming."""
+    match = THINK_PATTERN.search(text)
+    if match:
+        thinking = match.group(1).strip()
+        answer = THINK_PATTERN.sub("", text).strip()
+        return thinking, answer
+    return "", text
+
+
+def preflight_and_normalize_request(payload: Dict[str, Any], target_model: str) -> Dict[str, Any]:
+    """Preflight normalize payload parameters to prevent upstream provider 400 Bad Request."""
+    norm = dict(payload)
+    is_reasoning = any(rm in target_model.lower() for rm in REASONING_MODELS)
+
+    if is_reasoning:
+        # Reasoning models reject temperature, top_p, presence_penalty, frequency_penalty
+        for unsupported in ["temperature", "top_p", "presence_penalty", "frequency_penalty"]:
+            norm.pop(unsupported, None)
+
+        # Max tokens alias
+        if "max_tokens" in norm and "max_completion_tokens" not in norm:
+            norm["max_completion_tokens"] = norm.pop("max_tokens")
+
+        # Developer role adaptation
+        if "messages" in norm and isinstance(norm["messages"], list):
+            new_msgs = []
+            for m in norm["messages"]:
+                if isinstance(m, dict) and m.get("role") == "system":
+                    m_copy = dict(m)
+                    m_copy["role"] = "developer"
+                    new_msgs.append(m_copy)
+                else:
+                    new_msgs.append(m)
+            norm["messages"] = new_msgs
+
+    return norm
+
+
+def is_safe_upstream_url(url: str, allow_local: bool = True) -> bool:
+    """SSRF guard against accessing private cloud metadata or restricted subnets."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+
+        # Block cloud metadata endpoints
+        if hostname in ("169.254.169.254", "metadata.google.internal", "instance-data"):
+            return False
+
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_multicast or ip.is_reserved:
+                return False
+            if not allow_local and (ip.is_private or ip.is_loopback):
+                return False
+        except ValueError:
+            pass
+
+        return True
+    except Exception:
+        return False
+
+
+def record_key_token_usage(key_id: str, tokens: int) -> None:
+    """Increment token usage ledger for an API key persistently."""
+    if not key_id or key_id == "master":
+        return
+    keys = get_api_keys_storage()
+    updated = False
+    for k in keys:
+        if k.get("id") == key_id:
+            k["used_tokens"] = int(k.get("used_tokens", 0)) + tokens
+            k["last_used"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            updated = True
+            break
+    if updated:
+        save_api_keys_storage(keys)
+
+
 def verify_api_key_auth(authorization: Optional[str] = None, x_api_key: Optional[str] = None) -> Dict[str, Any]:
-    """Verify incoming bearer token or x-api-key against registered keys."""
+    """Verify incoming bearer token or x-api-key against registered keys with rate limit & quota check."""
     token = ""
     if authorization and authorization.lower().startswith("bearer "):
         token = authorization.split(" ", 1)[1].strip()
@@ -272,19 +387,66 @@ def verify_api_key_auth(authorization: Optional[str] = None, x_api_key: Optional
         return {"id": "master", "name": "Master Key", "is_active": True, "quota": "Unlimited", "key": token}
 
     keys = get_api_keys_storage()
+    matched_key = None
     for k in keys:
         if k.get("key") == token:
-            if not k.get("is_active", True):
-                raise HTTPException(
-                    status_code=403,
-                    detail={"error": {"message": f"API key '{k.get('name')}' is currently paused.", "type": "permission_error"}}
-                )
-            return k
+            matched_key = k
+            break
 
-    raise HTTPException(
-        status_code=401,
-        detail={"error": {"message": f"Invalid API Key: '{token[:10]}••••'. Generate a key in the Endpoint & API Keys dashboard.", "type": "invalid_request_error"}}
-    )
+    if not matched_key:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": {"message": f"Invalid API Key: '{token[:10]}••••'. Generate a key in the Endpoint & API Keys dashboard.", "type": "invalid_request_error"}}
+        )
+
+    if not matched_key.get("is_active", True):
+        raise HTTPException(
+            status_code=403,
+            detail={"error": {"message": f"API key '{matched_key.get('name')}' is currently paused.", "type": "permission_error"}}
+        )
+
+    key_id = matched_key.get("id", "")
+
+    # Sliding-window RPM enforcement (60 seconds)
+    rpm_limit = int(matched_key.get("rpm", 60))
+    now = time.time()
+    dq = KEY_REQUEST_TIMESTAMPS[key_id]
+    while dq and dq[0] < now - 60.0:
+        dq.popleft()
+
+    if len(dq) >= rpm_limit:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": {
+                    "message": f"Rate limit exceeded: key '{matched_key.get('name')}' exceeded {rpm_limit} RPM limit.",
+                    "type": "rate_limit_exceeded",
+                    "code": 429
+                }
+            }
+        )
+    dq.append(now)
+
+    # Token quota enforcement
+    quota_str = str(matched_key.get("quota", "Unlimited")).strip().lower()
+    if quota_str != "unlimited":
+        match = re.search(r"(\d+)", quota_str)
+        if match:
+            max_tokens = int(match.group(1))
+            used = int(matched_key.get("used_tokens", 0))
+            if used >= max_tokens:
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "error": {
+                            "message": f"Token quota exhausted for key '{matched_key.get('name')}': {used}/{max_tokens} tokens used.",
+                            "type": "insufficient_quota",
+                            "code": 429
+                        }
+                    }
+                )
+
+    return matched_key
 
 
 
@@ -3332,6 +3494,7 @@ async def chat_completions_v1(
     key_obj = verify_api_key_auth(authorization, x_api_key)
 
     requested_model = payload.get("model", config.default_model)
+    payload = preflight_and_normalize_request(payload, requested_model)
     messages = payload.get("messages", [])
     stream = bool(payload.get("stream", False))
 
@@ -3392,6 +3555,10 @@ async def chat_completions_v1(
     if rtk_cfg.get("enabled", True) and rtk_cfg.get("caveman_mode", False):
         response_content = compress_text_rtk(response_content, rtk_cfg)
 
+    thinking, answer = extract_thinking_and_content(response_content)
+    total_tokens = max(1, (len(user_prompt) + len(response_content)) // 4)
+    record_key_token_usage(key_obj.get("id"), total_tokens)
+
     elapsed_ms = int((time.time() - start_t) * 1000)
 
     record_mitm(
@@ -3411,8 +3578,28 @@ async def chat_completions_v1(
         async def sse_event_stream():
             cmpl_id = f"chatcmpl-{secrets.token_hex(12)}"
             chunk_size = 30
-            for i in range(0, len(response_content), chunk_size):
-                chunk = response_content[i:i + chunk_size]
+
+            # 1. Stream reasoning_content if present
+            if thinking:
+                for i in range(0, len(thinking), chunk_size):
+                    chunk = thinking[i:i + chunk_size]
+                    data = {
+                        "id": cmpl_id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": requested_model,
+                        "choices": [{
+                            "index": 0,
+                            "delta": {"reasoning_content": chunk},
+                            "finish_reason": None
+                        }]
+                    }
+                    yield f"data: {json.dumps(data)}\n\n"
+                    await asyncio.sleep(0.01)
+
+            # 2. Stream answer content
+            for i in range(0, len(answer), chunk_size):
+                chunk = answer[i:i + chunk_size]
                 data = {
                     "id": cmpl_id,
                     "object": "chat.completion.chunk",
@@ -3426,6 +3613,7 @@ async def chat_completions_v1(
                 }
                 yield f"data: {json.dumps(data)}\n\n"
                 await asyncio.sleep(0.01)
+
             done_data = {
                 "id": cmpl_id,
                 "object": "chat.completion.chunk",
@@ -3442,6 +3630,13 @@ async def chat_completions_v1(
 
         return StreamingResponse(sse_event_stream(), media_type="text/event-stream")
 
+    msg_payload: Dict[str, Any] = {
+        "role": "assistant",
+        "content": answer
+    }
+    if thinking:
+        msg_payload["reasoning_content"] = thinking
+
     return {
         "id": f"chatcmpl-{secrets.token_hex(12)}",
         "object": "chat.completion",
@@ -3449,16 +3644,13 @@ async def chat_completions_v1(
         "model": requested_model,
         "choices": [{
             "index": 0,
-            "message": {
-                "role": "assistant",
-                "content": response_content
-            },
+            "message": msg_payload,
             "finish_reason": "stop"
         }],
         "usage": {
             "prompt_tokens": max(1, len(user_prompt) // 4),
             "completion_tokens": max(1, len(response_content) // 4),
-            "total_tokens": max(1, (len(user_prompt) + len(response_content)) // 4)
+            "total_tokens": total_tokens
         }
     }
 
@@ -3475,6 +3667,7 @@ async def claude_messages_v1(
     key_obj = verify_api_key_auth(authorization, x_api_key)
 
     model = payload.get("model", "claude-3-7-sonnet")
+    payload = preflight_and_normalize_request(payload, model)
     stream = bool(payload.get("stream", False))
     system_prompt = payload.get("system", "")
     messages = payload.get("messages", [])
@@ -3506,6 +3699,10 @@ async def claude_messages_v1(
     except Exception as e:
         response_content = f"Error during Claude completion: {e}"
 
+    thinking, answer = extract_thinking_and_content(response_content)
+    total_tokens = max(1, (len(user_prompt) + len(response_content)) // 4)
+    record_key_token_usage(key_obj.get("id"), total_tokens)
+
     elapsed_ms = int((time.time() - start_t) * 1000)
 
     record_mitm(
@@ -3526,24 +3723,49 @@ async def claude_messages_v1(
     if stream:
         async def sse_claude_stream():
             yield f'event: message_start\ndata: {{"type":"message_start","message":{{"id":"{msg_id}","type":"message","role":"assistant","content":[],"model":"{model}","stop_reason":null,"usage":{{"input_tokens":{len(user_prompt)//4},"output_tokens":1}}}}}}\n\n'
-            yield f'event: content_block_start\ndata: {{"type":"content_block_start","index":0,"content_block":{{"type":"text","text":""}}}}\n\n'
+            block_idx = 0
+
+            # 1. Emit thinking block if present
+            if thinking:
+                yield f'event: content_block_start\ndata: {{"type":"content_block_start","index":{block_idx},"content_block":{{"type":"thinking","thinking":""}}}}\n\n'
+                chunk_size = 25
+                for i in range(0, len(thinking), chunk_size):
+                    chunk = thinking[i:i + chunk_size]
+                    delta_json = json.dumps({"type": "content_block_delta", "index": block_idx, "delta": {"type": "thinking_delta", "thinking": chunk}})
+                    yield f'event: content_block_delta\ndata: {delta_json}\n\n'
+                    await asyncio.sleep(0.01)
+                yield f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":{block_idx}}}\n\n'
+                block_idx += 1
+
+            # 2. Emit text block
+            yield f'event: content_block_start\ndata: {{"type":"content_block_start","index":{block_idx},"content_block":{{"type":"text","text":""}}}}\n\n'
             chunk_size = 25
-            for i in range(0, len(response_content), chunk_size):
-                chunk = response_content[i:i + chunk_size]
-                delta_json = json.dumps({"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": chunk}})
+            for i in range(0, len(answer), chunk_size):
+                chunk = answer[i:i + chunk_size]
+                delta_json = json.dumps({"type": "content_block_delta", "index": block_idx, "delta": {"type": "text_delta", "text": chunk}})
                 yield f'event: content_block_delta\ndata: {delta_json}\n\n'
                 await asyncio.sleep(0.01)
-            yield f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":0}}\n\n'
+            yield f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":{block_idx}}}\n\n'
+
             yield f'event: message_delta\ndata: {{"type":"message_delta","delta":{{"stop_reason":"end_turn"}},"usage":{{"output_tokens":{len(response_content)//4}}}}}\n\n'
             yield 'event: message_stop\ndata: {"type":"message_stop"}\n\n'
 
         return StreamingResponse(sse_claude_stream(), media_type="text/event-stream")
 
+    content_blocks = []
+    if thinking:
+        content_blocks.append({
+            "type": "thinking",
+            "thinking": thinking,
+            "signature": "apex-omop-verified"
+        })
+    content_blocks.append({"type": "text", "text": answer})
+
     return {
         "id": msg_id,
         "type": "message",
         "role": "assistant",
-        "content": [{"type": "text", "text": response_content}],
+        "content": content_blocks,
         "model": model,
         "stop_reason": "end_turn",
         "usage": {
@@ -4036,6 +4258,9 @@ async def add_provider_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
     auto_fetch = payload.get("auto_fetch", True)
     verify_now = payload.get("verify_now", True)
     make_active = payload.get("make_active", False)
+
+    if url and not is_safe_upstream_url(url, allow_local=True):
+        return {"success": False, "message": "SSRF Guard: Base URL target is restricted or internal cloud metadata."}
 
     ok, msg, detail = provider_manager.add_provider_smart(
         p_name,

@@ -1,4 +1,5 @@
 """Unit tests for Apex Web Dashboard & REST Endpoints."""
+import json
 import os
 import pytest
 from fastapi.testclient import TestClient
@@ -315,6 +316,159 @@ def test_oauth_import_and_provider_sync(client):
     p_shelf = provs_res.json()["providers"]
     found_custom = any(p["id"] == "custom-openai-proxy" for p in p_shelf)
     assert found_custom is True
+
+
+def test_thinking_extraction_and_cross_surface_reasoning(client, monkeypatch):
+    """Test OhMyRouter bidirectional reasoning: extract <think> and stream/return native reasoning blocks."""
+    from apex.gateways import web_dashboard
+    from apex.gateways.web_dashboard import extract_thinking_and_content, preflight_and_normalize_request
+
+    # Unit test extraction
+    raw = "<think>Step 1: Compute square root of 64 = 8.\nStep 2: Add 2 = 10.</think>The final result is 10."
+    thinking, answer = extract_thinking_and_content(raw)
+    assert "Step 1: Compute square root" in thinking
+    assert "The final result is 10." in answer
+    assert "<think>" not in answer
+
+    # Mock agent run to return raw think tag
+    monkeypatch.setattr(web_dashboard.default_agent, "run", lambda **kwargs: raw)
+
+    # 1. Non-streaming OpenAI format (/v1/chat/completions)
+    res_chat = client.post(
+        "/v1/chat/completions",
+        headers={"Authorization": "Bearer sk-apex-master-live"},
+        json={"model": "deepseek-reasoner", "messages": [{"role": "user", "content": "Compute sqrt(64) + 2"}]}
+    )
+    assert res_chat.status_code == 200
+    chat_data = res_chat.json()
+    msg = chat_data["choices"][0]["message"]
+    assert "The final result is 10." in msg["content"]
+    assert "Step 1: Compute square root" in msg["reasoning_content"]
+
+    # 2. Non-streaming Claude format (/v1/messages)
+    res_claude = client.post(
+        "/v1/messages",
+        headers={"x-api-key": "sk-apex-master-live"},
+        json={"model": "claude-3-7-sonnet", "messages": [{"role": "user", "content": "Compute sqrt(64) + 2"}]}
+    )
+    assert res_claude.status_code == 200
+    claude_data = res_claude.json()
+    blocks = claude_data["content"]
+    assert len(blocks) == 2
+    assert blocks[0]["type"] == "thinking"
+    assert "Step 1: Compute square root" in blocks[0]["thinking"]
+    assert blocks[0]["signature"] == "apex-omop-verified"
+    assert blocks[1]["type"] == "text"
+    assert "The final result is 10." in blocks[1]["text"]
+
+    # 3. Streaming OpenAI format (/v1/chat/completions)
+    res_stream_chat = client.post(
+        "/v1/chat/completions",
+        headers={"Authorization": "Bearer sk-apex-master-live"},
+        json={"model": "deepseek-reasoner", "stream": True, "messages": [{"role": "user", "content": "Compute sqrt(64) + 2"}]}
+    )
+    assert res_stream_chat.status_code == 200
+    assert "reasoning_content" in res_stream_chat.text
+    assert "The final result is 10." in res_stream_chat.text
+
+    # 4. Streaming Claude format (/v1/messages)
+    res_stream_claude = client.post(
+        "/v1/messages",
+        headers={"x-api-key": "sk-apex-master-live"},
+        json={"model": "claude-3-7-sonnet", "stream": True, "messages": [{"role": "user", "content": "Compute sqrt(64) + 2"}]}
+    )
+    assert res_stream_claude.status_code == 200
+    assert "thinking_delta" in res_stream_claude.text
+    assert "text_delta" in res_stream_claude.text
+
+
+def test_per_key_sliding_rate_limit_and_quota(client, monkeypatch):
+    """Test sliding-window RPM rate limiting and token quota exhaustion."""
+    from apex.gateways import web_dashboard
+    from apex.gateways.web_dashboard import KEYS_FILE, get_api_keys_storage, KEY_REQUEST_TIMESTAMPS
+
+    monkeypatch.setattr(web_dashboard.default_agent, "run", lambda **kwargs: "Mocked completion response token usage test.")
+
+    test_key_str = "sk-9r-test-quota-rate-limit-token-12345"
+    key_entry = {
+        "id": "key_test_quota",
+        "name": "Quota Test Key",
+        "key": test_key_str,
+        "is_active": True,
+        "created_at": "2026-11-09",
+        "quota": "15 / 24h",   # very small quota: 15 tokens
+        "rpm": 2,              # very low RPM: 2 requests per minute
+        "used_tokens": 0
+    }
+    keys = get_api_keys_storage()
+    keys.append(key_entry)
+    KEYS_FILE.write_text(json.dumps(keys, indent=2))
+    KEY_REQUEST_TIMESTAMPS["key_test_quota"].clear()
+
+    try:
+        # Request 1: should succeed (tokens recorded will exceed 15 tokens)
+        res1 = client.post(
+            "/v1/chat/completions",
+            headers={"Authorization": f"Bearer {test_key_str}"},
+            json={"model": "mimo-v2.6-flash:free", "messages": [{"role": "user", "content": "Hello test"}]}
+        )
+        assert res1.status_code == 200
+
+        # Request 2: should be blocked with 429 due to exhausted quota!
+        res2 = client.post(
+            "/v1/chat/completions",
+            headers={"Authorization": f"Bearer {test_key_str}"},
+            json={"model": "mimo-v2.6-flash:free", "messages": [{"role": "user", "content": "Hello test 2"}]}
+        )
+        assert res2.status_code == 429
+        assert "quota exhausted" in res2.json()["detail"]["error"]["message"].lower()
+
+    finally:
+        clean_keys = [k for k in get_api_keys_storage() if k["id"] != "key_test_quota"]
+        KEYS_FILE.write_text(json.dumps(clean_keys, indent=2))
+
+
+def test_preflight_normalization_and_ssrf_guard(client):
+    """Test capability preflight for reasoning models and SSRF cloud metadata blocker."""
+    from apex.gateways.web_dashboard import preflight_and_normalize_request, is_safe_upstream_url
+
+    # Reasoning preflight checks
+    raw_payload = {
+        "model": "o3-mini",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "presence_penalty": 0.5,
+        "max_tokens": 1024,
+        "messages": [
+            {"role": "system", "content": "You are a coding specialist."},
+            {"role": "user", "content": "Write quicksort in python"}
+        ]
+    }
+    norm = preflight_and_normalize_request(raw_payload, "o3-mini")
+    assert "temperature" not in norm
+    assert "top_p" not in norm
+    assert "presence_penalty" not in norm
+    assert "max_tokens" not in norm
+    assert norm["max_completion_tokens"] == 1024
+    assert norm["messages"][0]["role"] == "developer"
+
+    # SSRF guard checks
+    assert is_safe_upstream_url("http://169.254.169.254/latest/meta-data") is False
+    assert is_safe_upstream_url("http://metadata.google.internal/computeMetadata/v1/") is False
+    assert is_safe_upstream_url("https://api.openai.com/v1") is True
+
+    # Reject dangerous metadata URL via API
+    add_ssrf = client.post("/api/providers/add", json={
+        "name": "malicious-meta-provider",
+        "base_url": "http://169.254.169.254/latest/meta-data",
+        "api_key": "dummy",
+        "auto_fetch": False,
+        "verify_now": False
+    })
+    assert add_ssrf.status_code == 200
+    assert add_ssrf.json()["success"] is False
+    assert "SSRF Guard" in add_ssrf.json()["message"]
+
 
 
 
