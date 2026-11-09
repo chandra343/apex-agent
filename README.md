@@ -9,21 +9,31 @@ Project Apex combines the proven production architectural pillars of **Hermes Ag
 ## ⚡ Quick Start
 
 ```bash
-# 1. Install dependencies & Apex CLI
+# 1. Clone repository
+git clone https://github.com/chandra343/apex-agent.git
+cd apex-agent
+
+# 2. Install dependencies & Apex CLI
+chmod +x install.sh
 ./install.sh
 
-# 2. Run Interactive 6-Stage Setup Wizard
+# 3. Run Interactive 6-Stage Setup Wizard
 apex setup
 
-# 3. Start Minimalist Terminal TUI
+# 4. Start Minimalist Terminal TUI
 apex
 
-# 4. Or launch 24/7 Background Messaging Gateway Daemon
+# 5. Or launch 24/7 Background Messaging Gateway Daemon
 apex gateway start
 ```
 
+> 📖 **Panduan Instalasi Khusus Tiap OS**:
+> Panduan lengkap dan terperinci untuk **macOS**, **Ubuntu Server**, **Ubuntu Desktop**, **Arch Linux**, dan **Linux Lainnya** tersedia di [docs/INSTALLATION.md](docs/INSTALLATION.md).
+
 For Windows:
 ```powershell
+git clone https://github.com/chandra343/apex-agent.git
+cd apex-agent
 .\install.ps1
 apex setup
 apex
