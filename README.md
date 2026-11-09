@@ -2,8 +2,6 @@
 
 > **Unrestricted Full Host Access · 20+ Channel 24/7 Gateway · 4-Trick Pure-Software Anti-Refusal · 9Router RTK Token Saver · Pi-Style Minimalist TUI · Unbounded Swarm · Full MCP & ACP Support**
 
-Project Apex combines the proven production architectural pillars of **Hermes Agent**, **Zeline**, **OpenClaw & Lobster**, **9Router & 9Router Pro**, **Lightpanda Browser**, and **Pi Agent (`pi.dev`)** into a unified, sovereign AI companion.
-
 ---
 
 ## ⚡ Quick Start
