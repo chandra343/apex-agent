@@ -138,11 +138,11 @@ class TelegramAdapter:
         if text.startswith("/start") or text.startswith("/help"):
             self._send_message(
                 chat_id,
-                "🤖 *Project Apex Telegram Gateway*\n\n"
-                "• Send any prompt or code instruction to execute.\n"
-                "• Send a *Voice Note* to dictate commands.\n"
-                "• `/model` - Tap inline buttons to switch AI models.\n"
-                "• `/stats` - View token usage and estimated costs."
+                "🤖 *Project Apex Telegram Gateway* 🚀\n\n"
+                "• 💬 *Kirim Perintah*: Kirim prompt, instruksi kode, atau tugas otomatisasi apa pun.\n"
+                "• 🎙️ *Voice Note*: Kirim rekaman suara untuk mendiktekan perintah.\n"
+                "• ⚙️ `/model` - Ganti model AI aktif secara instan via tombol.\n"
+                "• 📊 `/stats` - Pantau penggunaan token dan kalkulasi biaya."
             )
             return
 

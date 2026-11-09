@@ -591,7 +591,7 @@ class PiTerminalTUI:
                 self.console.print()
                 self.console.print(f"[bold cyan]● Apex[/bold cyan] [dim]({active_model})[/dim]")
                 if not response_text or not response_text.strip():
-                    response_text = "✔ Permintaan telah selesai diproses oleh sistem Apex."
+                    response_text = "✅ Permintaan telah selesai diproses dengan sukses oleh sistem Apex 🚀"
                 self.console.print(Markdown(response_text))
                 self.console.print(f"[dim]⏱ {elapsed}s · {active_provider.upper()}[/dim]\n")
 

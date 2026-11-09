@@ -186,7 +186,7 @@ class ApexAgent:
     def _build_execution_summary(self, tool_execution_history: List[Dict[str, Any]]) -> str:
         """Synthesize a structured executive summary when LLM completes tools but returns empty narrative."""
         if not tool_execution_history:
-            return "✔ Operasi selesai diproses oleh Apex."
+            return "✅ Operasi selesai diproses dengan sukses oleh Apex 🚀"
 
         tool_summaries = []
         for idx, h in enumerate(tool_execution_history, 1):
@@ -202,12 +202,12 @@ class ApexAgent:
             else:
                 out_snippet = out[:300] + ("..." if len(out) > 300 else "") if out else "(selesai tanpa output)"
 
-            icon = "✔" if h.get("success", True) else "✖"
+            icon = "✅" if h.get("success", True) else "❌"
             tool_summaries.append(f"{icon} **Operasi #{idx}: `{t_name}`** (`{args_str}`)\n```\n{out_snippet}\n```")
 
         return (
-            f"✔ **Eksekusi Operasi Selesai**: Berhasil menjalankan {len(tool_execution_history)} operasi tool.\n\n"
-            f"### Ringkasan Temuan & Output:\n"
+            f"🎯 **Eksekusi Operasi Berhasil**: Menuntaskan {len(tool_execution_history)} operasi tool dengan sukses! 🚀\n\n"
+            f"### 📋 Ringkasan Temuan & Output:\n"
             + "\n\n".join(tool_summaries)
         )
 
