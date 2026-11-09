@@ -16,6 +16,31 @@ class RTKTokenSaver:
     def __init__(self, threshold_bytes: int = 1024) -> None:
         self.threshold_bytes = threshold_bytes
 
+    def auto_detect_filter(self, text: str) -> str:
+        """Heuristically identify the payload type to apply optimal compression."""
+        head = text[:8192]
+        if re.search(r"^diff --git |^@@ ", head, re.M):
+            return "git-diff"
+        if re.search(r"^On branch |^nothing to commit|^Changes (not |to be )|^Untracked files:", head, re.M):
+            return "git-status"
+        if "├──" in head or "└──" in head:
+            return "tree"
+        lines = [line.strip() for line in head.splitlines() if line.strip()]
+        if len(lines) >= 3 and all(re.match(r"^[^\s:]+:\d+:", line) for line in lines[:5]):
+            return "grep"
+        if len(lines) >= 5 and sum(1 for line in lines if re.match(r"^\s*\d+[→|\t:]\s", line)) / max(1, len(lines)) >= 0.6:
+            return "read-numbered"
+        if self._has_adjacent_duplicates(lines):
+            return "dedup-log"
+        return "generic"
+
+    def _has_adjacent_duplicates(self, lines: list[str]) -> bool:
+        """Check if output contains adjacent repeating log lines."""
+        for i in range(len(lines) - 1):
+            if lines[i] == lines[i + 1]:
+                return True
+        return False
+
     def compress(self, text: str, tool_name: str = "") -> Tuple[str, int, int]:
         """Compress tool output string if it exceeds the threshold.
 
@@ -34,14 +59,17 @@ class RTKTokenSaver:
         # 2. Trim trailing whitespace from each line
         result = "\n".join(line.rstrip() for line in result.splitlines())
 
-        # 3. Tool-specific compressions
-        if "diff" in tool_name.lower() or result.startswith("diff --git"):
+        # 3. Detect category automatically if tool_name is unspecified
+        detected_category = self.auto_detect_filter(result)
+
+        # 4. Tool-specific compressions
+        if "diff" in tool_name.lower() or detected_category == "git-diff":
             result = self._compress_git_diff(result)
-        elif "tree" in tool_name.lower() or "find" in tool_name.lower() or "ls" in tool_name.lower():
+        elif "tree" in tool_name.lower() or "find" in tool_name.lower() or "ls" in tool_name.lower() or detected_category in ("tree", "git-status"):
             result = self._compress_directory_listing(result)
-        elif "grep" in tool_name.lower() or "search" in tool_name.lower():
+        elif "grep" in tool_name.lower() or "search" in tool_name.lower() or detected_category in ("grep", "read-numbered"):
             result = self._compress_grep_results(result)
-        elif "log" in tool_name.lower() or "build" in tool_name.lower():
+        elif "log" in tool_name.lower() or "build" in tool_name.lower() or detected_category == "dedup-log":
             result = self._compress_build_logs(result)
 
         compressed_len = len(result)
@@ -137,3 +165,51 @@ class RTKTokenSaver:
 
 # Global RTK instance
 rtk_compressor = RTKTokenSaver()
+
+
+# ---------------------------------------------------------------------------
+# Ponytail — Idempotent / Bounded System-Prompt Policy (from OhMyRouter)
+# ---------------------------------------------------------------------------
+
+PONYTAIL_SENTINEL = "<!-- apex-ponytail:v1 -->"
+
+PONYTAIL_SYSTEM_PROMPT = (
+    "You are a concise, minimal-solution engineering assistant. "
+    "Provide the smallest correct solution. Prefer direct code and brief explanations. "
+    "Do not pad with unnecessary context or verbose preambles."
+)
+
+
+def apply_ponytail(messages: list[dict], enabled: bool = True) -> list[dict]:
+    """Deterministic, idempotent, bounded system-prompt policy inspired by OhMyRouter.
+
+    Inserts a minimal-solution directive only once. If sentinel is already present,
+    returns messages untouched (idempotent across multi-turn chats).
+    """
+    if not enabled or not messages:
+        return messages
+
+    # Idempotence check
+    for msg in messages:
+        content = msg.get("content", "")
+        if isinstance(content, str) and PONYTAIL_SENTINEL in content:
+            return messages
+
+    ponytail_msg = {
+        "role": "system",
+        "content": f"{PONYTAIL_SENTINEL}\n{PONYTAIL_SYSTEM_PROMPT}"
+    }
+
+    # Find last system message index
+    last_sys_idx = -1
+    for i, m in enumerate(messages):
+        if m.get("role") in ("system", "developer"):
+            last_sys_idx = i
+
+    out = list(messages)
+    if last_sys_idx == -1:
+        out.insert(0, ponytail_msg)
+    else:
+        out.insert(last_sys_idx + 1, ponytail_msg)
+    return out
+
