@@ -231,11 +231,17 @@ class ProviderManager:
             has_key = bool(key and key != "none")
             masked = (key[:4] + "••••••••" + key[-4:]) if (has_key and len(key) > 8) else ("none" if key == "none" else ("••••••" if has_key else ""))
             models = cfg.get("models") or cat_item.get("models", [])
+            orig_cat = cat_item.get("category", "api_key")
+            if orig_cat in ["frontier", "fast", "apac", "cloud", "agg"]:
+                mapped_cat = "api_key"
+            else:
+                mapped_cat = orig_cat
+
             items.append({
                 "id": p_id,
                 "name": cat_item["name"],
                 "icon": cat_item.get("icon", "🤖"),
-                "category": cat_item.get("category", "frontier"),
+                "category": mapped_cat,
                 "category_label": PROVIDER_CATEGORIES.get(cat_item.get("category", ""), ""),
                 "auth_type": cat_item.get("auth_type", "api_key"),
                 "url": cfg.get("base_url") or cat_item.get("url", ""),
@@ -248,7 +254,7 @@ class ProviderManager:
                 "description": cat_item.get("description", "")
             })
 
-        if category in ["all", "local"]:
+        if category in ["all", "local", "compatible"]:
             for c_id, c_data in configured.items():
                 if c_id.lower() not in known_ids:
                     key = c_data.get("api_key", "")
@@ -259,9 +265,9 @@ class ProviderManager:
                         "id": c_id,
                         "name": c_id.upper(),
                         "icon": "🔌",
-                        "category": "custom",
-                        "category_label": "Custom Provider",
-                        "auth_type": "custom",
+                        "category": "compatible",
+                        "category_label": "API Key Compatible Provider",
+                        "auth_type": "compatible",
                         "url": c_data.get("base_url", "-"),
                         "models": models,
                         "model_count": len(models),
@@ -269,7 +275,7 @@ class ProviderManager:
                         "is_configured": self.is_provider_configured(c_id),
                         "has_key": has_key,
                         "masked_key": masked,
-                        "description": "Custom registered provider"
+                        "description": "Custom registered compatible provider"
                     })
         return items
 
@@ -650,9 +656,17 @@ class ProviderManager:
             return False
 
         if name == "antigravity":
-            return bool(oauth_manager.get_valid_antigravity_token())
+            return bool(oauth_manager.get_valid_antigravity_token() or p_data.get("api_key"))
         if name == "copilot":
-            return bool(oauth_manager.get_valid_copilot_token())
+            return bool(oauth_manager.get_valid_copilot_token() or p_data.get("api_key") or p_data.get("copilot_token"))
+        if name in ["claude-code", "claude"]:
+            return bool(p_data.get("api_key") or p_data.get("session_token"))
+        if name == "codex":
+            return bool(p_data.get("api_key") or p_data.get("accessToken") or p_data.get("session_token"))
+        if name == "cursor":
+            return bool(p_data.get("api_key") or p_data.get("token"))
+        if name in ["kilo", "cline", "iflow", "qwen-code", "gemini-cli", "kiro"]:
+            return bool(p_data.get("api_key") and p_data.get("api_key") != "none")
 
         api_key = p_data.get("api_key", "").strip()
         is_local = name in ["ollama", "vllm", "lmstudio", "llamacpp", "localai"]

@@ -5,7 +5,10 @@ from typing import Any, Dict, List, Optional
 
 PROVIDER_CATEGORIES: Dict[str, str] = {
     "all": "Semua Provider (46+ Provider)",
-    "oauth": "🔑 Akun & Langganan (Antigravity, Copilot, Claude, Codex, Cursor, Kiro)",
+    "oauth": "🔑 OAuth Providers (Claude, Antigravity, Codex, Copilot, Cursor, Kilo, Cline)",
+    "free": "🎁 Free Providers (iFlow, Qwen Code, Gemini CLI, Kiro)",
+    "api_key": "💳 API Key Providers (OpenAI, Anthropic, DeepSeek, Groq, Alibaba, etc.)",
+    "compatible": "🔌 API Key Compatible Providers",
     "frontier": "🏛️ Frontier Commercial (Anthropic, OpenAI, Gemini, DeepSeek, xAI, Mistral)",
     "fast": "⚡ Fast Inference (Groq, Cerebras, SambaNova, Together, Fireworks, SiliconFlow, Hyperbolic)",
     "apac": "🌏 APAC & China (Kimi, GLM, MiniMax, Qwen DashScope, Yi, Qianfan, Hunyuan, StepFun)",
@@ -103,7 +106,7 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
     },
     {
         "id": "cursor",
-        "name": "Cursor Session",
+        "name": "Cursor IDE",
         "category": "oauth",
         "icon": "⚡",
         "auth_type": "session_import",
@@ -124,10 +127,83 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
         "description": "Import auth token Cursor untuk akses model berkecepatan tinggi"
     },
     {
-        "id": "kiro",
-        "name": "Kiro AI Free Tier",
+        "id": "kilo",
+        "name": "Kilo Code",
         "category": "oauth",
-        "icon": "🎁",
+        "icon": "📦",
+        "auth_type": "session_import",
+        "url": "https://api.kilo.ai/v1",
+        "models": [
+            "kilo-claude-3.7-sonnet",
+            "kilo-deepseek-r1",
+            "kilo-gpt-4o",
+            "kilo-qwen-2.5"
+        ],
+        "description": "Import akun session Kilo Code untuk coding agentic"
+    },
+    {
+        "id": "cline",
+        "name": "Cline",
+        "category": "oauth",
+        "icon": "🤖",
+        "auth_type": "session_import",
+        "url": "https://api.cline.bot/v1",
+        "models": [
+            "cline-sonnet-3.7",
+            "cline-gemini-2.5-pro",
+            "cline-deepseek-r1"
+        ],
+        "description": "Import session Cline IDE extension"
+    },
+
+    # --- FREE TIER PROVIDERS (Pixel-Perfect from 9Router) ---
+    {
+        "id": "iflow",
+        "name": "iFlow AI",
+        "category": "free",
+        "icon": "😊",
+        "auth_type": "none",
+        "url": "https://api.iflow.work/v1",
+        "models": [
+            "iflow-free-v1",
+            "iflow-coder-latest",
+            "iflow-deepseek-v3"
+        ],
+        "description": "Free-tier AI coding platform dengan kuota gratis harian"
+    },
+    {
+        "id": "qwen-code",
+        "name": "Qwen Code",
+        "category": "free",
+        "icon": "❄️",
+        "auth_type": "none",
+        "url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "models": [
+            "qwen2.5-coder:32b",
+            "qwen2.5-coder:14b",
+            "qwen2.5-coder:7b"
+        ],
+        "description": "Akses gratis model coding canggih Qwen dari Alibaba Cloud"
+    },
+    {
+        "id": "gemini-cli",
+        "name": "Gemini CLI",
+        "category": "free",
+        "icon": "❯",
+        "auth_type": "none",
+        "url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "models": [
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash"
+        ],
+        "description": "Free rate-limited Gemini developer CLI quota"
+    },
+    {
+        "id": "kiro",
+        "name": "Kiro AI",
+        "category": "free",
+        "icon": "👻",
         "auth_type": "api_key",
         "url": "https://api.kiro.ai/v1",
         "models": [
@@ -448,6 +524,96 @@ FULL_PROVIDER_CATALOG: List[Dict[str, Any]] = [
             "Qwen/Qwen2.5-72B-Instruct"
         ],
         "description": "Open-access AI computing platform dengan GPU terdesentralisasi"
+    },
+    {
+        "id": "glm-coding",
+        "name": "GLM Coding",
+        "category": "api_key",
+        "icon": "⚡",
+        "auth_type": "api_key",
+        "url": "https://open.bigmodel.cn/api/paas/v4",
+        "models": ["codegeex-4", "glm-4-plus", "glm-4-air"],
+        "description": "Zhipu AI CodeGeeX & GLM Coding platform"
+    },
+    {
+        "id": "alibaba-intl",
+        "name": "Alibaba Intl",
+        "category": "api_key",
+        "icon": "🌐",
+        "auth_type": "api_key",
+        "url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        "models": ["qwen-plus", "qwen-max", "qwen2.5-coder-32b-instruct"],
+        "description": "Alibaba Cloud International DashScope API"
+    },
+    {
+        "id": "minimax-coding",
+        "name": "Minimax Coding",
+        "category": "api_key",
+        "icon": "📻",
+        "auth_type": "api_key",
+        "url": "https://api.minimax.chat/v1",
+        "models": ["abab6.5s-chat", "abab6.5-chat", "minimax-coding"],
+        "description": "MiniMax coding API platform"
+    },
+    {
+        "id": "nvidia",
+        "name": "NVIDIA NIM",
+        "category": "api_key",
+        "icon": "🟩",
+        "auth_type": "api_key",
+        "url": "https://integrate.api.nvidia.com/v1",
+        "models": ["meta/llama-3.3-70b-instruct", "deepseek-ai/deepseek-r1"],
+        "description": "NVIDIA NIM microservices API"
+    },
+    {
+        "id": "nebius",
+        "name": "Nebius AI",
+        "category": "api_key",
+        "icon": "☁️",
+        "auth_type": "api_key",
+        "url": "https://api.studio.nebius.ai/v1",
+        "models": ["deepseek-ai/DeepSeek-R1", "meta-llama/Llama-3.3-70B-Instruct"],
+        "description": "Nebius AI Studio enterprise inference"
+    },
+    {
+        "id": "deepgram",
+        "name": "Deepgram",
+        "category": "api_key",
+        "icon": "🎙️",
+        "auth_type": "api_key",
+        "url": "https://api.deepgram.com/v1",
+        "models": ["nova-2", "nova-2-general"],
+        "description": "Deepgram Speech-to-Text & Voice AI"
+    },
+    {
+        "id": "assemblyai",
+        "name": "AssemblyAI",
+        "category": "api_key",
+        "icon": "🎧",
+        "auth_type": "api_key",
+        "url": "https://api.assemblyai.com/v2",
+        "models": ["conformer-2", "universal-1"],
+        "description": "AssemblyAI Audio & Speech-to-Text Platform"
+    },
+    {
+        "id": "nanobanana",
+        "name": "NanoBanana",
+        "category": "api_key",
+        "icon": "🍌",
+        "auth_type": "api_key",
+        "url": "https://api.nanobanana.com/v1",
+        "models": ["nano-llama-3.3-70b", "nano-qwen-2.5"],
+        "description": "NanoBanana high throughput LLM inference"
+    },
+    {
+        "id": "chutes",
+        "name": "Chutes AI",
+        "category": "api_key",
+        "icon": "🪂",
+        "auth_type": "api_key",
+        "url": "https://chutes.ai/v1",
+        "models": ["chutes-deepseek-r1", "chutes-llama-3.3"],
+        "description": "Chutes AI decentralized serverless inference"
     },
 
     # --- 4. APAC & CHINESE MODELS ---

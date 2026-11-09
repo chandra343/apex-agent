@@ -276,5 +276,47 @@ def test_prompt_injection_and_rtk_apis(client):
     assert comp_data["savings_pct"] > 0
 
 
+def test_oauth_import_and_provider_sync(client):
+    """Test OAuth import, auto-sync, and seamless sync with Apex provider manager & CLI."""
+    # 1. OAuth Import for Antigravity
+    res = client.post("/api/providers/oauth-import", json={"provider": "antigravity", "make_active": False})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["provider"] == "antigravity"
+    assert "models" in data
+
+    # 2. Auto-Sync all accounts & local engines
+    sync_res = client.post("/api/providers/auto-sync")
+    assert sync_res.status_code == 200
+    sync_data = sync_res.json()
+    assert sync_data["success"] is True
+    assert "detected_accounts" in sync_data
+
+    # 3. Test category batch test
+    cat_res = client.post("/api/providers/test-category", json={"category": "oauth"})
+    assert cat_res.status_code == 200
+    assert cat_res.json()["category"] == "oauth"
+
+    # 4. Add a compatible custom provider and verify instant appearance in shelf
+    add_res = client.post("/api/providers/add", json={
+        "name": "custom-openai-proxy",
+        "base_url": "http://127.0.0.1:9999/v1",
+        "api_key": "sk-custom-test",
+        "models": ["custom-model-v1"],
+        "auto_fetch": False,
+        "verify_now": False
+    })
+    assert add_res.status_code == 200
+    assert add_res.json()["success"] is True
+
+    # Check that it appears in providers list endpoint
+    provs_res = client.get("/api/providers")
+    assert provs_res.status_code == 200
+    p_shelf = provs_res.json()["providers"]
+    found_custom = any(p["id"] == "custom-openai-proxy" for p in p_shelf)
+    assert found_custom is True
+
+
+
 
 

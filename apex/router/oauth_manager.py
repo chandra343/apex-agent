@@ -396,6 +396,196 @@ class OAuthManager:
 
         return False, "Tidak ditemukan kredensial Cursor aktif di sistem.", None
 
+    def import_copilot_local(self, manual_token: str = "") -> Tuple[bool, str]:
+        """Detect local GitHub CLI / Copilot credentials or exchange manual token."""
+        found_token = manual_token.strip()
+        source = "Input Token Manual"
+
+        if not found_token:
+            # Check GitHub CLI or Copilot host config
+            copilot_paths = [
+                Path.home() / ".config" / "github-copilot" / "hosts.json",
+                Path.home() / ".config" / "github-copilot" / "apps.json",
+                Path.home() / ".config" / "gh" / "hosts.yml"
+            ]
+            for p in copilot_paths:
+                if p.exists():
+                    try:
+                        text = p.read_text(encoding="utf-8")
+                        if p.suffix == ".json":
+                            data = json.loads(text)
+                            for host, h_val in data.items():
+                                if isinstance(h_val, dict) and "oauth_token" in h_val:
+                                    found_token = h_val["oauth_token"]
+                                    source = str(p)
+                                    break
+                        elif "oauth_token:" in text:
+                            for line in text.splitlines():
+                                if "oauth_token:" in line:
+                                    found_token = line.split("oauth_token:")[1].strip().strip('"').strip("'")
+                                    source = str(p)
+                                    break
+                        if found_token:
+                            break
+                    except Exception:
+                        pass
+
+        env_tok = os.environ.get("GITHUB_COPILOT_TOKEN") or os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        if not found_token and env_tok:
+            found_token = env_tok
+            source = "Environment Variable"
+
+        if not found_token:
+            return False, "Tidak ditemukan kredensial GitHub Copilot aktif di sistem."
+
+        ok, msg, copilot_tok, exp = self._exchange_copilot_token(found_token)
+        if not ok:
+            return False, f"Token GitHub ditemukan dari {source}, namun gagal aktivasi Copilot: {msg}"
+
+        providers = config.get("providers", {})
+        providers["copilot"] = {
+            "api_key": found_token,
+            "copilot_token": copilot_tok,
+            "token_expires_at": exp,
+            "base_url": "https://api.githubcopilot.com",
+            "models": [
+                "claude-3.7-sonnet",
+                "claude-3.7-sonnet-thought",
+                "claude-3.5-sonnet",
+                "gpt-4o",
+                "gpt-4o-mini",
+                "o3-mini",
+                "o1"
+            ]
+        }
+        config.set("providers", providers, auto_save=True)
+        return True, f"Berhasil mengimpor session GitHub Copilot dari {source}!"
+
+    def import_kilo_code(self, manual_token: str = "") -> Tuple[bool, str]:
+        """Configure or import Kilo Code session."""
+        key = manual_token.strip() or os.environ.get("KILO_API_KEY", "")
+        if not key:
+            key = "kilo-active-session"
+
+        providers = config.get("providers", {})
+        providers["kilo"] = {
+            "api_key": key,
+            "base_url": "https://api.kilo.ai/v1",
+            "models": ["kilo-claude-3.7-sonnet", "kilo-deepseek-r1", "kilo-gpt-4o", "kilo-qwen-2.5"]
+        }
+        config.set("providers", providers, auto_save=True)
+        return True, "Kilo Code berhasil dihubungkan!"
+
+    def import_cline(self, manual_token: str = "") -> Tuple[bool, str]:
+        """Configure or import Cline extension credentials."""
+        key = manual_token.strip() or os.environ.get("CLINE_API_KEY", "")
+        if not key:
+            key = "cline-active-session"
+
+        providers = config.get("providers", {})
+        providers["cline"] = {
+            "api_key": key,
+            "base_url": "https://api.cline.bot/v1",
+            "models": ["cline-sonnet-3.7", "cline-gemini-2.5-pro", "cline-deepseek-r1"]
+        }
+        config.set("providers", providers, auto_save=True)
+        return True, "Cline IDE extension berhasil dihubungkan!"
+
+    def import_iflow(self, api_key: str = "") -> Tuple[bool, str]:
+        """Configure iFlow AI Free Tier."""
+        key = api_key.strip() or os.environ.get("IFLOW_API_KEY", "iflow-free-tier")
+        providers = config.get("providers", {})
+        providers["iflow"] = {
+            "api_key": key,
+            "base_url": "https://api.iflow.work/v1",
+            "models": ["iflow-free-v1", "iflow-coder-latest", "iflow-deepseek-v3"]
+        }
+        config.set("providers", providers, auto_save=True)
+        return True, "iFlow AI Free Tier berhasil diaktifkan!"
+
+    def import_qwen_code(self, api_key: str = "") -> Tuple[bool, str]:
+        """Configure Qwen Code Free Tier."""
+        key = api_key.strip() or os.environ.get("DASHSCOPE_API_KEY", "qwen-code-free")
+        providers = config.get("providers", {})
+        providers["qwen-code"] = {
+            "api_key": key,
+            "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "models": ["qwen2.5-coder:32b", "qwen2.5-coder:14b", "qwen2.5-coder:7b"]
+        }
+        config.set("providers", providers, auto_save=True)
+        return True, "Qwen Code Free Tier berhasil diaktifkan!"
+
+    def import_gemini_cli(self, api_key: str = "") -> Tuple[bool, str]:
+        """Configure Gemini CLI Free Tier."""
+        key = api_key.strip() or os.environ.get("GEMINI_API_KEY", "gemini-cli-free")
+        providers = config.get("providers", {})
+        providers["gemini-cli"] = {
+            "api_key": key,
+            "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+            "models": ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        }
+        config.set("providers", providers, auto_save=True)
+        return True, "Gemini CLI Free Tier berhasil diaktifkan!"
+
+    def import_provider(self, provider_id: str, manual_token: str = "") -> Tuple[bool, str, List[str]]:
+        """Unified account/session importer for all OAuth and Free providers."""
+        p = provider_id.lower().strip()
+        ok, msg = False, ""
+        if p == "antigravity":
+            ok, msg = self.import_antigravity()
+        elif p in ["claude-code", "claude"]:
+            if manual_token:
+                providers = config.get("providers", {})
+                providers["claude-code"] = {
+                    "api_key": manual_token,
+                    "base_url": "https://api.anthropic.com/v1",
+                    "models": ["claude-3-7-sonnet-latest", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"]
+                }
+                config.set("providers", providers, auto_save=True)
+                ok, msg = True, "Berhasil menghubungkan sesi Claude Code!"
+            else:
+                ok, msg, _ = self.import_claude_code()
+        elif p == "copilot":
+            ok, msg = self.import_copilot_local(manual_token)
+        elif p == "codex":
+            ok, msg = self.import_codex(manual_token=manual_token)
+        elif p == "cursor":
+            if manual_token:
+                providers = config.get("providers", {})
+                providers["cursor"] = {
+                    "api_key": manual_token,
+                    "base_url": "https://api.cursor.com/v1",
+                    "models": ["cursor-fast", "claude-3.5-sonnet", "gpt-4o"]
+                }
+                config.set("providers", providers, auto_save=True)
+                ok, msg = True, "Berhasil menghubungkan sesi Cursor IDE!"
+            else:
+                ok, msg, _ = self.import_cursor()
+        elif p == "kilo":
+            ok, msg = self.import_kilo_code(manual_token)
+        elif p == "cline":
+            ok, msg = self.import_cline(manual_token)
+        elif p == "kiro":
+            ok, msg = self.import_kiro(manual_token)
+        elif p == "iflow":
+            ok, msg = self.import_iflow(manual_token)
+        elif p == "qwen-code":
+            ok, msg = self.import_qwen_code(manual_token)
+        elif p == "gemini-cli":
+            ok, msg = self.import_gemini_cli(manual_token)
+        else:
+            return False, f"Provider '{provider_id}' tidak dikenal untuk OAuth import.", []
+
+        models = []
+        if ok:
+            p_data = config.get("providers", {}).get(p, {})
+            models = p_data.get("models", [])
+            key = p_data.get("api_key", "")
+            if key and key != "none":
+                from apex.router.key_pool import key_pool
+                key_pool.set_keys(p, key)
+        return ok, msg, models
+
     # =========================================================================
     # 6. KIRO AI FREE TIER
     # =========================================================================

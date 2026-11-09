@@ -55,6 +55,7 @@ from apex.config import config, DATA_DIR, PKG_ROOT
 from apex.memory.store import memory_store
 from apex.router.fallback import fallback_router
 from apex.router.provider_manager import provider_manager
+from apex.router.oauth_manager import oauth_manager
 from apex.router.ledger import token_ledger
 from apex.security.vault import secret_vault
 from apex.tools import tool_registry
@@ -490,14 +491,19 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <!-- VIEW 1: PROVIDERS (Pixel-Perfect from 9Router Screenshot) -->
         <!-- ======================================================== -->
         <main id="view-providers" class="p-8 space-y-8 flex-1 max-w-7xl">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between flex-wrap gap-4">
                 <div>
                     <h1 class="text-2xl font-bold text-white tracking-tight">Providers</h1>
                     <p class="text-xs text-[#8e8e93] mt-1">Manage your AI provider connections and login credentials</p>
                 </div>
-                <button onclick="openLoginModal()" class="px-3 py-1.5 bg-dark-card hover:bg-dark-border border border-dark-border rounded-lg text-xs font-medium text-slate-200 transition-all flex items-center gap-1.5">
-                    <i class="fa-solid fa-user-plus text-orange-400"></i> Login &amp; Add Accounts
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="handleAutoSyncAll(this)" class="px-3 py-1.5 bg-dark-card hover:bg-dark-border border border-dark-border rounded-lg text-xs font-medium text-slate-200 transition-all flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-arrows-rotate text-cyan-400"></i> Auto-Detect Accounts &amp; Engines
+                    </button>
+                    <button onclick="openLoginModal()" class="px-3 py-1.5 bg-dark-card hover:bg-dark-border border border-dark-border rounded-lg text-xs font-medium text-slate-200 transition-all flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-user-plus text-orange-400"></i> Login &amp; Add Accounts
+                    </button>
+                </div>
             </div>
 
             <!-- SECTION 1: OAuth Providers -->
@@ -1347,17 +1353,26 @@ HTML_PAGE = r"""<!DOCTYPE html>
                 </div>
             </form>
 
-            <div class="pt-3 border-t border-dark-border/60 text-center space-y-2">
-                <div class="text-[10px] uppercase font-bold text-slate-500">OAuth Quick Login</div>
-                <div class="flex justify-center gap-2">
-                    <button onclick="quickOAuthLogin('Claude Code')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-300 flex items-center gap-1.5 text-[11px]">
+            <div class="pt-3 border-t border-dark-border/60 text-center space-y-2.5">
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">One-Click Account &amp; OAuth Login</div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <button type="button" onclick="quickOAuthLogin('antigravity')" class="px-2.5 py-1.5 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-200 flex items-center justify-center gap-1.5 text-[11px] font-medium transition-all">
+                        <i class="fa-solid fa-compass text-cyan-400"></i> Antigravity
+                    </button>
+                    <button type="button" onclick="quickOAuthLogin('copilot')" class="px-2.5 py-1.5 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-200 flex items-center justify-center gap-1.5 text-[11px] font-medium transition-all">
+                        <i class="fa-brands fa-github text-emerald-400"></i> Copilot
+                    </button>
+                    <button type="button" onclick="quickOAuthLogin('claude-code')" class="px-2.5 py-1.5 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-200 flex items-center justify-center gap-1.5 text-[11px] font-medium transition-all">
                         <i class="fa-solid fa-asterisk text-amber-400"></i> Claude
                     </button>
-                    <button onclick="quickOAuthLogin('OpenAI Codex')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-300 flex items-center gap-1.5 text-[11px]">
+                    <button type="button" onclick="quickOAuthLogin('codex')" class="px-2.5 py-1.5 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-200 flex items-center justify-center gap-1.5 text-[11px] font-medium transition-all">
                         <i class="fa-solid fa-circle-notch text-emerald-400"></i> Codex
                     </button>
-                    <button onclick="quickOAuthLogin('Antigravity')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-300 flex items-center gap-1.5 text-[11px]">
-                        <i class="fa-solid fa-compass text-cyan-400"></i> AGY
+                    <button type="button" onclick="quickOAuthLogin('cursor')" class="px-2.5 py-1.5 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-200 flex items-center justify-center gap-1.5 text-[11px] font-medium transition-all">
+                        <i class="fa-solid fa-cube text-slate-300"></i> Cursor
+                    </button>
+                    <button type="button" onclick="quickOAuthLogin('kilo')" class="px-2.5 py-1.5 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-200 flex items-center justify-center gap-1.5 text-[11px] font-medium transition-all">
+                        <i class="fa-solid fa-box text-yellow-400"></i> Kilo Code
                     </button>
                 </div>
             </div>
@@ -1383,8 +1398,21 @@ HTML_PAGE = r"""<!DOCTYPE html>
             <form id="form-provider-config" onsubmit="handleSaveProviderConfig(event)" class="space-y-3.5">
                 <input type="hidden" id="input-prov-id">
 
+                <div id="box-oauth-connect" class="hidden p-3.5 bg-sky-950/30 border border-sky-800/40 rounded-xl space-y-3">
+                    <div class="flex items-start gap-2.5">
+                        <i class="fa-solid fa-wand-magic-sparkles text-cyan-400 mt-0.5 text-sm"></i>
+                        <div>
+                            <div class="font-bold text-white text-xs">Auto-Detect &amp; Sinkronkan ke Apex</div>
+                            <div class="text-[11px] text-slate-300 mt-0.5">Sistem akan membaca file login aktif (~/.gemini, ~/.claude.json, Copilot/Cursor host) dan otomatis menghubungkannya ke Apex.</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="handleAutoDetectInModal()" id="btn-modal-autodetect" class="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold rounded-lg text-xs transition-all shadow-md flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-link"></i> Auto-Detect &amp; Hubungkan Akun Ini
+                    </button>
+                </div>
+
                 <div>
-                    <label class="block text-slate-300 mb-1 font-medium">API Key / Token Rahasia</label>
+                    <label id="label-prov-key" class="block text-slate-300 mb-1 font-medium">API Key / Token Rahasia</label>
                     <div class="relative">
                         <input type="password" id="input-prov-key" placeholder="Paste API Key di sini (sk-...)..." class="w-full bg-dark-sidebar border border-dark-border rounded-lg px-3 py-2 pr-10 text-slate-100 focus:outline-none focus:border-orange-500 font-mono">
                         <button type="button" onclick="togglePass('input-prov-key')" class="absolute right-3 top-2.5 text-slate-400 hover:text-white">
@@ -1639,32 +1667,58 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         // 9Router Icons Catalog matching screenshot
         const BRAND_ICONS = {
+            // 1. OAuth Providers
             'claude-code': { icon: 'fa-solid fa-asterisk', bg: 'bg-[#d97706]', color: 'text-amber-200' },
             'antigravity': { icon: 'fa-solid fa-compass', bg: 'bg-[#0284c7]', color: 'text-cyan-300' },
             'codex': { icon: 'fa-solid fa-circle-notch', bg: 'bg-[#18181b]', color: 'text-emerald-400' },
             'copilot': { icon: 'fa-brands fa-github', bg: 'bg-[#047857]', color: 'text-emerald-300' },
             'cursor': { icon: 'fa-solid fa-cube', bg: 'bg-[#1e293b]', color: 'text-slate-100' },
-            'kilo': { icon: 'fa-solid fa-box', bg: 'bg-[#ca8a04]', color: 'text-yellow-300' },
+            'kilo': { text: 'Kilo', bg: 'bg-[#ca8a04]', color: 'text-yellow-100' },
             'cline': { icon: 'fa-solid fa-robot', bg: 'bg-[#7c3aed]', color: 'text-purple-300' },
+
+            // 2. Free Providers
             'iflow': { icon: 'fa-solid fa-face-smile', bg: 'bg-[#4f46e5]', color: 'text-indigo-200' },
             'qwen-code': { icon: 'fa-solid fa-snowflake', bg: 'bg-[#2563eb]', color: 'text-blue-200' },
-            'gemini-free': { icon: 'fa-solid fa-greater-than', bg: 'bg-[#1d4ed8]', color: 'text-blue-100' },
+            'gemini-cli': { text: '❯', bg: 'bg-[#1d4ed8]', color: 'text-blue-100' },
+            'gemini-free': { text: '❯', bg: 'bg-[#1d4ed8]', color: 'text-blue-100' },
             'kiro': { icon: 'fa-solid fa-ghost', bg: 'bg-[#9333ea]', color: 'text-purple-200' },
-            'tokenharbor': { icon: 'fa-solid fa-anchor', bg: 'bg-[#ea580c]', color: 'text-orange-200' },
+
+            // 3. API Key Providers (from 9Router Screenshot)
             'openrouter': { icon: 'fa-solid fa-arrows-split-up-and-left', bg: 'bg-[#334155]', color: 'text-slate-200' },
+            'glm-coding': { text: 'Z', bg: 'bg-[#18181b]', color: 'text-white' },
+            'zhipu': { text: 'Z', bg: 'bg-[#18181b]', color: 'text-slate-300' },
+            'moonshot': { text: 'K', bg: 'bg-[#18181b]', color: 'text-white' },
+            'minimax-coding': { icon: 'fa-solid fa-wave-square', bg: 'bg-[#e11d48]', color: 'text-rose-100' },
+            'minimax': { icon: 'fa-solid fa-wave-square', bg: 'bg-[#e11d48]', color: 'text-rose-200' },
+            'dashscope': { text: '{}', bg: 'bg-[#ea580c]', color: 'text-orange-100' },
+            'alibaba-intl': { text: '{}', bg: 'bg-[#ea580c]', color: 'text-white' },
+            'alibaba': { text: '{}', bg: 'bg-[#ea580c]', color: 'text-white' },
             'openai': { icon: 'fa-solid fa-circle-nodes', bg: 'bg-[#18181b]', color: 'text-white' },
-            'anthropic': { icon: 'fa-solid fa-font', bg: 'bg-[#d97706]', color: 'text-amber-200' },
-            'gemini': { icon: 'fa-solid fa-sparkles', bg: 'bg-[#2563eb]', color: 'text-cyan-200' },
-            'deepseek': { icon: 'fa-solid fa-brain', bg: 'bg-[#1d4ed8]', color: 'text-blue-200' },
-            'groq': { icon: 'fa-solid fa-bolt', bg: 'bg-[#dc2626]', color: 'text-rose-200' },
-            'xai': { icon: 'fa-solid fa-x', bg: 'bg-[#09090b]', color: 'text-white' },
-            'mistral': { icon: 'fa-solid fa-wind', bg: 'bg-[#ea580c]', color: 'text-orange-200' },
-            'perplexity': { icon: 'fa-solid fa-circle-question', bg: 'bg-[#0f766e]', color: 'text-teal-200' },
-            'together': { icon: 'fa-solid fa-share-nodes', bg: 'bg-[#1d4ed8]', color: 'text-blue-200' },
-            'fireworks': { icon: 'fa-solid fa-fire', bg: 'bg-[#9333ea]', color: 'text-purple-200' },
-            'cerebras': { icon: 'fa-solid fa-microchip', bg: 'bg-[#c2410c]', color: 'text-orange-200' },
-            'cohere': { icon: 'fa-solid fa-circle', bg: 'bg-[#115e59]', color: 'text-teal-200' },
-            'ollama': { icon: 'fa-solid fa-server', bg: 'bg-[#475569]', color: 'text-slate-200' }
+            'anthropic': { text: 'A', bg: 'bg-[#ffffff]', color: 'text-slate-900' },
+            'gemini': { icon: 'fa-solid fa-sparkles', bg: 'bg-[#1e40af]', color: 'text-cyan-200' },
+            'deepseek': { text: 'DS', bg: 'bg-[#1d4ed8]', color: 'text-white' },
+            'groq': { text: 'GQ', bg: 'bg-[#dc2626]', color: 'text-white' },
+            'xai': { text: 'XA', bg: 'bg-[#09090b]', color: 'text-white' },
+            'mistral': { text: 'MI', bg: 'bg-[#ea580c]', color: 'text-white' },
+            'perplexity': { text: 'PP', bg: 'bg-[#0f766e]', color: 'text-teal-200' },
+            'together': { text: 'TG', bg: 'bg-[#2563eb]', color: 'text-white' },
+            'fireworks': { text: 'FW', bg: 'bg-[#7e22ce]', color: 'text-purple-200' },
+            'cerebras': { text: 'CB', bg: 'bg-[#c2410c]', color: 'text-white' },
+            'cohere': { text: 'CO', bg: 'bg-[#115e59]', color: 'text-teal-100' },
+            'nvidia': { text: 'NV', bg: 'bg-[#16a34a]', color: 'text-white' },
+            'nebius': { text: 'NB', bg: 'bg-[#0284c7]', color: 'text-white' },
+            'siliconflow': { text: 'SF', bg: 'bg-[#334155]', color: 'text-white' },
+            'hyperbolic': { text: 'HY', bg: 'bg-[#2563eb]', color: 'text-white' },
+            'deepgram': { text: 'DG', bg: 'bg-[#15803d]', color: 'text-white' },
+            'assemblyai': { text: 'AA', bg: 'bg-[#1d4ed8]', color: 'text-white' },
+            'nanobanana': { text: 'NB', bg: 'bg-[#ca8a04]', color: 'text-yellow-100' },
+            'chutes': { text: 'CH', bg: 'bg-[#27272a]', color: 'text-white' },
+
+            // 4. Compatible & Local
+            'tokenharbor': { icon: 'fa-solid fa-anchor', bg: 'bg-[#ea580c]', color: 'text-orange-200' },
+            'ollama': { icon: 'fa-solid fa-server', bg: 'bg-[#475569]', color: 'text-slate-200' },
+            'vllm': { icon: 'fa-solid fa-bolt', bg: 'bg-[#0ea5e9]', color: 'text-cyan-100' },
+            'lmstudio': { icon: 'fa-solid fa-brain', bg: 'bg-[#8b5cf6]', color: 'text-purple-100' }
         };
 
         const TAB_LIST = [
@@ -1909,29 +1963,59 @@ HTML_PAGE = r"""<!DOCTYPE html>
             const brand = BRAND_ICONS[p.id] || { icon: 'fa-solid fa-cube', bg: 'bg-[#27272a]', color: 'text-slate-300' };
 
             const statusDot = isConnected 
-                ? `<div class="flex items-center gap-1.5 text-[11px] text-[#22c55e] font-medium"><span class="w-1.5 h-1.5 rounded-full bg-[#22c55e]"></span> 1 Connected</div>`
-                : `<div class="text-[11px] text-[#696b75]">No connections</div>`;
+                ? `<div class="flex items-center gap-1.5 text-[11px] text-[#10b981] font-medium"><span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span> 1 Connected</div>`
+                : `<div class="text-[11px] text-[#71717a]">No connections</div>`;
+
+            let rightAction = '';
+            if (p.category === 'compatible' || p.category === 'custom') {
+                rightAction = `
+                    <div class="flex items-center gap-2">
+                        <button onclick="event.stopPropagation(); quickChatWithProvider('${p.id}')" class="px-2.5 py-1 bg-[#27272a] hover:bg-[#3f3f46] text-slate-200 border border-[#3f3f46] rounded-md text-[11px] font-medium transition-all shadow-sm">Chat</button>
+                        ${isConnected ? `
+                        <div onclick="event.stopPropagation(); toggleActiveProvider('${p.id}')" title="Set Active" class="w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${isActive ? 'bg-[#ea580c]' : 'bg-[#3f3f46]'}">
+                            <div class="w-4 h-4 rounded-full bg-white transition-transform ${isActive ? 'translate-x-4' : 'translate-x-0'} shadow-sm"></div>
+                        </div>` : ''}
+                    </div>
+                `;
+            } else if (isConnected) {
+                rightAction = `
+                    <div onclick="event.stopPropagation(); toggleActiveProvider('${p.id}')" title="Set Active" class="w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${isActive ? 'bg-[#ea580c]' : 'bg-[#3f3f46]'}">
+                        <div class="w-4 h-4 rounded-full bg-white transition-transform ${isActive ? 'translate-x-4' : 'translate-x-0'} shadow-sm"></div>
+                    </div>
+                `;
+            }
+
+            const glyphHtml = brand.text 
+                ? `<span class="font-bold text-xs">${brand.text}</span>` 
+                : `<i class="${brand.icon} text-xs"></i>`;
 
             const card = document.createElement('div');
-            card.className = "bg-dark-card hover:bg-dark-cardHover border border-dark-border hover:border-dark-borderLight rounded-xl p-3 flex items-center justify-between cursor-pointer transition-all shadow-sm group select-none";
+            card.className = "bg-[#18191c] hover:bg-[#202227] border border-[#27282d] hover:border-[#383a42] rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer transition-all shadow-sm group select-none";
             card.onclick = () => openProviderModal(p.id);
 
             card.innerHTML = `
                 <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-7 h-7 rounded-lg ${brand.bg} flex items-center justify-center shrink-0 shadow-sm ${brand.color}">
-                        <i class="${brand.icon} text-xs"></i>
+                    <div class="w-8 h-8 rounded-lg ${brand.bg} flex items-center justify-center shrink-0 shadow-sm ${brand.color}">
+                        ${glyphHtml}
                     </div>
                     <div class="min-w-0">
                         <div class="font-semibold text-xs text-white truncate group-hover:text-orange-400 transition-colors">${p.name}</div>
                         ${statusDot}
                     </div>
                 </div>
-                ${isConnected ? `
-                <div onclick="event.stopPropagation(); toggleActiveProvider('${p.id}')" title="Set Active" class="w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${isActive ? 'bg-orange-600' : 'bg-slate-700'}">
-                    <div class="w-4 h-4 rounded-full bg-white transition-transform ${isActive ? 'translate-x-4' : 'translate-x-0'} shadow-sm"></div>
-                </div>` : ''}
+                ${rightAction}
             `;
             return card;
+        }
+
+        function quickChatWithProvider(providerId) {
+            toggleActiveProvider(providerId);
+            switchTab('endpoint');
+            const input = document.getElementById('chat-input-box');
+            if (input) {
+                input.focus();
+                input.placeholder = `Ketik prompt untuk chat dengan ${providerId}...`;
+            }
         }
 
         function renderCategorizedProviders(providers, activeProvider) {
@@ -1950,9 +2034,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
                 const el = createProviderCard(p, activeProvider);
                 if (p.category === 'oauth') {
                     gridOauth.appendChild(el);
-                } else if (p.category === 'local' || p.id.includes('free') || p.id === 'tokenharbor') {
+                } else if (p.category === 'free') {
                     gridFree.appendChild(el);
-                } else if (p.category === 'custom') {
+                } else if (p.category === 'compatible' || p.category === 'custom') {
                     gridCompatible.appendChild(el);
                 } else {
                     gridApiKey.appendChild(el);
@@ -1992,10 +2076,22 @@ HTML_PAGE = r"""<!DOCTYPE html>
             document.getElementById('modal-latency-display').innerText = '-';
             document.getElementById('modal-alert-box').classList.add('hidden');
 
+            const isOauth = p.category === 'oauth' || ['antigravity', 'claude-code', 'codex', 'copilot', 'cursor', 'kilo', 'cline'].includes(p.id);
+            const oauthBox = document.getElementById('box-oauth-connect');
+            if (oauthBox) {
+                if (isOauth) {
+                    oauthBox.classList.remove('hidden');
+                    document.getElementById('label-prov-key').innerText = "API Key / OAuth Token (Opsional jika Auto-Detect)";
+                } else {
+                    oauthBox.classList.add('hidden');
+                    document.getElementById('label-prov-key').innerText = "API Key / Token Rahasia";
+                }
+            }
+
             const brand = BRAND_ICONS[p.id] || { icon: 'fa-solid fa-cube', bg: 'bg-[#27272a]', color: 'text-slate-300' };
             const iconDiv = document.getElementById('modal-prov-icon');
             iconDiv.className = `w-8 h-8 rounded-lg flex items-center justify-center text-sm ${brand.bg} ${brand.color}`;
-            iconDiv.innerHTML = `<i class="${brand.icon}"></i>`;
+            iconDiv.innerHTML = brand.text ? `<span class="font-bold text-xs">${brand.text}</span>` : `<i class="${brand.icon}"></i>`;
 
             const select = document.getElementById('select-prov-models');
             select.innerHTML = (p.models || []).map(m => `<option value="${m}">${m}</option>`).join('');
@@ -2004,6 +2100,62 @@ HTML_PAGE = r"""<!DOCTYPE html>
             }
 
             document.getElementById('modal-provider').classList.remove('hidden');
+        }
+
+        async function handleAutoDetectInModal() {
+            const id = document.getElementById('input-prov-id').value;
+            const makeActive = document.getElementById('check-make-active').checked;
+            const btn = document.getElementById('btn-modal-autodetect');
+            const alertBox = document.getElementById('modal-alert-box');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mendeteksi session...`;
+
+            try {
+                const res = await fetch('/api/providers/oauth-import', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ provider: id, make_active: makeActive })
+                }).then(r => r.json());
+
+                if (res.success) {
+                    appendConsoleLog(`[OAuth] Berhasil terhubung: ${res.message}`);
+                    alertBox.className = "p-2 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-700 block";
+                    alertBox.innerText = `✅ ${res.message}`;
+                    setTimeout(() => {
+                        closeModalProvider();
+                        loadProviders();
+                    }, 1200);
+                } else {
+                    alertBox.className = "p-2 rounded bg-rose-950/80 text-rose-300 border border-rose-700 block";
+                    alertBox.innerText = `⚠️ ${res.message}`;
+                }
+            } catch(e) {
+                alert(`Error: ${e}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-link"></i> Auto-Detect &amp; Hubungkan Akun Ini`;
+            }
+        }
+
+        async function handleAutoSyncAll(btn) {
+            const orig = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mendeteksi...`;
+            }
+            try {
+                const res = await fetch('/api/providers/auto-sync', { method: 'POST' }).then(r => r.json());
+                appendConsoleLog(`[Auto-Sync] ${res.message}`);
+                alert(`✅ ${res.message}`);
+                loadProviders();
+            } catch(e) {
+                alert(`Error: ${e}`);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                }
+            }
         }
 
         function closeModalProvider() {
@@ -2841,10 +2993,27 @@ HTML_PAGE = r"""<!DOCTYPE html>
             }
         }
 
-        function quickOAuthLogin(providerName) {
-            alert(`🔗 Membuka otorisasi OAuth untuk ${providerName}...`);
-            appendConsoleLog(`[OAuth] Redirecting to OAuth consent screen for ${providerName}`);
-            closeLoginModal();
+        async function quickOAuthLogin(providerName) {
+            const norm = providerName.toLowerCase().replace(/\s+/g, '-');
+            appendConsoleLog(`[OAuth] Mengimpor kredensial / session untuk '${providerName}'...`);
+            try {
+                const res = await fetch('/api/providers/oauth-import', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ provider: norm, make_active: true })
+                }).then(r => r.json());
+
+                if (res.success) {
+                    appendConsoleLog(`[OAuth] Selesai: ${res.message}`);
+                    alert(`✅ ${res.message}\nAkun berhasil tersinkronisasi ke Apex CLI & Web!`);
+                    closeLoginModal();
+                    loadProviders();
+                } else {
+                    alert(`⚠️ ${res.message}\nSilakan periksa kredensial lokal atau masukkan token manual.`);
+                }
+            } catch(e) {
+                alert(`Error: ${e}`);
+            }
         }
 
         // ======================= THEMES & ACCENT =======================
@@ -2983,10 +3152,24 @@ HTML_PAGE = r"""<!DOCTYPE html>
         }
 
         function handleShutdown() {
-            if (confirm("Hentikan background server Endpoint Proxy / Apex?")) {
+            if (confirm("Peringatan: Mematikan server akan menghentikan akses ke http://127.0.0.1:8000.\n\nUntuk menyalakannya kembali, jalankan di terminal:\napex web (atau apex dashboard)\n\nLanjutkan mematikan server sekarang?")) {
                 fetch('/api/shutdown', { method: 'POST' });
-                alert("Server dihentikan.");
-                window.close();
+                alert("Server Apex Web Dashboard telah dimatikan.\nJalankan 'apex web' di terminal jika ingin mengaktifkannya kembali.");
+                document.body.innerHTML = `
+                    <div class="h-screen w-screen bg-[#0f1012] flex items-center justify-center p-6 text-center text-slate-300 font-mono">
+                        <div class="max-w-md bg-[#18191c] border border-[#27282d] rounded-2xl p-8 space-y-4 shadow-2xl">
+                            <div class="w-12 h-12 rounded-xl bg-rose-950/60 text-rose-400 border border-rose-800/40 flex items-center justify-center mx-auto text-xl">
+                                <i class="fa-solid fa-power-off"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-white">Server Telah Dimatikan</h2>
+                            <p class="text-xs text-slate-400">Background service telah dihentikan dengan aman. Web dashboard saat ini offline.</p>
+                            <div class="p-3 bg-black/60 rounded-xl border border-[#27282d] text-left text-xs">
+                                <span class="text-slate-500"># Untuk menyalakan kembali:</span><br>
+                                <span class="text-orange-400">apex web</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
         }
 
@@ -3888,6 +4071,79 @@ async def fetch_models_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
     p_name = payload.get("name", "").strip().lower()
     ok, msg, models = provider_manager.fetch_live_models(p_name)
     return {"success": ok, "message": msg, "models": models}
+
+
+@app.post("/api/providers/oauth-import")
+async def oauth_import_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Import and configure OAuth/session login for Antigravity, Copilot, Claude, Codex, Cursor, etc."""
+    p_name = payload.get("provider", "").strip().lower()
+    manual_token = payload.get("token", "").strip()
+    make_active = payload.get("make_active", False)
+
+    ok, msg, models = oauth_manager.import_provider(p_name, manual_token=manual_token)
+    if ok and make_active and models:
+        provider_manager.set_active_provider(p_name, models[0])
+
+    return {
+        "success": ok,
+        "message": msg,
+        "provider": p_name,
+        "models": models,
+        "active_provider": config.active_provider,
+        "active_model": config.default_model
+    }
+
+
+@app.post("/api/providers/auto-sync")
+async def auto_sync_all_endpoint() -> Dict[str, Any]:
+    """Scan both local running engines and active system login sessions in one click."""
+    local_res = provider_manager.scan_and_register_local_engines()
+    detected_accounts: List[str] = []
+
+    # Auto-import Antigravity if available
+    agy_ok, _ = oauth_manager.import_antigravity()
+    if agy_ok:
+        detected_accounts.append("Antigravity")
+
+    # Auto-import Copilot if available
+    cop_ok, _ = oauth_manager.import_copilot_local()
+    if cop_ok:
+        detected_accounts.append("GitHub Copilot")
+
+    # Auto-import Claude Code if available
+    claude_ok, _, _ = oauth_manager.import_claude_code()
+    if claude_ok:
+        detected_accounts.append("Claude Code")
+
+    # Auto-import Cursor if available
+    cur_ok, _, _ = oauth_manager.import_cursor()
+    if cur_ok:
+        detected_accounts.append("Cursor IDE")
+
+    total_found = len(detected_accounts) + len(local_res.get("registered", []))
+    msg = f"Auto-sync selesai! {total_found} akun & engine berhasil disinkronkan ke Apex."
+    return {
+        "success": True,
+        "local_engines": local_res.get("registered", []),
+        "detected_accounts": detected_accounts,
+        "message": msg
+    }
+
+
+@app.post("/api/providers/test-category")
+async def test_category_providers_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Test ping & connectivity for all providers in a category."""
+    cat = payload.get("category", "all")
+    shelf = provider_manager.get_provider_shelf_summary(category="all")
+    results = {}
+    for p in shelf:
+        if cat != "all" and p.get("category") != cat:
+            continue
+        p_id = p["id"]
+        if p.get("is_configured") or p.get("has_key"):
+            t_ok, t_msg, t_lat = provider_manager.test_provider(p_id)
+            results[p_id] = {"ok": t_ok, "latency": round(t_lat * 1000, 1), "message": t_msg}
+    return {"category": cat, "results": results, "count": len(results)}
 
 
 @app.post("/api/shutdown")
