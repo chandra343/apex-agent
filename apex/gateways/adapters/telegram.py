@@ -81,6 +81,30 @@ class TelegramAdapter:
             except Exception:
                 pass
 
+    def _send_voice(self, chat_id: int | str, audio_file_path: str) -> bool:
+        """Send an audio voice note to a Telegram chat."""
+        url = f"{self.base_url}/sendVoice"
+        try:
+            with open(audio_file_path, "rb") as f_voice:
+                files = {"voice": f_voice}
+                data = {"chat_id": chat_id}
+                resp = requests.post(url, data=data, files=files, timeout=20)
+                return resp.status_code == 200
+        except Exception:
+            return False
+
+    def _send_document(self, chat_id: int | str, document_path: str, caption: str = "") -> bool:
+        """Send a document or file attachment to a Telegram chat."""
+        url = f"{self.base_url}/sendDocument"
+        try:
+            with open(document_path, "rb") as f_doc:
+                files = {"document": f_doc}
+                data = {"chat_id": chat_id, "caption": caption[:1024]}
+                resp = requests.post(url, data=data, files=files, timeout=30)
+                return resp.status_code == 200
+        except Exception:
+            return False
+
     def _process_update(self, update: Dict[str, Any]) -> None:
         # Handle Callback Queries (Inline Keyboard Buttons)
         if "callback_query" in update:
@@ -148,16 +172,33 @@ class TelegramAdapter:
 
         # 4. Enqueue into FIFO Queue (OpenClaw style)
         session_id = f"tg_{chat_id}"
+        is_voice_turn = bool(voice)
         conversation_queue.enqueue(
             conversation_id=session_id,
             payload=text,
-            processor=lambda prompt: self._execute_agent_turn(chat_id, session_id, prompt)
+            processor=lambda prompt: self._execute_agent_turn(chat_id, session_id, prompt, is_voice=is_voice_turn)
         )
 
-    def _execute_agent_turn(self, chat_id: int | str, session_id: str, prompt: str) -> None:
+    def _execute_agent_turn(self, chat_id: int | str, session_id: str, prompt: str, is_voice: bool = False) -> None:
         try:
             response = default_agent.run(prompt, session_id=session_id, channel="telegram")
             self._send_message(chat_id, response)
+
+            # If user sent a voice note, reply with voice synthesis as well!
+            if is_voice and response:
+                try:
+                    from apex.tools.speech import synthesize_speech
+                    from apex.config import DATA_DIR
+                    import re
+
+                    # Clean markdown formatting for clear spoken voice
+                    clean_spoken = re.sub(r"[`*_#\[\]\(\)>~]", "", response)[:400]
+                    audio_target = str(DATA_DIR / "audio" / f"reply_{chat_id}_{int(time.time())}.mp3")
+                    res = synthesize_speech(clean_spoken, output_path=audio_target, language="id")
+                    if os.path.exists(audio_target):
+                        self._send_voice(chat_id, audio_target)
+                except Exception:
+                    pass
         except Exception as e:
             self._send_message(chat_id, f"❌ Execution error: {e}")
 

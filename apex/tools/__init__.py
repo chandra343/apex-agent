@@ -24,6 +24,10 @@ from apex.tools.web import web_search, fetch_web_page
 from apex.tools.custom_loader import custom_tool_loader
 from apex.tools.meta_tools import create_custom_tool, create_skill, create_mcp_server
 from apex.tools.doc_reader import read_any_file
+from apex.tools.swarm_ops import dispatch_subagents
+from apex.tools.db_ops import query_database
+from apex.tools.speech import synthesize_speech
+from apex.tools.web_scraper import scrape_structured_web
 
 
 class ToolRegistry:
@@ -264,6 +268,59 @@ class ToolRegistry:
             python_server_code=args.get("python_server_code", "")
         ), is_safe=False)
 
+        # Multi-Agent Swarm Orchestrator
+        self.register("dispatch_subagents", "Dispatch a team of specialized sub-agents (researcher, coder, tester, auditor) concurrently in parallel to solve complex multi-step tasks", {
+            "type": "object",
+            "properties": {
+                "tasks": {
+                    "type": "array",
+                    "description": "List of sub-agent task definitions with 'role' ('researcher', 'coder', 'tester', 'auditor') and 'task'",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "role": {"type": "string", "enum": ["researcher", "coder", "tester", "auditor"]},
+                            "task": {"type": "string", "description": "Specific instruction for the sub-agent"}
+                        },
+                        "required": ["role", "task"]
+                    }
+                }
+            },
+            "required": ["tasks"]
+        }, lambda args: dispatch_subagents(args["tasks"]), is_safe=False)
+
+        # Database Query & Explorer Tool
+        self.register("query_database", "Inspect table schemas or execute SQL queries on a SQLite database file", {
+            "type": "object",
+            "properties": {
+                "database": {"type": "string", "description": "Path to SQLite database file (e.g. 'users.db', '~/.apex/memory.db')"},
+                "query": {"type": "string", "description": "Optional SQL query to execute. Omit to inspect table schemas"},
+                "limit": {"type": "integer", "description": "Maximum number of rows to return", "default": 50}
+            },
+            "required": ["database"]
+        }, lambda args: query_database(args["database"], args.get("query"), args.get("limit", 50)), is_safe=False)
+
+        # Text-to-Speech (TTS) Voice Synthesis
+        self.register("synthesize_speech", "Synthesize text into an audio MP3 speech file", {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Text to convert into speech audio"},
+                "output_path": {"type": "string", "description": "Optional destination audio file path (.mp3)"},
+                "language": {"type": "string", "description": "Language code (default: 'id' for Indonesian, 'en' for English)", "default": "id"}
+            },
+            "required": ["text"]
+        }, lambda args: synthesize_speech(args["text"], args.get("output_path"), args.get("language", "id")), is_safe=True)
+
+        # Structured Web Scraper
+        self.register("scrape_structured_web", "Scrape a web page and extract clean Markdown content, title, metadata, tables, and links without boilerplate noise", {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "Web URL to scrape (e.g. 'https://example.com')"},
+                "extract_links": {"type": "boolean", "description": "Whether to extract outbound hyperlinks", "default": True},
+                "max_length": {"type": "integer", "description": "Maximum characters of content to extract", "default": 5000}
+            },
+            "required": ["url"]
+        }, lambda args: scrape_structured_web(args["url"], args.get("extract_links", True), args.get("max_length", 5000)), is_safe=True)
+
     def _run_shell_wrapper(self, args: Dict[str, Any]) -> Tuple[bool, str]:
         cmd = args["command"]
         cwd = args.get("cwd")
@@ -331,6 +388,12 @@ class ToolRegistry:
     def get_mcp_tools(self) -> Dict[str, Dict[str, Any]]:
         """Return discovered remote MCP tools."""
         return mcp_manager.discover_all_tools()
+
+    def get_tools(self) -> Dict[str, Dict[str, Any]]:
+        """Return combined dictionary of all active tools (native, custom, and mcp)."""
+        combined = dict(self._tools)
+        combined.update(self.get_mcp_tools())
+        return combined
 
     def is_safe_tool(self, name: str) -> bool:
         """Check if a tool is read-only (safe for parallel dispatch)."""

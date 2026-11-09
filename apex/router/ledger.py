@@ -129,6 +129,17 @@ class TokenLedger:
         self._prune_sliding(time.time())
         return sum(n for _, n in self._sliding_tokens)
 
+    def get_summary(self) -> Dict[str, Any]:
+        """Return structured dictionary of token and cost statistics."""
+        return {
+            "total_requests": self.stats.get("total_requests", 0),
+            "total_prompt_tokens": self.stats.get("total_prompt_tokens", 0),
+            "total_completion_tokens": self.stats.get("total_completion_tokens", 0),
+            "total_cost_usd": self.stats.get("estimated_cost_usd", 0.0),
+            "current_rpm": self.current_rpm,
+            "current_tpm": self.current_tpm
+        }
+
     def get_summary_text(self) -> str:
         """Generate human-readable summary of usage and cost."""
         return (

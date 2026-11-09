@@ -63,6 +63,8 @@ class SlashCommandCompleter(Completer):
         "/skills": "Daftar kemampuan & modular skills terdeteksi",
         "/mcp": "Status dan daftar server MCP multi-ekosistem",
         "/paraphrase": "Uji netralisasi & parafrase prompt anti-refusal",
+        "/web": "Buka Apex Web Dashboard & Chat Console interaktif di browser",
+        "/dashboard": "Buka Apex Web Dashboard & Chat Console interaktif di browser",
         "/clear": "Bersihkan layar & reset memori chat",
         "/help": "Panduan bantuan & daftar perintah lengkap",
         "/exit": "Keluar dari sesi interaktif",
@@ -159,7 +161,7 @@ class PiTerminalTUI:
             f"  [bold white]Workspace   :[/bold white] [dim]{workspace}[/dim]\n"
             f"  [bold white]Backend     :[/bold white] [green]{active_backend}[/green] · [bold magenta]SOUL: Sovereign Zero-Refusal[/bold magenta]\n"
             f"  [bold white]Ekosistem   :[/bold white] [green]{native_count} Native Tools[/green] · [yellow]{custom_count} Custom[/yellow] · [cyan]{mcp_badge}[/cyan] · [magenta]{skills_count} Skills[/magenta]\n\n"
-            f"  [dim]Ketik [bold cyan]/[/bold cyan] untuk menu perintah instan | Pindai: [bold cyan]/scan[/bold cyan] | Tools: [bold cyan]/tools[/bold cyan] | Host: [bold yellow]$ <perintah>[/bold yellow][/dim]",
+            f"  [dim]Ketik [bold cyan]/[/bold cyan] untuk menu | Web UI: [bold cyan]/web[/bold cyan] | Pindai: [bold cyan]/scan[/bold cyan] | Tools: [bold cyan]/tools[/bold cyan] | Host: [bold yellow]$ <perintah>[/bold yellow][/dim]",
             title="[bold cyan]● APEX AGENT[/bold cyan]",
             border_style="cyan",
             padding=(0, 2)
@@ -491,6 +493,19 @@ class PiTerminalTUI:
             p_table.add_row("Payload Rekonstruksi", f"[dim]{reconstructed}[/dim]")
             self.console.print(p_table)
             self.console.print()
+            return True
+
+        elif root_cmd in ["/web", "/dashboard"]:
+            import threading
+            from apex.gateways.web_dashboard import start_web_server
+
+            port = 8000
+            url = f"http://127.0.0.1:{port}"
+            self.console.print(f"[bold cyan]🌐 Memulai Apex Web Dashboard di latar belakang...[/bold cyan]")
+            self.console.print(f"👉 Buka browser Anda di: [bold green]{url}[/bold green]\n")
+
+            t = threading.Thread(target=start_web_server, kwargs={"host": "127.0.0.1", "port": port}, daemon=True)
+            t.start()
             return True
 
         elif root_cmd in ["/clear", "/reset"]:

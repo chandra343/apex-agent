@@ -68,6 +68,11 @@ def main() -> None:
     # ACP
     subparsers.add_parser("acp", help="Start Agent Client Protocol (ACP) server for IDEs")
 
+    # Web Dashboard
+    web_parser = subparsers.add_parser("web", aliases=["dashboard"], help="Launch modern interactive Web UI & Dashboard")
+    web_parser.add_argument("--host", default="127.0.0.1", help="Host interface to bind (default: 127.0.0.1)")
+    web_parser.add_argument("--port", "-p", type=int, default=8000, help="Port to listen on (default: 8000)")
+
     args = parser.parse_args()
 
     # 1. Handle One-Shot Print Mode (-p)
@@ -203,6 +208,11 @@ def main() -> None:
 
     if args.command == "acp":
         run_acp_server()
+        return
+
+    if args.command in ("web", "dashboard"):
+        from apex.gateways.web_dashboard import start_web_server
+        start_web_server(host=args.host, port=args.port)
         return
 
     # 3. Default: Launch Interactive Pi-Style TUI
