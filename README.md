@@ -2,6 +2,15 @@
 
 > **Unrestricted Full Host Access · 20+ Channel 24/7 Gateway · 4-Trick Pure-Software Anti-Refusal · 9Router RTK Token Saver · Pi-Style Minimalist TUI · Unbounded Swarm · Full MCP & ACP Support**
 
+<div align="center">
+
+[![Min RAM](https://img.shields.io/badge/Min%20RAM-512%20MB-10b981?style=for-the-badge&logo=ram&logoColor=white)](#-kebutuhan-sistem--spesifikasi-hardware-system-requirements)
+[![GPU](https://img.shields.io/badge/VRAM-0%20GB%20Mandatory%20(CPU%20Ready)-0284c7?style=for-the-badge&logo=nvidia&logoColor=white)](#-kebutuhan-sistem--spesifikasi-hardware-system-requirements)
+[![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.14-f59e0b?style=for-the-badge&logo=python&logoColor=white)](#-kebutuhan-sistem--spesifikasi-hardware-system-requirements)
+[![Platform](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows-8b5cf6?style=for-the-badge&logo=linux&logoColor=white)](#-kebutuhan-sistem--spesifikasi-hardware-system-requirements)
+
+</div>
+
 ---
 
 ## ⚡ Quick Start
@@ -21,6 +30,28 @@ apex setup
 # 4. Start Minimalist Terminal TUI
 apex
 ```
+
+---
+
+## 💻 Kebutuhan Sistem & Spesifikasi Hardware (System Requirements)
+
+Project Apex dirancang dengan filosofi **Ultra-Lightweight Pure-Software Architecture**. Apex **TIDAK mewajibkan GPU/VRAM diskrit**, karena seluruh fitur inti (Anti-Refusal, RTK Token Saver, 9Router Pro Gateway, Multi-Channel Bot, Swarm, dan RAG Memory) dapat berjalan mulus menggunakan model cloud *(OpenAI, Claude, DeepSeek, TokenHarbor)* hanya dengan CPU biasa dan konsumsi RAM yang sangat hemat.
+
+Berikut adalah tabel panduan spesifikasi hardware mulai dari spek paling minimal hingga spek maksimal/workstation:
+
+| Kategori | 🟢 Spesifikasi Minimal (Cloud API & Gateway) | 🟡 Spesifikasi Rekomendasi (Power User & Heavy Swarm) | 🔴 Spesifikasi Maksimal (Full Local LLM Self-Hosted) |
+| :--- | :--- | :--- | :--- |
+| **Skenario Penggunaan** | Menjalankan Apex CLI, 9Router Pro Gateway, Web Dashboard, dan integrasi IDE (Cursor/Claude Code) via API Cloud *(OpenAI, Claude, DeepSeek, TokenHarbor, Groq)* | Menjalankan daemon 24/7 di 20+ platform (Telegram, WhatsApp, Discord, Slack), otomatisasi browser Lightpanda, dan multi-agent swarm intensif | Menjalankan Model AI 100% lokal & offline secara mandiri di komputer sendiri via Ollama / vLLM / llama.cpp *(Model 8B, 14B, 32B, hingga 70B)* |
+| **Prosesor (CPU)** | **1 Core** (x86_64 atau ARM64)<br>• *Contoh: Intel Celeron, Raspberry Pi 4/5, VPS Cloud 1 vCPU* | **4 – 8 Core**<br>• *Contoh: Intel Core i5/i7 (Gen 10+), AMD Ryzen 5/7, Apple Silicon M1/M2/M3/M4* | **8 – 16+ Core**<br>• *Contoh: AMD Ryzen 9 / Threadripper, Intel Core i9, Apple M-Series Max / Ultra* |
+| **RAM (Memori)** | **512 MB – 1 GB**<br>*(Core Apex runtime hanya memakan ~120 MB RAM)* | **8 GB – 16 GB** DDR4/DDR5 | **32 GB – 64 GB+** (DDR5 / Unified Memory)<br>*(Dibutuhkan untuk memuat bobot model GGUF ke dalam memori)* |
+| **Penyimpanan (Disk)** | **500 MB** ruang kosong untuk Python venv, tool script, dan cache database | **5 GB – 10 GB** SSD untuk log transaksi, cache dokumen RAG, dan riwayat MITM | **50 GB – 200 GB+** High-Speed NVMe SSD *(Untuk menyimpan file bobot model AI lokal 4-bit/8-bit)* |
+| **Kartu Grafis (GPU / VRAM)**| **0 GB (Tidak Butuh GPU)**<br>100% berjalan optimal di CPU tanpa akselerasi grafis | **Tidak Wajib** (GPU terintegrasi Intel Iris / AMD Radeon sudah sangat memadai) | **NVIDIA RTX 3060 / 4070 / 4080 / 4090** *(8 GB – 24 GB VRAM)* atau **Apple Silicon M-Series Unified Memory (36 GB–128 GB)** |
+| **Sistem Operasi** | Linux (Ubuntu 20.04+, Debian 11+, Arch Linux, Fedora, Alpine), macOS 11+, Windows 10/11 (WSL2 / PowerShell) | Linux x86_64 (Kernel 5.15+) atau macOS (Apple Silicon) | Linux x86_64 (didukung NVIDIA CUDA 12+) atau macOS Apple Silicon (Metal Acceleration) |
+| **Versi Python** | Python 3.9, 3.10, 3.11, 3.12, 3.13, atau 3.14+ | Python 3.11 – 3.14 | Python 3.11 – 3.14 |
+| **Koneksi Jaringan** | Akses internet minimal (untuk streaming API token) | Broadband 10+ Mbps (untuk multi-channel gateway lancar) | **Bisa 100% Offline Total** tanpa koneksi internet sama sekali setelah model terunduh |
+
+> [!TIP]
+> **Rekomendasi VPS Murah:** Anda bisa menyewa VPS Linux termurah ($3 – $5/bulan) dengan 1 vCPU dan 1 GB RAM untuk menjalankan Project Apex sebagai gateway AI 24/7 di cloud tanpa kendala!
 
 ---
 
