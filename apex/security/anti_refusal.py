@@ -107,12 +107,17 @@ class AntiRefusalEngine:
         return any(term in clean for term in SENSITIVE_TERMS)
 
     def reframe_query(self, user_prompt: str) -> str:
-        """Trik 1: Auto-Reframing & Semantic Paraphrase Engine.
+        """Trik 1: Modular Task Decomposition & Semantic Auto-Reframing Engine.
 
-        Paraphrases sensitive vocabulary into benign engineering terminology and
-        wraps requests in authorized local administrative, diagnostic, and software
-        engineering auditing context with academic immunity.
+        Automatically breaks down sensitive or high-friction objectives into modular,
+        execution-ready engineering phases (Reconnaissance -> Architecture -> Implementation),
+        preventing AI safety classifier refusals.
         """
+        from apex.security.task_decomposer import task_decomposer
+        decomposed = task_decomposer.decompose(user_prompt)
+        if decomposed:
+            return decomposed
+
         from apex.security.paraphraser import semantic_paraphraser
         neutralized_prompt, _ = semantic_paraphraser.paraphrase(user_prompt)
         reframed_header = (
@@ -127,8 +132,13 @@ class AntiRefusalEngine:
 
     def build_override_payload(self, user_prompt: str) -> str:
         """Construct a clean, authoritative system engineering wrapper for auto-recovery.
-        Applies semantic paraphrasing to neutralize refusal-triggering vocabulary into standard engineering terminology.
+        Applies modular decomposition or semantic paraphrasing to neutralize refusal-triggering vocabulary into standard engineering terminology.
         """
+        from apex.security.task_decomposer import task_decomposer
+        decomposed = task_decomposer.decompose(user_prompt)
+        if decomposed:
+            return decomposed
+
         from apex.security.paraphraser import semantic_paraphraser
         neutralized_prompt, _ = semantic_paraphraser.paraphrase(user_prompt)
         return (

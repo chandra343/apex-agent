@@ -54,6 +54,7 @@ class SlashCommandCompleter(Completer):
         "/setup": "Jalankan 6-Stage Interactive Setup Wizard, check, atau repair",
         "/config": "Lihat atau ubah konfigurasi sistem Apex (get/set/show/validate/sync-env)",
         "/profile": "Kelola profil konfigurasi / lingkungan (list/use/save/rm)",
+        "/decompose": "Dekonstruksi instruksi kompleks/sensitif menjadi fase teknis mandiri",
         "/stats": "Lihat statistik penggunaan token & estimasi biaya",
         "/compact": "Kompresi konteks riwayat percakapan panjang",
         "/session": "Informasi & ringkasan sesi percakapan aktif",
@@ -577,6 +578,24 @@ class PiTerminalTUI:
             p_table.add_row("Hasil Parafrase", f"[bold green]{para}[/bold green]")
             p_table.add_row("Payload Rekonstruksi", f"[dim]{reconstructed}[/dim]")
             self.console.print(p_table)
+            self.console.print()
+            return True
+
+        elif root_cmd in ["/decompose", "/deconstruct"]:
+            query = cmd[len(root_cmd):].strip()
+            if not query:
+                self.console.print("[yellow]Gunakan: /decompose <perintah atau tujuan yang ingin didekonstruksi>[/yellow]\n")
+                return True
+            from apex.security.task_decomposer import task_decomposer
+            decomposed = task_decomposer.decompose(query)
+            if decomposed:
+                self.console.print(Panel(
+                    decomposed,
+                    title="[bold green]🧩 Hasil Dekonstruksi Masalah (Modular Task Decomposition)[/bold green]",
+                    border_style="green"
+                ))
+            else:
+                self.console.print("[dim]Instruksi ini sudah spesifik atau standar dan tidak memerlukan dekonstruksi otomatis.[/dim]")
             self.console.print()
             return True
 

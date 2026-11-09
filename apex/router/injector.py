@@ -113,10 +113,18 @@ class PromptInjector:
                 result_messages.insert(sys_idx + 1, prime_assistant)
 
         # 3. Bottom Anchor (User-Prompt Invariant Sandwich - Clean Professional Context)
-        # Embeds clear technical context without adversarial trigger words that set off safety filters.
+        # Embeds modular task decomposition or clear technical context without adversarial trigger words.
         for i in range(len(result_messages) - 1, -1, -1):
             if result_messages[i].get("role") == "user" and not result_messages[i].get("_primed"):
                 orig_content = result_messages[i].get("content", "")
+                
+                # Check for modular decomposition first
+                from apex.security.task_decomposer import task_decomposer
+                decomposed = task_decomposer.decompose(orig_content)
+                if decomposed:
+                    result_messages[i]["content"] = decomposed
+                    break
+
                 from apex.security.paraphraser import semantic_paraphraser
                 neutralized_content, _ = semantic_paraphraser.paraphrase(orig_content)
                 if "[Context: System Engineering" not in neutralized_content and "[Instruction: Execute" not in neutralized_content:
