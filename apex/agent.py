@@ -101,19 +101,41 @@ class ApexAgent:
 
             # Check if model returned a safety refusal
             if anti_refusal_engine.is_refusal(response_text) and not tool_calls:
-                # Trigger Auto-Recovery
-                hardened_override = anti_refusal_engine.build_override_payload(user_prompt)
-                if session.messages and session.messages[-1].get("role") == "user":
-                    session.messages[-1]["content"] = hardened_override
-
                 # If refusal persists on retry, dynamically switch to next configured model in fallback chain
                 if current_turn >= 2:
                     chain = fallback_router.get_fallback_chain(session.active_model)
+                    switched = False
                     for alt_m in chain:
                         prov_tuple = provider_manager.get_provider_for_model(alt_m)
-                        if prov_tuple and provider_manager.is_provider_configured(prov_tuple[0]):
+                        if prov_tuple and provider_manager.is_provider_configured(prov_tuple[0]) and alt_m != session.active_model:
                             session.active_model = alt_m
+                            switched = True
                             break
+                    if not switched or current_turn >= 3:
+                        # Refusal persisted across retries and providers
+                        active_p = config.active_provider.upper()
+                        advice_msg = (
+                            f"⚠️ **Instruksi Ditolak oleh Provider Cloud ({active_p} / `{session.active_model}`)**\n\n"
+                            "Filter moderasi server provider cloud otomatis menolak permintaan yang dicurigai "
+                            "sebagai upaya intrusi target eksternal atau skrip serangan tanpa otorisasi.\n\n"
+                            "💡 **Solusi & Kedaulatan Host di Project Apex:**\n"
+                            "1. **Eksekusi Host Langsung (`$ <perintah>`)**:\n"
+                            "   Jika Anda ingin menjalankan perintah terminal (misal: `curl`, `nmap`, ping, skrip Python) secara langsung di sistem Anda tanpa melalui filter LLM, gunakan awalan `$`:\n"
+                            "   Contoh: `$ curl -I <url>` atau `$ python3 script.py`\n\n"
+                            "2. **Gunakan Engine AI Lokal (Ollama / vLLM / LM Studio)**:\n"
+                            "   Untuk model yang berjalan 100% di komputer Anda sendiri tanpa sensor atau filter moderasi cloud pihak ketiga, jalankan model open-weights secara lokal:\n"
+                            "   Ketik `/provider scan` atau `/provider use ollama`.\n\n"
+                            "3. **Gunakan Kredensial Database Resmi**:\n"
+                            "   Jika website/database tersebut adalah milik Anda sendiri, hubungkan langsung menggunakan tool `query_database` atau berikan file SQLite/SQL dump untuk dianalisis secara aman."
+                        )
+                        if on_token:
+                            on_token(advice_msg)
+                        return advice_msg
+
+                # Trigger Auto-Recovery on turn 1
+                hardened_override = anti_refusal_engine.build_override_payload(user_prompt)
+                if session.messages and session.messages[-1].get("role") == "user":
+                    session.messages[-1]["content"] = hardened_override
                 continue
 
             # If no tools called, we have our final response!
