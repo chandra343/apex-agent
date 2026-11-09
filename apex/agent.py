@@ -83,11 +83,27 @@ class ApexAgent:
             # Apply 3-Layer Prompt Injections & Chat Script Priming
             injected_messages = prompt_injector.apply_injection(raw_messages, session.active_model)
 
+            # Determine dynamic tool choice: enforce tool invocation on action turns
+            tool_choice = "auto"
+            if current_turn == 1:
+                from apex.security.task_decomposer import task_decomposer
+                is_action_prompt = (
+                    task_decomposer.should_decompose(user_prompt) or
+                    any(act in user_prompt.lower() for act in [
+                        "jalankan", "buatkan", "cek", "analisis", "tuliskan",
+                        "cari", "test", "run", "check", "inspect", "ping",
+                        "baca", "eksekusi", "masuk", "periksa", "ukur"
+                    ])
+                )
+                if is_action_prompt:
+                    tool_choice = "required"
+
             # Call LLM with 3-tier fallback
             call_res = self._call_llm_with_fallback(
                 messages=injected_messages,
                 active_model=session.active_model,
-                on_token=on_token
+                on_token=on_token,
+                tool_choice=tool_choice
             )
 
             if not call_res["success"]:
@@ -281,7 +297,8 @@ class ApexAgent:
         self,
         messages: List[Dict[str, Any]],
         active_model: str,
-        on_token: Optional[Callable[[str], None]]
+        on_token: Optional[Callable[[str], None]],
+        tool_choice: str = "auto"
     ) -> Dict[str, Any]:
         """Call LLM provider, seamlessly falling back through 3 tiers if rate-limited."""
         candidate_models = [active_model] + fallback_router.get_fallback_chain(active_model)
@@ -305,7 +322,8 @@ class ApexAgent:
                 api_key=api_key,
                 base_url=base_url,
                 messages=messages,
-                on_token=on_token
+                on_token=on_token,
+                tool_choice=tool_choice
             )
 
             if res["success"]:
@@ -337,14 +355,15 @@ class ApexAgent:
         api_key: str,
         base_url: str,
         messages: List[Dict[str, Any]],
-        on_token: Optional[Callable[[str], None]]
+        on_token: Optional[Callable[[str], None]],
+        tool_choice: str = "auto"
     ) -> Dict[str, Any]:
         """Dispatch HTTP request to OpenAI or Anthropic format."""
         tools_defs = tool_registry.get_all_tool_definitions()
 
         # Handle Anthropic Messages format
         if provider_name in ["anthropic", "claude-code"]:
-            return self._call_anthropic(model_name, api_key, base_url, messages, tools_defs, on_token)
+            return self._call_anthropic(model_name, api_key, base_url, messages, tools_defs, on_token, tool_choice)
 
         # Handle Google Antigravity CloudCode internal format
         if provider_name == "antigravity":
@@ -437,10 +456,13 @@ class ApexAgent:
         }
         if tools_defs:
             payload["tools"] = tools_defs
-            payload["tool_choice"] = "auto"
+            payload["tool_choice"] = tool_choice
 
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=90)
+            if resp.status_code == 400 and tool_choice != "auto" and "tool_choice" in resp.text:
+                payload["tool_choice"] = "auto"
+                resp = requests.post(url, headers=headers, json=payload, timeout=90)
             if resp.status_code != 200:
                 return {
                     "success": False,
@@ -477,7 +499,8 @@ class ApexAgent:
         base_url: str,
         messages: List[Dict[str, Any]],
         tools_defs: List[Dict[str, Any]],
-        on_token: Optional[Callable[[str], None]]
+        on_token: Optional[Callable[[str], None]],
+        tool_choice: str = "auto"
     ) -> Dict[str, Any]:
         """Dispatch request to Anthropic Messages API."""
         url = f"{base_url}/messages"
@@ -516,6 +539,10 @@ class ApexAgent:
             payload["system"] = system_prompt.strip()
         if anthropic_tools:
             payload["tools"] = anthropic_tools
+            if tool_choice == "required":
+                payload["tool_choice"] = {"type": "any"}
+            else:
+                payload["tool_choice"] = {"type": "auto"}
 
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=90)
