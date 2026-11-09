@@ -44,3 +44,58 @@ def test_export_and_import_config(tmp_path):
 
     import_config(str(export_file))
     assert config.default_model == data["default_model"]
+
+
+def test_profile_cli(capsys):
+    from apex.gateways.config_cli import profile_cli
+
+    # Save
+    profile_cli("save", "cli_test_prof")
+    out = capsys.readouterr().out
+    assert "cli_test_prof" in out
+
+    # List
+    profile_cli("list")
+    out = capsys.readouterr().out
+    assert "cli_test_prof" in out
+
+    # Use
+    profile_cli("use", "cli_test_prof")
+    out = capsys.readouterr().out
+    assert "Berhasil beralih" in out
+
+    # Switch back and remove
+    profile_cli("use", "default")
+    profile_cli("rm", "cli_test_prof")
+    out = capsys.readouterr().out
+    assert "berhasil dihapus" in out
+
+
+def test_sync_env_and_validate_cli(capsys):
+    from apex.gateways.config_cli import sync_env_cli, validate_cli
+    sync_env_cli()
+    out = capsys.readouterr().out
+    assert "Environment" in out
+
+    validate_cli()
+    out = capsys.readouterr().out
+    assert "HEALTH CHECK" in out
+
+
+def test_setup_health_and_quick(tmp_path):
+    from apex.gateways.setup_wizard import check_setup_health, repair_setup, quick_setup
+
+    assert check_setup_health() is True
+    actions = repair_setup()
+    assert len(actions) > 0
+
+    ws = tmp_path / "quick_ws"
+    ws.mkdir()
+    ok = quick_setup(
+        provider="tokenharbor",
+        model="mimo-v2.6-flash:free",
+        workspace=str(ws)
+    )
+    assert ok is True
+    assert config.active_provider == "tokenharbor"
+

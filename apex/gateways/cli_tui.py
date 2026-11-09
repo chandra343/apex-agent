@@ -51,8 +51,9 @@ class SlashCommandCompleter(Completer):
         "/tools": "Daftar seluruh tool aktif (Native, Custom User, MCP)",
         "/model": "Ganti model AI aktif (TokenHarbor, Antigravity, dll)",
         "/provider": "Buka Rak Provider AI (9Router Pro Shelf)",
-        "/setup": "Jalankan 6-Stage Interactive Setup Wizard",
-        "/config": "Lihat atau ubah konfigurasi sistem Apex (get/set/show)",
+        "/setup": "Jalankan 6-Stage Interactive Setup Wizard, check, atau repair",
+        "/config": "Lihat atau ubah konfigurasi sistem Apex (get/set/show/validate/sync-env)",
+        "/profile": "Kelola profil konfigurasi / lingkungan (list/use/save/rm)",
         "/stats": "Lihat statistik penggunaan token & estimasi biaya",
         "/compact": "Kompresi konteks riwayat percakapan panjang",
         "/session": "Informasi & ringkasan sesi percakapan aktif",
@@ -239,19 +240,38 @@ class PiTerminalTUI:
             return True
 
         elif root_cmd == "/setup":
-            from apex.gateways.setup_wizard import run_setup
-            run_setup()
-            self.print_welcome()
+            from apex.gateways.setup_wizard import run_setup, check_setup_health, repair_setup
+            if len(parts) > 1 and parts[1] == "check":
+                check_setup_health(self.console)
+            elif len(parts) > 1 and parts[1] == "repair":
+                repair_setup(self.console)
+            else:
+                run_setup()
+                self.print_welcome()
             return True
 
         elif root_cmd == "/config":
-            from apex.gateways.config_cli import show_config_dashboard, get_config_value, set_config_value
+            from apex.gateways.config_cli import (
+                show_config_dashboard, get_config_value, set_config_value,
+                sync_env_cli, validate_cli
+            )
             if len(parts) == 1 or (len(parts) == 2 and parts[1] == "show"):
                 show_config_dashboard()
+            elif len(parts) == 2 and parts[1] == "validate":
+                validate_cli()
+            elif len(parts) == 2 and parts[1] == "sync-env":
+                sync_env_cli()
             elif len(parts) == 2:
                 get_config_value(parts[1])
             elif len(parts) >= 3:
                 set_config_value(parts[1], " ".join(parts[2:]))
+            return True
+
+        elif root_cmd == "/profile":
+            from apex.gateways.config_cli import profile_cli
+            subaction = parts[1] if len(parts) > 1 else "list"
+            name = parts[2] if len(parts) > 2 else ""
+            profile_cli(subaction, name)
             return True
 
         elif root_cmd == "/backend":

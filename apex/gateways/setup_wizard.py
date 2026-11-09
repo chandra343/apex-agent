@@ -1247,3 +1247,105 @@ def run_setup() -> None:
     """Entry point for `apex setup` command."""
     wizard = SetupWizard()
     wizard.run()
+
+
+def check_setup_health(console: Optional[Console] = None) -> bool:
+    """Non-interactive health & integrity check for Apex setup and configuration."""
+    c = console or Console()
+    report = config.validate_config()
+    
+    c.print(Panel.fit(
+        f"[bold cyan]🔍 PROJECT APEX — SETUP & ENVIRONMENT HEALTH CHECK[/bold cyan]\n"
+        f"[dim]Profil Aktif: [bold white]{report.get('profile', 'default')}[/bold white] | Config: {CONFIG_FILE}[/dim]",
+        border_style="cyan"
+    ))
+
+    table = Table(title="[bold]📋 Status Pemeriksaan Komponen & Direktori[/bold]", show_lines=True)
+    table.add_column("Komponen / Target", style="bold white")
+    table.add_column("Path / Nilai", style="cyan")
+    table.add_column("Status", justify="center")
+
+    for item in report.get("checks", []):
+        st = item.get("status", "UNKNOWN")
+        if st == "PASS":
+            badge = "[bold green]✔ PASS[/bold green]"
+        elif st == "WARN":
+            badge = "[bold yellow]⚠ WARN[/bold yellow]"
+        else:
+            badge = "[bold red]✖ FAIL[/bold red]"
+
+        path_val = item.get("path") or item.get("model") or "-"
+        table.add_row(item.get("item", "-"), path_val, badge)
+
+    c.print(table)
+
+    issues = report.get("issues", [])
+    if issues:
+        c.print()
+        c.print("[bold yellow]⚠️ Peringatan / Masalah Terdeteksi:[/bold yellow]")
+        for iss in issues:
+            c.print(f"  • [yellow]{iss}[/yellow]")
+        c.print("\n[dim]Tips: Jalankan [bold cyan]apex setup --repair[/bold cyan] untuk memperbaiki masalah otomatis.[/dim]")
+    else:
+        c.print()
+        c.print("[bold green]✔ Semua direktori, file konfigurasi, dan komponen sistem dalam kondisi prima![/bold green]")
+
+    return report.get("valid", False)
+
+
+def repair_setup(console: Optional[Console] = None) -> list[str]:
+    """Auto-repair missing directories, corrupt keys, or invalid paths."""
+    c = console or Console()
+    c.print("[bold yellow]🛠️ Menjalankan Diagnostik & Perbaikan Otomatis Konfigurasi Apex...[/bold yellow]")
+    actions = config.repair_config()
+    for act in actions:
+        c.print(f"  [bold green]✔[/bold green] {act}")
+    c.print("[bold green]✨ Proses pemulihan konfigurasi selesai dengan sukses![/bold green]")
+    return actions
+
+
+def quick_setup(
+    provider: str = "",
+    model: str = "",
+    api_key: str = "",
+    workspace: str = "",
+    gateway: str = "",
+    console: Optional[Console] = None
+) -> bool:
+    """Non-interactive fast setup for scripting, Docker, and CI/CD."""
+    c = console or Console()
+    c.print("[bold cyan]⚡ PROJECT APEX — QUICK HEADLESS SETUP[/bold cyan]")
+
+    config.ensure_directories()
+    
+    if provider:
+        p_clean = provider.strip().lower()
+        config.set("active_provider", p_clean, auto_save=False)
+        c.print(f"  [bold green]✔[/bold green] Set active_provider -> [cyan]{p_clean}[/cyan]")
+        if api_key:
+            config.set(f"providers.{p_clean}.api_key", api_key.strip(), auto_save=False)
+            c.print(f"  [bold green]✔[/bold green] Set credentials for [cyan]{p_clean}[/cyan]")
+        if model:
+            config.set("default_model", model.strip(), auto_save=False)
+            # Add to provider models list if not present
+            prov_models = config.get(f"providers.{p_clean}.models", [])
+            if model.strip() not in prov_models:
+                prov_models.append(model.strip())
+                config.set(f"providers.{p_clean}.models", prov_models, auto_save=False)
+            c.print(f"  [bold green]✔[/bold green] Set default_model -> [yellow]{model.strip()}[/yellow]")
+
+    if workspace:
+        resolved_ws = str(Path(workspace).expanduser().resolve())
+        config.set("paths.workspace", resolved_ws, auto_save=False)
+        c.print(f"  [bold green]✔[/bold green] Set workspace -> [cyan]{resolved_ws}[/cyan]")
+
+    if gateway:
+        gw_list = [g.strip().lower() for g in gateway.split(",") if g.strip()]
+        config.set("gateways.enabled", gw_list, auto_save=False)
+        c.print(f"  [bold green]✔[/bold green] Set enabled gateways -> [green]{gw_list}[/green]")
+
+    # Run auto-healing repair to ensure defaults
+    config.repair_config()
+    c.print("[bold green]🎉 Konfigurasi berhasil disimpan dan siap digunakan![/bold green]")
+    return True
+

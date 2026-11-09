@@ -31,3 +31,31 @@ def test_manage_config_set():
 def test_manage_config_invalid():
     res = manage_system_config("unknown_action")
     assert "tidak dikenali" in res
+
+
+def test_manage_config_profiles():
+    # Save test profile
+    save_res = manage_system_config("profile_save", value="test_ops_env")
+    assert "Berhasil Disimpan" in save_res
+
+    # List profiles
+    list_res = manage_system_config("profile_list")
+    assert "test_ops_env" in list_res
+
+    # Switch profile
+    use_res = manage_system_config("profile_use", value="test_ops_env")
+    assert "Berhasil Beralih" in use_res
+
+    # Switch back to default
+    manage_system_config("profile_use", value="default")
+    config.delete_profile("test_ops_env")
+
+
+def test_manage_config_validate_and_sync():
+    val_res = manage_system_config("validate")
+    assert "Hasil Validasi Konfigurasi & Setup" in val_res
+    assert "PASS" in val_res
+
+    sync_res = manage_system_config("sync_env")
+    assert "Kredensial" in sync_res or "Tidak ada" in sync_res
+

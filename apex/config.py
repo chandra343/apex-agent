@@ -10,6 +10,7 @@ from typing import Any
 HOME_DIR = Path.home()
 DATA_DIR = HOME_DIR / ".apex"
 CONFIG_FILE = DATA_DIR / "apex.json"
+PROFILES_DIR = DATA_DIR / "profiles"
 CHECKPOINTS_DIR = DATA_DIR / "checkpoints"
 LOGS_DIR = DATA_DIR / "logs"
 SESSIONS_DIR = DATA_DIR / "sessions"
@@ -41,6 +42,7 @@ def _build_default_providers() -> dict[str, Any]:
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "version": "1.0.0",
+    "profile_name": "default",
     "default_model": "claude-3-7-sonnet-latest",
     "active_provider": "antigravity",
     "active_backend": "local",
@@ -111,6 +113,7 @@ class ConfigManager:
         CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
         SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        PROFILES_DIR.mkdir(parents=True, exist_ok=True)
         SKILLS_DIR.mkdir(parents=True, exist_ok=True)
         CUSTOM_TOOLS_DIR.mkdir(parents=True, exist_ok=True)
         (DATA_DIR / "cron").mkdir(parents=True, exist_ok=True)
@@ -202,6 +205,236 @@ class ConfigManager:
         if ws:
             return Path(ws).expanduser().resolve()
         return HOME_DIR
+
+    @property
+    def profile_name(self) -> str:
+        return self.get("profile_name", "default")
+
+    def list_profiles(self) -> list[dict[str, Any]]:
+        """List all saved configuration profiles."""
+        self.ensure_directories()
+        profiles = []
+        active = self.profile_name
+
+        # Ensure 'default' exists if no profiles exist
+        default_file = PROFILES_DIR / "default.json"
+        if not default_file.exists():
+            try:
+                with open(default_file, "w", encoding="utf-8") as f:
+                    json.dump(self._config, f, indent=2)
+            except Exception:
+                pass
+
+        for p_file in sorted(PROFILES_DIR.glob("*.json")):
+            p_name = p_file.stem
+            try:
+                with open(p_file, "r", encoding="utf-8") as f:
+                    p_data = json.load(f)
+                profiles.append({
+                    "name": p_name,
+                    "active": (p_name == active),
+                    "model": p_data.get("default_model", "unknown"),
+                    "provider": p_data.get("active_provider", "unknown"),
+                    "backend": p_data.get("active_backend", "local"),
+                    "updated_at": p_file.stat().st_mtime
+                })
+            except Exception:
+                profiles.append({"name": p_name, "active": (p_name == active), "error": "Invalid JSON"})
+        return profiles
+
+    def save_profile(self, name: str) -> bool:
+        """Save current configuration as a named profile."""
+        import re
+        safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", name.strip())
+        if not safe_name:
+            return False
+        self.ensure_directories()
+        self.set("profile_name", safe_name, auto_save=False)
+        target = PROFILES_DIR / f"{safe_name}.json"
+        try:
+            with open(target, "w", encoding="utf-8") as f:
+                json.dump(self._config, f, indent=2)
+            self.save()
+            return True
+        except Exception:
+            return False
+
+    def load_profile(self, name: str) -> bool:
+        """Load and apply a named configuration profile."""
+        import re
+        safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", name.strip())
+        target = PROFILES_DIR / f"{safe_name}.json"
+        if not target.exists():
+            return False
+        try:
+            with open(target, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            merged = json.loads(json.dumps(DEFAULT_CONFIG))
+            self._deep_merge(merged, loaded)
+            merged["profile_name"] = safe_name
+            self._config = merged
+            self.save()
+            return True
+        except Exception:
+            return False
+
+    def delete_profile(self, name: str) -> bool:
+        """Delete a named profile (cannot delete currently active profile)."""
+        import re
+        safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", name.strip())
+        if safe_name == self.profile_name:
+            return False
+        target = PROFILES_DIR / f"{safe_name}.json"
+        if target.exists():
+            target.unlink(missing_ok=True)
+            return True
+        return False
+
+    def validate_config(self) -> dict[str, Any]:
+        """Validate integrity and health of configuration and directories."""
+        checks = []
+        issues = []
+
+        # 1. Directory Checks
+        dirs_to_check = [
+            ("Root Data Directory", DATA_DIR),
+            ("Checkpoints Directory", CHECKPOINTS_DIR),
+            ("Logs Directory", LOGS_DIR),
+            ("Sessions Directory", SESSIONS_DIR),
+            ("Profiles Directory", PROFILES_DIR),
+            ("Skills Directory", SKILLS_DIR),
+            ("Custom Tools Directory", CUSTOM_TOOLS_DIR),
+        ]
+        for name, d in dirs_to_check:
+            exists = d.exists()
+            writable = os.access(d, os.W_OK) if exists else False
+            status = "PASS" if exists and writable else "FAIL"
+            checks.append({"item": name, "path": str(d), "status": status})
+            if not exists or not writable:
+                issues.append(f"Directory {name} ({d}) is not accessible or writable.")
+
+        # 2. Config File Check
+        cfg_status = "PASS" if CONFIG_FILE.exists() else "WARN"
+        checks.append({"item": "Configuration File", "path": str(CONFIG_FILE), "status": cfg_status})
+        if not CONFIG_FILE.exists():
+            issues.append(f"Config file not found at {CONFIG_FILE}.")
+
+        # 3. Model & Provider Check
+        active_p = self.active_provider
+        default_m = self.default_model
+        p_data = self.get(f"providers.{active_p}", {})
+        has_key = bool(p_data.get("api_key") and p_data.get("api_key") != "")
+        
+        prov_status = "PASS" if (p_data and (has_key or p_data.get("base_url"))) else "WARN"
+        checks.append({
+            "item": f"Active Provider ({active_p})",
+            "model": default_m,
+            "status": prov_status,
+            "has_key": has_key
+        })
+        if prov_status != "PASS":
+            issues.append(f"Active provider '{active_p}' might lack valid credentials or configuration.")
+
+        # 4. Workspace Check
+        ws = self.workspace
+        ws_ok = ws.exists() and os.access(ws, os.W_OK)
+        checks.append({"item": "Active Workspace", "path": str(ws), "status": "PASS" if ws_ok else "WARN"})
+        if not ws_ok:
+            issues.append(f"Workspace path {ws} does not exist or is read-only.")
+
+        # 5. Fallback Tiers Check
+        tiers = self.get("fallback_tiers", {})
+        tiers_ok = isinstance(tiers, dict) and bool(tiers)
+        checks.append({"item": "Fallback Tiers", "status": "PASS" if tiers_ok else "FAIL"})
+        if not tiers_ok:
+            issues.append("Fallback tiers configuration is missing or malformed.")
+
+        return {
+            "valid": len(issues) == 0,
+            "checks": checks,
+            "issues": issues,
+            "profile": self.profile_name
+        }
+
+    def repair_config(self) -> list[str]:
+        """Automatically repair missing directories, corrupt keys, or invalid paths."""
+        actions_taken = []
+        
+        # 1. Re-create directories
+        self.ensure_directories()
+        actions_taken.append("Ensured all system data directories exist.")
+
+        # 2. Merge missing defaults
+        merged = json.loads(json.dumps(DEFAULT_CONFIG))
+        self._deep_merge(merged, self._config)
+        self._config = merged
+
+        # 3. Ensure active provider and model are set
+        if not self.get("active_provider"):
+            self.set("active_provider", "tokenharbor", auto_save=False)
+            actions_taken.append("Reset active_provider to 'tokenharbor'.")
+        if not self.get("default_model"):
+            self.set("default_model", "mimo-v2.6-flash:free", auto_save=False)
+            actions_taken.append("Reset default_model to 'mimo-v2.6-flash:free'.")
+
+        # 4. Ensure workspace is valid
+        ws = self.get("paths.workspace")
+        if not ws or not Path(ws).exists():
+            self.set("paths.workspace", str(HOME_DIR), auto_save=False)
+            actions_taken.append(f"Reset workspace path to user home: {HOME_DIR}")
+
+        # 5. Persist
+        self.save()
+        actions_taken.append(f"Configuration file saved cleanly to {CONFIG_FILE}.")
+        return actions_taken
+
+    def sync_environment_keys(self, env_file_path: str | None = None) -> list[str]:
+        """Scan environment variables and optional .env file to update provider keys."""
+        updated = []
+        env_dict = dict(os.environ)
+
+        # Parse .env file if present in workspace or repo root
+        target_env = Path(env_file_path) if env_file_path else (self.workspace / ".env")
+        if not target_env.exists():
+            target_env = PKG_ROOT.parent / ".env"
+
+        if target_env.exists():
+            try:
+                with open(target_env, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k, v = k.strip(), v.strip().strip("'\"")
+                            if k not in env_dict or not env_dict[k]:
+                                env_dict[k] = v
+            except Exception:
+                pass
+
+        providers = self.get("providers", {})
+        for p_id, p_info in providers.items():
+            env_candidates = [
+                f"{p_id.upper().replace('-', '_')}_API_KEY",
+                f"{p_id.upper().replace('-', '_')}_KEY",
+                f"{p_id.upper().replace('-', '_')}_TOKEN",
+            ]
+            for cand in env_candidates:
+                val = env_dict.get(cand)
+                if val and val != p_info.get("api_key") and val != "none":
+                    p_info["api_key"] = val
+                    self.set(f"providers.{p_id}.api_key", val, auto_save=False)
+                    updated.append(f"{p_id} (via {cand})")
+                    break
+
+        # Check Telegram Bot Token
+        tg_token = env_dict.get("TELEGRAM_BOT_TOKEN")
+        if tg_token and tg_token != self.get("gateways.telegram.token"):
+            self.set("gateways.telegram.token", tg_token, auto_save=False)
+            updated.append("Telegram Gateway (via TELEGRAM_BOT_TOKEN)")
+
+        if updated:
+            self.save()
+        return updated
 
 
 # Global singleton instance

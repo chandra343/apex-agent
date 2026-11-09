@@ -30,7 +30,15 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # Setup
-    subparsers.add_parser("setup", help="Run 6-stage interactive setup wizard")
+    setup_parser = subparsers.add_parser("setup", help="Run 6-stage interactive setup wizard, healthcheck, or quick setup")
+    setup_parser.add_argument("--check", action="store_true", help="Check setup health and directory permissions")
+    setup_parser.add_argument("--repair", action="store_true", help="Auto-repair missing directories and configs")
+    setup_parser.add_argument("--quick", action="store_true", help="Fast headless non-interactive setup")
+    setup_parser.add_argument("--provider", "-p", default="", help="Provider ID for quick setup (e.g. tokenharbor, ollama)")
+    setup_parser.add_argument("--model", "-m", default="", help="Model name for quick setup")
+    setup_parser.add_argument("--key", "-k", default="", help="API key for quick setup")
+    setup_parser.add_argument("--workspace", "-w", default="", help="Workspace directory for quick setup")
+    setup_parser.add_argument("--gateway", "-g", default="", help="Comma-separated gateways (e.g. cli,telegram)")
 
     # Config
     cfg_parser = subparsers.add_parser("config", help="View, update, test, export, or reset system configurations")
@@ -46,6 +54,12 @@ def main() -> None:
     cfg_export.add_argument("output", nargs="?", default="", help="Optional destination file path")
     cfg_import = cfg_sub.add_parser("import", help="Import configuration from JSON file")
     cfg_import.add_argument("file", help="Path to JSON file to import")
+    cfg_prof = cfg_sub.add_parser("profile", help="Manage configuration profiles (environments)")
+    cfg_prof.add_argument("subaction", nargs="?", default="list", choices=["list", "use", "save", "rm", "delete"], help="Profile operation")
+    cfg_prof.add_argument("name", nargs="?", default="", help="Profile name")
+    cfg_sub.add_parser("validate", help="Validate configuration and system directories")
+    cfg_sync = cfg_sub.add_parser("sync-env", help="Synchronize credentials from environment variables and .env file")
+    cfg_sync.add_argument("--env-file", default="", help="Optional path to .env file")
 
     # TUI
     subparsers.add_parser("tui", help="Launch interactive Pi-style terminal TUI")
@@ -98,13 +112,28 @@ def main() -> None:
 
     # 2. Handle Subcommands
     if args.command == "setup":
-        run_setup()
+        from apex.gateways.setup_wizard import check_setup_health, repair_setup, quick_setup, run_setup
+        if args.check:
+            check_setup_health()
+        elif args.repair:
+            repair_setup()
+        elif args.quick:
+            quick_setup(
+                provider=args.provider,
+                model=args.model,
+                api_key=args.key,
+                workspace=args.workspace,
+                gateway=args.gateway
+            )
+        else:
+            run_setup()
         return
 
     if args.command == "config":
         from apex.gateways.config_cli import (
             show_config_dashboard, get_config_value, set_config_value,
-            reset_config, export_config, import_config
+            reset_config, export_config, import_config,
+            profile_cli, sync_env_cli, validate_cli
         )
         if args.action == "get":
             get_config_value(args.key)
@@ -116,6 +145,12 @@ def main() -> None:
             export_config(args.output or None)
         elif args.action == "import":
             import_config(args.file)
+        elif args.action == "profile":
+            profile_cli(args.subaction, args.name)
+        elif args.action == "validate":
+            validate_cli()
+        elif args.action == "sync-env":
+            sync_env_cli(args.env_file or None)
         else:
             show_config_dashboard()
         return

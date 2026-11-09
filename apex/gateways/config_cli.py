@@ -155,3 +155,80 @@ def import_config(src_path: str) -> None:
         console.print(f"[bold green]✔ Konfigurasi berhasil diimpor dari:[/bold green] [cyan]{src.resolve()}[/cyan]\n")
     except Exception as e:
         console.print(f"[red]✖ Gagal mengimpor konfigurasi: {e}[/red]")
+
+
+def profile_cli(action: str, name: str = "") -> None:
+    """Manage configuration profiles (list, use, save, rm)."""
+    action = (action or "list").lower()
+    
+    if action == "list":
+        profiles = config.list_profiles()
+        table = Table(title="🗂️ Profil Konfigurasi Project Apex", show_lines=True, border_style="cyan")
+        table.add_column("Nama Profil", style="bold cyan")
+        table.add_column("Status Aktif", justify="center")
+        table.add_column("Model Default", style="yellow")
+        table.add_column("Provider", style="white")
+        table.add_column("Backend", style="dim")
+
+        for p in profiles:
+            active_badge = "[bold green]★ AKTIF[/bold green]" if p.get("active") else "[dim]Tersedia[/dim]"
+            table.add_row(
+                p.get("name", "-"),
+                active_badge,
+                p.get("model", "-"),
+                p.get("provider", "-").upper(),
+                p.get("backend", "-")
+            )
+        console.print(table)
+        console.print("[dim]Gunakan: 'apex config profile use <nama>' atau 'apex config profile save <nama>'[/dim]\n")
+
+    elif action == "use":
+        if not name:
+            console.print("[red]✖ Harap tentukan nama profil yang ingin digunakan: 'apex config profile use <nama>'[/red]")
+            return
+        if config.load_profile(name):
+            console.print(f"[bold green]✔ Berhasil beralih ke profil konfigurasi: [cyan]{name}[/cyan][/bold green]")
+            console.print(f"  • Model Aktif : [yellow]{config.default_model}[/yellow]")
+            console.print(f"  • Provider    : [cyan]{config.active_provider.upper()}[/cyan]\n")
+        else:
+            console.print(f"[red]✖ Profil '{name}' tidak ditemukan di {DATA_DIR / 'profiles'}[/red]")
+
+    elif action == "save":
+        if not name:
+            console.print("[red]✖ Harap tentukan nama profil yang ingin disimpan: 'apex config profile save <nama>'[/red]")
+            return
+        if config.save_profile(name):
+            console.print(f"[bold green]✔ Konfigurasi saat ini berhasil disimpan sebagai profil: [cyan]{name}[/cyan][/bold green]\n")
+        else:
+            console.print(f"[red]✖ Gagal menyimpan profil '{name}'.[/red]")
+
+    elif action in ("rm", "delete", "remove"):
+        if not name:
+            console.print("[red]✖ Harap tentukan nama profil yang ingin dihapus.[/red]")
+            return
+        if config.delete_profile(name):
+            console.print(f"[bold green]✔ Profil '[cyan]{name}[/cyan]' berhasil dihapus.[/bold green]\n")
+        else:
+            console.print(f"[red]✖ Gagal menghapus profil '{name}'. Profil aktif saat ini tidak dapat dihapus.[/red]")
+    else:
+        console.print(f"[yellow]Aksi tidak dikenal: '{action}'. Pilihan: list, use, save, rm[/yellow]")
+
+
+def sync_env_cli(env_path: Optional[str] = None) -> None:
+    """Scan and synchronize API keys from environment variables and .env file."""
+    console.print("[bold cyan]🔄 Memindai Environment Variables & File .env untuk API Keys...[/bold cyan]")
+    updated = config.sync_environment_keys(env_path)
+    if updated:
+        console.print(f"[bold green]✔ {len(updated)} kredensial / pengaturan berhasil disinkronkan ke apex.json:[/bold green]")
+        for item in updated:
+            console.print(f"  [green]•[/green] {item}")
+        console.print()
+    else:
+        console.print("[dim]Tidak ada kredensial baru atau yang berbeda dari environment saat ini.[/dim]\n")
+
+
+def validate_cli() -> None:
+    """Run interactive setup and configuration validation report."""
+    from apex.gateways.setup_wizard import check_setup_health
+    check_setup_health(console)
+

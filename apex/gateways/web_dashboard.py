@@ -761,6 +761,54 @@ async def test_provider_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"success": ok, "message": msg, "latency_seconds": lat}
 
 
+@app.get("/api/config/profiles")
+async def get_profiles_endpoint() -> Dict[str, Any]:
+    """List all saved configuration profiles."""
+    return {"profiles": config.list_profiles(), "active_profile": config.profile_name}
+
+
+@app.post("/api/config/profiles/use")
+async def switch_profile_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Switch active configuration profile."""
+    name = payload.get("name", "").strip()
+    if not name:
+        return {"success": False, "message": "Nama profil tidak boleh kosong"}
+    if config.load_profile(name):
+        return {"success": True, "message": f"Berhasil beralih ke profil {name}", "active_profile": name}
+    return {"success": False, "message": f"Profil {name} tidak ditemukan"}
+
+
+@app.post("/api/config/profiles/save")
+async def save_profile_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Save current configuration as a new profile."""
+    name = payload.get("name", "").strip()
+    if not name:
+        return {"success": False, "message": "Nama profil tidak boleh kosong"}
+    if config.save_profile(name):
+        return {"success": True, "message": f"Konfigurasi berhasil disimpan sebagai profil {name}"}
+    return {"success": False, "message": f"Gagal menyimpan profil {name}"}
+
+
+@app.get("/api/setup/check")
+async def setup_check_endpoint() -> Dict[str, Any]:
+    """Run full setup and environment health check."""
+    return config.validate_config()
+
+
+@app.post("/api/setup/repair")
+async def setup_repair_endpoint() -> Dict[str, Any]:
+    """Auto-repair system directories and missing configuration keys."""
+    actions = config.repair_config()
+    return {"success": True, "actions": actions}
+
+
+@app.post("/api/config/sync-env")
+async def sync_env_endpoint() -> Dict[str, Any]:
+    """Scan and synchronize API keys from environment variables and .env file."""
+    updated = config.sync_environment_keys()
+    return {"success": True, "updated": updated, "count": len(updated)}
+
+
 # ---------------------------------------------------------
 # WebSocket Real-Time Chat
 # ---------------------------------------------------------

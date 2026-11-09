@@ -84,3 +84,43 @@ def test_api_config_get_and_post(client):
     assert post_res.status_code == 200
     assert post_res.json()["success"] is True
 
+
+def test_api_profiles_and_setup(client):
+    # Test GET /api/config/profiles
+    p_res = client.get("/api/config/profiles")
+    assert p_res.status_code == 200
+    p_data = p_res.json()
+    assert "profiles" in p_data
+    assert "active_profile" in p_data
+
+    # Test POST /api/config/profiles/save
+    save_res = client.post("/api/config/profiles/save", json={"name": "web_test_prof"})
+    assert save_res.status_code == 200
+    assert save_res.json()["success"] is True
+
+    # Test POST /api/config/profiles/use
+    use_res = client.post("/api/config/profiles/use", json={"name": "web_test_prof"})
+    assert use_res.status_code == 200
+    assert use_res.json()["success"] is True
+
+    # Switch back to default
+    client.post("/api/config/profiles/use", json={"name": "default"})
+    from apex.config import config
+    config.delete_profile("web_test_prof")
+
+    # Test GET /api/setup/check
+    check_res = client.get("/api/setup/check")
+    assert check_res.status_code == 200
+    assert "checks" in check_res.json()
+
+    # Test POST /api/setup/repair
+    repair_res = client.post("/api/setup/repair")
+    assert repair_res.status_code == 200
+    assert repair_res.json()["success"] is True
+
+    # Test POST /api/config/sync-env
+    sync_res = client.post("/api/config/sync-env")
+    assert sync_res.status_code == 200
+    assert "updated" in sync_res.json()
+
+
