@@ -163,4 +163,118 @@ def test_api_keys_crud(client):
     assert key_id not in key_ids
 
 
+def test_v1_models_and_proxy_auth(client):
+    """Test /v1/models and API key authentication on /v1 endpoints."""
+    # 1. /v1/models
+    res = client.get("/v1/models")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["object"] == "list"
+    assert len(data["data"]) > 0
+    model_ids = [m["id"] for m in data["data"]]
+    assert "gpt-4o" in model_ids
+
+    # 2. /v1/chat/completions without key -> 401
+    unauth_res = client.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert unauth_res.status_code == 401
+
+    # 3. Create a valid key and test authenticated call
+    key_res = client.post("/api/keys", json={"name": "v1_tester"})
+    test_key = key_res.json()["key"]["key"]
+    test_key_id = key_res.json()["key"]["id"]
+
+    try:
+        # Authenticated call
+        auth_res = client.post(
+            "/v1/chat/completions",
+            headers={"Authorization": f"Bearer {test_key}"},
+            json={"messages": [{"role": "user", "content": "ping"}]}
+        )
+        assert auth_res.status_code == 200
+        comp_data = auth_res.json()
+        assert comp_data["object"] == "chat.completion"
+        assert len(comp_data["choices"]) > 0
+
+        # Anthropic Claude /v1/messages call
+        claude_res = client.post(
+            "/v1/messages",
+            headers={"x-api-key": test_key},
+            json={"model": "claude-3-7-sonnet", "messages": [{"role": "user", "content": "ping"}]}
+        )
+        assert claude_res.status_code == 200
+        claude_data = claude_res.json()
+        assert claude_data["type"] == "message"
+        assert len(claude_data["content"]) > 0
+
+    finally:
+        client.delete(f"/api/keys/{test_key_id}")
+
+
+def test_combos_and_mitm_apis(client):
+    """Test model combos CRUD, failover test, and MITM inspector."""
+    # Combos GET
+    c_res = client.get("/api/combos")
+    assert c_res.status_code == 200
+    assert "combos" in c_res.json()
+
+    # Combos POST
+    create_c = client.post("/api/combos", json={
+        "name": "test_combo_xyz",
+        "strategy": "fallback",
+        "models": ["codex", "tokenharbor"]
+    })
+    assert create_c.status_code == 200
+    assert create_c.json()["success"] is True
+
+    # Combos Test Failover
+    sim_res = client.post("/api/combos/test", json={"combo": "test_combo_xyz"})
+    assert sim_res.status_code == 200
+    assert sim_res.json()["success"] is True
+    assert "trace" in sim_res.json()
+
+    # Combos DELETE
+    del_c = client.delete("/api/combos/test_combo_xyz")
+    assert del_c.status_code == 200
+
+    # MITM GET
+    mitm_res = client.get("/api/mitm/requests")
+    assert mitm_res.status_code == 200
+    assert "requests" in mitm_res.json()
+
+    # MITM DELETE
+    clear_mitm = client.delete("/api/mitm/requests")
+    assert clear_mitm.status_code == 200
+    assert clear_mitm.json()["success"] is True
+
+
+def test_prompt_injection_and_rtk_apis(client):
+    """Test Prompt Injection and RTK compressor APIs."""
+    # Prompt Injection GET & POST
+    p_get = client.get("/api/prompt-injection")
+    assert p_get.status_code == 200
+
+    p_post = client.post("/api/prompt-injection", json={
+        "enabled": True,
+        "scope": "global",
+        "position": "append",
+        "content": "You are a senior engineer."
+    })
+    assert p_post.status_code == 200
+    assert p_post.json()["success"] is True
+
+    # RTK GET & POST
+    rtk_get = client.get("/api/rtk")
+    assert rtk_get.status_code == 200
+
+    # RTK Test Compress
+    sample_text = "Certainly! Here is the answer:\n\n\n\nconst x = 10;   \n\n\n\nHope this helps!"
+    comp_res = client.post("/api/rtk/test-compress", json={"text": sample_text, "caveman_mode": True})
+    assert comp_res.status_code == 200
+    comp_data = comp_res.json()
+    assert comp_data["success"] is True
+    assert comp_data["compressed_chars"] < comp_data["original_chars"]
+    assert comp_data["savings_pct"] > 0
+
+
+
 
