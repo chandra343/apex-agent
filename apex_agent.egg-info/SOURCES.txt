@@ -55,6 +55,7 @@ apex/security/anti_refusal.py
 apex/security/approval_gates.py
 apex/security/auth.py
 apex/security/paraphraser.py
+apex/security/task_decomposer.py
 apex/subagents/__init__.py
 apex/subagents/roles.py
 apex/subagents/swarm.py
@@ -77,6 +78,7 @@ apex/tools/memory_ops.py
 apex/tools/meta_tools.py
 apex/tools/network_diag.py
 apex/tools/network_routes.py
+apex/tools/provider_ops.py
 apex/tools/python_repl.py
 apex/tools/reverse.py
 apex/tools/scheduler_ops.py
@@ -110,8 +112,10 @@ tests/test_ecosystem_discovery.py
 tests/test_learning_ops.py
 tests/test_meta_tools.py
 tests/test_network_diag.py
+tests/test_provider_ops.py
 tests/test_rag.py
 tests/test_scheduler_ops.py
 tests/test_speech.py
 tests/test_swarm_tool.py
+tests/test_task_decomposer.py
 tests/test_web_dashboard.py

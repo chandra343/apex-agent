@@ -616,7 +616,13 @@ class ToolRegistry:
             success, output = mcp_manager.call_tool(name, arguments)
         elif name in self._tools:
             try:
-                success, output = self._tools[name]["handler"](arguments)
+                res = self._tools[name]["handler"](arguments)
+                if isinstance(res, tuple) and len(res) == 2:
+                    success, output = res
+                elif isinstance(res, bool):
+                    success, output = res, ""
+                else:
+                    success, output = True, str(res)
             except Exception as e:
                 success, output = False, f"Tool execution exception in '{name}': {e}"
         else:

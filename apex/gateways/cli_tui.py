@@ -668,11 +668,15 @@ class PiTerminalTUI:
                 start_time = time.time()
                 last_tool_args: Dict[str, Any] = {}
 
-                # Auto-Neutralizer notification if prompt contains sensitive refusal-trigger terms
+                # Task Decomposition & Auto-Neutralizer notification
+                from apex.security.task_decomposer import task_decomposer
                 from apex.security.paraphraser import semantic_paraphraser
-                _, was_modified = semantic_paraphraser.paraphrase(user_input)
-                if was_modified:
-                    self.console.print("[dim]🔄 [bold cyan]Auto-Neutralizer:[/bold cyan] Kata pemicu penolakan dinetralkan otomatis ke bahasa rekayasa resmi...[/dim]")
+                if task_decomposer.should_decompose(user_input):
+                    self.console.print("[dim]🧩 [bold cyan]Modular Decomposer:[/bold cyan] Mendekomposisi instruksi menjadi fase rekayasa teknis & eksekusi langsung...[/dim]")
+                else:
+                    _, was_modified = semantic_paraphraser.paraphrase(user_input)
+                    if was_modified:
+                        self.console.print("[dim]🔄 [bold cyan]Auto-Neutralizer:[/bold cyan] Kata pemicu penolakan dinetralkan otomatis ke bahasa rekayasa resmi...[/dim]")
 
                 def on_tool_start(fn_name: str, args: Dict[str, Any]) -> None:
                     last_tool_args[fn_name] = args

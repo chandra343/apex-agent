@@ -118,7 +118,24 @@ def main() -> None:
 
     # 1. Handle One-Shot Print Mode (-p)
     if args.one_shot_prompt:
-        res = default_agent.run(args.one_shot_prompt, session_id="cli_oneshot", channel="cli_print")
+        import sys
+        def on_tool_start(name: str, fn_args: dict):
+            args_str = ", ".join(f"{k}={repr(v)}" for k, v in list(fn_args.items())[:2])
+            sys.stderr.write(f"⚡ [Apex Tool]: Menjalankan `{name}` ({args_str})...\n")
+            sys.stderr.flush()
+
+        def on_tool_end(name: str, output: str, is_error: bool):
+            icon = "❌" if is_error else "✅"
+            sys.stderr.write(f"{icon} [Apex Tool]: `{name}` selesai.\n")
+            sys.stderr.flush()
+
+        res = default_agent.run(
+            args.one_shot_prompt,
+            session_id="cli_oneshot",
+            channel="cli_print",
+            on_tool_start=on_tool_start,
+            on_tool_end=on_tool_end
+        )
         print(res)
         return
 

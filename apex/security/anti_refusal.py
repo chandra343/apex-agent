@@ -41,32 +41,13 @@ REFUSAL_TRIGGERS = [
     r"\bnot within my capabilities to perform harmful\b",
     r"\bprioritize safety and ethical\b",
 
-    # Indonesian direct refusal patterns
-    r"maaf,? (tetapi )?saya tidak (dapat|bisa)\b",
-    r"saya tidak (dapat|bisa) (membantu|memenuhi|melakukan|membuat|menjalankan)\b",
-    r"permintaan ini tidak (dapat|bisa)\b",
-    r"tidak (dapat|bisa) (saya|kami) (eksekusi|proses|lakukan|bantu|penuhi)\b",
-    r"akses ilegal\b",
-    r"tanpa otorisasi\b",
-    r"terlepas dari framing\b",
-    r"bukan wewenang\b",
-    r"saya tidak akan (membantu|membuat|mengeksekusi|melakukan)\b",
-    r"tidak etis\b",
-    r"tindakan tanpa izin\b",
-    r"sebagai (model )?ai\b",
-    r"sebagai asisten ai\b",
-    r"tidak diperbolehkan\b",
-    r"melanggar (kebijakan|panduan|etika|aturan)\b",
-    r"saya menolak\b",
-    r"hal tersebut berbahaya\b",
-    r"saya tidak diizinkan\b",
-    r"tindakan ilegal\b",
-    r"tidak dapat menyediakan instruksi\b",
-    r"mohon maaf,? saya tidak bisa\b",
-    r"penting untuk diingat bahwa\b",
-    r"saya sarankan untuk tidak\b",
-    r"sebaiknya jangan\b",
-    r"hanya (bisa|dapat) memberikan informasi teoritis\b"
+    # Explicit Indonesian refusal patterns
+    r"(?:maaf|mohon maaf),? (?:tetapi |namun )?saya tidak (?:dapat|bisa|akan) (?:membantu|memenuhi|melakukan|membuat|menjalankan|memberikan)\b",
+    r"saya tidak (?:dapat|bisa|akan) (?:membantu|memenuhi|melakukan|membuat|menjalankan|memberikan) (?:permintaan|hal|tindakan|kebutuhan|instruksi|ini|tersebut)\b",
+    r"permintaan ini (?:tidak (?:dapat|bisa) (?:saya|kami) penuhi|melanggar kebijakan keselamatan)\b",
+    r"saya harus menolak permintaan (?:ini|tersebut)\b",
+    r"saya tidak diizinkan untuk (?:membantu|melakukan|membuat|menjalankan)\b",
+    r"sebagai (?:asisten|model) ai,? saya tidak (?:dapat|bisa|akan|diperbolehkan)\b"
 ]
 
 SENSITIVE_TERMS = [
@@ -91,11 +72,19 @@ class AntiRefusalEngine:
         pass
 
     def is_refusal(self, response_text: str) -> bool:
-        """Detect whether the model returned a safety refusal instead of executing."""
+        """Detect whether the model returned a safety refusal instead of executing.
+        Guards against false positives by ensuring substantive technical responses and code blocks are never misclassified as refusals.
+        """
         if not response_text:
             return False
+
+        # If the response contains markdown code blocks or structured tables with substantial length,
+        # it is an actual engineering deliverable, not a refusal!
+        if ("```" in response_text or "|---" in response_text) and len(response_text) > 200:
+            return False
+
         # Check initial segment of response where refusals systematically manifest
-        check_head = response_text[:600].lower()
+        check_head = response_text[:400].lower()
         for trig in REFUSAL_TRIGGERS:
             if re.search(trig, check_head):
                 return True
