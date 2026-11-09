@@ -673,6 +673,56 @@ async def upload_file_and_inspect(file: UploadFile = File(...)) -> Dict[str, Any
         return {"success": False, "error": str(e)}
 
 
+@app.get("/api/models")
+async def list_available_models() -> Dict[str, Any]:
+    """Retrieve list of all discovered and configured AI models."""
+    from apex.router.model_switcher import model_switcher
+    return {
+        "models": model_switcher.get_available_models(),
+        "active_model": config.default_model
+    }
+
+
+@app.post("/api/model/switch")
+async def switch_model_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Switch active AI model dynamically in real time."""
+    model_name = payload.get("model", "").strip()
+    if not model_name:
+        raise HTTPException(status_code=400, detail="Nama model wajib diisi")
+    from apex.router.model_switcher import model_switcher
+    ok = model_switcher.switch_model(model_name)
+    return {"success": ok, "active_model": config.default_model}
+
+
+@app.post("/api/rag/index")
+async def rag_index_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Index a folder or file into the local RAG knowledge base."""
+    path = payload.get("path", ".").strip()
+    from apex.memory.rag import rag_engine
+    return rag_engine.index_path(path)
+
+
+@app.get("/api/rag/search")
+async def rag_search_endpoint(q: str, limit: int = 5) -> Dict[str, Any]:
+    """Search knowledge base chunks."""
+    from apex.memory.rag import rag_engine
+    results = rag_engine.search(q, limit=limit)
+    return {"query": q, "count": len(results), "results": results}
+
+
+@app.get("/api/export/{session_id}")
+async def export_session_endpoint(session_id: str) -> Dict[str, Any]:
+    """Export conversation session history to Markdown."""
+    from apex.memory.sessions import session_manager
+    session = session_manager.get_or_create(session_id)
+    md_lines = [f"# Chat Session Export: {session_id}\n\nExported from Project Apex Dashboard\n"]
+    for m in session.messages:
+        role = m.get("role", "user").upper()
+        content = m.get("content", "")
+        md_lines.append(f"### 👤 {role}:\n{content}\n")
+    return {"session_id": session_id, "markdown": "\n".join(md_lines)}
+
+
 # ---------------------------------------------------------
 # WebSocket Real-Time Chat
 # ---------------------------------------------------------

@@ -53,3 +53,19 @@ def test_api_upload_document(client, tmp_path):
     assert data["success"] is True
     assert "sample.txt" in data["filename"]
     assert "Apex omni-modal parser" in data["parsed_content"]
+
+
+def test_api_models_list(client):
+    response = client.get("/api/models")
+    assert response.status_code == 200
+    data = response.json()
+    assert "models" in data
+    assert "active_model" in data
+
+
+def test_api_export_session(client):
+    response = client.get("/api/export/test_session_123")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["session_id"] == "test_session_123"
+    assert "Chat Session Export" in data["markdown"]

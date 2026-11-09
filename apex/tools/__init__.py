@@ -28,6 +28,12 @@ from apex.tools.swarm_ops import dispatch_subagents
 from apex.tools.db_ops import query_database
 from apex.tools.speech import synthesize_speech
 from apex.tools.web_scraper import scrape_structured_web
+from apex.tools.memory_ops import (
+    remember_fact, recall_memory, index_knowledge_base, search_knowledge_base
+)
+from apex.tools.scheduler_ops import manage_scheduled_tasks
+from apex.tools.code_audit import audit_codebase
+from apex.tools.doctor import run_system_doctor
 
 
 class ToolRegistry:
@@ -320,6 +326,76 @@ class ToolRegistry:
             },
             "required": ["url"]
         }, lambda args: scrape_structured_web(args["url"], args.get("extract_links", True), args.get("max_length", 5000)), is_safe=True)
+
+        # Long-Term Memory Tools
+        self.register("remember_fact", "Store an important fact, user preference, architectural decision, or lesson into long-term memory", {
+            "type": "object",
+            "properties": {
+                "content": {"type": "string", "description": "The fact or lesson to remember"},
+                "category": {"type": "string", "description": "Category name (e.g. preference, project, credential)", "default": "general"},
+                "tags": {"type": "string", "description": "Comma-separated search tags", "default": ""}
+            },
+            "required": ["content"]
+        }, lambda args: remember_fact(args["content"], args.get("category", "general"), args.get("tags", "")), is_safe=False)
+
+        self.register("recall_memory", "Recall or search stored facts and long-term memories using semantic full-text search", {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Keyword or phrase to search in memory"},
+                "limit": {"type": "integer", "description": "Maximum number of memories to return", "default": 5}
+            },
+            "required": ["query"]
+        }, lambda args: recall_memory(args["query"], args.get("limit", 5)), is_safe=True)
+
+        # Local RAG Knowledge Base Tools
+        self.register("index_knowledge_base", "Index an entire folder or document into Apex's local RAG semantic search knowledge base", {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to file or folder to index (e.g. 'docs/', 'src/', 'README.md')"},
+                "max_files": {"type": "integer", "description": "Maximum files to index", "default": 100}
+            },
+            "required": ["path"]
+        }, lambda args: index_knowledge_base(args["path"], args.get("max_files", 100)), is_safe=False)
+
+        self.register("search_knowledge_base", "Search the local RAG knowledge base for specific information across indexed project files", {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Question or technical keyword to locate"},
+                "limit": {"type": "integer", "description": "Maximum number of code/doc snippets to retrieve", "default": 5}
+            },
+            "required": ["query"]
+        }, lambda args: search_knowledge_base(args["query"], args.get("limit", 5)), is_safe=True)
+
+        # Cron & Background Scheduler
+        self.register("manage_scheduled_tasks", "Manage autonomous recurring background tasks and cron jobs in Project Apex", {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["list", "add", "remove"], "description": "Action to perform"},
+                "name": {"type": "string", "description": "Unique name for the job"},
+                "interval_minutes": {"type": "integer", "description": "Execution frequency interval in minutes", "default": 60},
+                "prompt": {"type": "string", "description": "Task instruction prompt for Apex to execute autonomously on schedule"}
+            },
+            "required": ["action"]
+        }, lambda args: manage_scheduled_tasks(args["action"], args.get("name"), args.get("interval_minutes", 60), args.get("prompt")), is_safe=False)
+
+        # Automated Codebase Auditor & Security Posture Analyzer
+        self.register("audit_codebase", "Run an automated security audit and code quality scan on a directory or file", {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to directory or single file to audit", "default": "."},
+                "scan_secrets": {"type": "boolean", "description": "Scan for exposed credentials/tokens", "default": True},
+                "scan_vulnerabilities": {"type": "boolean", "description": "Check for dangerous coding patterns", "default": True},
+                "max_files": {"type": "integer", "description": "Maximum files to scan", "default": 150}
+            }
+        }, lambda args: audit_codebase(args.get("path", "."), args.get("scan_secrets", True), args.get("scan_vulnerabilities", True), args.get("max_files", 150)), is_safe=True)
+
+        # System Doctor & Self-Healing
+        self.register("run_system_doctor", "Run an automated diagnostic check and self-healing repair across all Apex subsystems, databases, and dependencies", {
+            "type": "object",
+            "properties": {
+                "auto_repair": {"type": "boolean", "description": "Automatically repair missing directories and initialize schemas", "default": True}
+            }
+        }, lambda args: run_system_doctor(args.get("auto_repair", True)), is_safe=False)
 
     def _run_shell_wrapper(self, args: Dict[str, Any]) -> Tuple[bool, str]:
         cmd = args["command"]
