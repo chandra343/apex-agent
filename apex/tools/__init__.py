@@ -41,12 +41,15 @@ from apex.tools.config_ops import manage_system_config
 from apex.tools.provider_ops import manage_ai_providers
 from apex.tools.tool_discovery import tool_discovery
 from apex.tools.data_lake import shared_data_lake
+from apex.tools.vault_ops import manage_vault
+from apex.tools.workflow_ops import manage_workflows
+from apex.tools.memory_tiered_ops import manage_cognitive_memory
 
 CORE_TOOL_NAMES = {
     "read_file", "write_file", "edit_file", "search_files", "grep_search",
     "list_directory", "run_shell", "python_repl", "web_search",
     "tool_search", "tool_describe", "manage_data_lake", "manage_scheduled_tasks",
-    "routine_no_update"
+    "routine_no_update", "manage_vault", "manage_workflows", "manage_cognitive_memory"
 }
 
 
@@ -553,6 +556,58 @@ class ToolRegistry:
                 "reason": {"type": "string", "description": "Reason why no update is needed (e.g. 'All services healthy, 0 errors detected')", "default": "Pemeriksaan selesai tanpa anomali."}
             }
         }, lambda args: (True, f"🔕 [Quiet Run]: {args.get('reason', 'Pemeriksaan selesai tanpa anomali. Notifikasi disembunyikan.')}"), is_safe=True)
+
+        # 4. Encrypted Agent Vault
+        self.register("manage_vault", "Manage AES-256-GCM encrypted credentials, passwords, and tokens in the Apex Vault", {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["set", "get", "list", "delete"], "description": "Operation: 'set', 'get', 'list', 'delete'"},
+                "key": {"type": "string", "description": "Secret key name (e.g. 'AWS_SECRET_KEY', 'DATABASE_PASSWORD')"},
+                "value": {"type": "string", "description": "Plaintext secret value to store (required for 'set')"},
+                "description": {"type": "string", "description": "Optional description of what the secret is for"}
+            },
+            "required": ["action"]
+        }, lambda args: (True, manage_vault(args["action"], args.get("key", ""), args.get("value", ""), args.get("description", ""))), is_safe=False)
+
+        # 5. Declarative DAG Workflows
+        self.register("manage_workflows", "Orchestrate multi-step DAG Workflows and automated pipelines", {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["create", "run", "status", "list", "delete"], "description": "Operation to perform"},
+                "name": {"type": "string", "description": "Name or ID of the workflow"},
+                "description": {"type": "string", "description": "Description of the workflow (for 'create')"},
+                "graph": {"type": "object", "description": "DAG definition with 'nodes' and 'edges' (for 'create')"},
+                "input_params": {"type": "object", "description": "Input parameters dict (for 'run')"},
+                "run_id": {"type": "string", "description": "Workflow execution run ID (for 'status')"}
+            },
+            "required": ["action"]
+        }, lambda args: (True, manage_workflows(args["action"], args.get("name", ""), args.get("description", ""), args.get("graph"), args.get("input_params"), args.get("run_id", ""))), is_safe=False)
+
+        # 6. Tiered Cognitive Memory
+        self.register("manage_cognitive_memory", "Store, recall, and pin long-term cognitive memories, user preferences, and learned rules", {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["remember", "recall", "get_pinned", "list", "forget"], "description": "Operation to perform"},
+                "content": {"type": "string", "description": "Memory text content (for 'remember')"},
+                "memory_type": {"type": "string", "enum": ["fact", "preference", "episode", "rule"], "description": "Category of cognitive memory", "default": "fact"},
+                "key": {"type": "string", "description": "Unique key or slug for quick reference"},
+                "importance": {"type": "integer", "description": "Priority score from 1 (minor) to 10 (critical core fact)", "default": 5},
+                "query": {"type": "string", "description": "Search query for semantic/keyword retrieval (for 'recall')"},
+                "pinned": {"type": "boolean", "description": "Whether to pin this memory to always inject into system prompt", "default": False},
+                "identifier": {"type": "string", "description": "ID or key to delete (for 'forget')"}
+            },
+            "required": ["action"]
+        }, lambda args: (True, manage_cognitive_memory(
+            action=args["action"],
+            content=args.get("content", ""),
+            memory_type=args.get("memory_type", "fact"),
+            key=args.get("key", ""),
+            importance=args.get("importance", 5),
+            query=args.get("query", ""),
+            pinned=args.get("pinned", False),
+            identifier=args.get("identifier", ""),
+            limit=args.get("limit", 5)
+        )), is_safe=True)
 
     def _run_shell_wrapper(self, args: Dict[str, Any]) -> Tuple[bool, str]:
         cmd = args["command"]

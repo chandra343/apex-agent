@@ -9,6 +9,7 @@ from typing import Any
 # Base Directory Resolution
 HOME_DIR = Path.home()
 DATA_DIR = HOME_DIR / ".apex"
+APEX_DIR = DATA_DIR
 CONFIG_FILE = DATA_DIR / "apex.json"
 PROFILES_DIR = DATA_DIR / "profiles"
 CHECKPOINTS_DIR = DATA_DIR / "checkpoints"

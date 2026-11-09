@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from apex._winproc import get_subprocess_flags, kill_process_tree
 from apex.tools.backends import backend_manager
+from apex.diagnostics.engine import diagnostic_engine
+from apex.security.vault import secret_vault
 
 
 class BackgroundProcessTracker:
@@ -89,12 +91,13 @@ def run_shell(
 ) -> Tuple[int, str]:
     """Execute a terminal command synchronously or in the background."""
     work_dir = Path(cwd).resolve() if cwd else Path.cwd()
+    resolved_cmd = secret_vault.resolve_placeholders(command)
 
     if background:
         flags = get_subprocess_flags()
         try:
             proc = subprocess.Popen(
-                command,
+                resolved_cmd,
                 shell=True,
                 cwd=str(work_dir),
                 stdout=subprocess.PIPE,
@@ -109,7 +112,7 @@ def run_shell(
 
     # Synchronous execution through backend
     code, stdout, stderr = backend_manager.execute(
-        command=command,
+        command=resolved_cmd,
         cwd=work_dir,
         timeout=timeout,
         backend_override=backend_override
@@ -123,4 +126,13 @@ def run_shell(
             combined += "\n"
         combined += "[STDERR]\n" + stderr
 
-    return code, combined.strip()
+    # Sanitize ANSI escapes and scrub credentials
+    clean_output = diagnostic_engine.sanitize(combined.strip())
+
+    # Auto-remediation diagnostic hint
+    if code != 0:
+        hint = diagnostic_engine.analyze_failure("run_shell", clean_output, exit_code=code)
+        if hint:
+            clean_output += f"\n\n{hint}"
+
+    return code, clean_output

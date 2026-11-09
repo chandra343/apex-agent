@@ -21,6 +21,7 @@ from apex.router.provider_manager import provider_manager
 from apex.security.anti_refusal import anti_refusal_engine
 from apex.security.approval_gates import approval_gate
 from apex.tools import tool_registry
+from apex.diagnostics import diagnostic_engine
 
 
 class ApexAgent:
@@ -275,6 +276,13 @@ class ApexAgent:
             success = False
         else:
             success, output = tool_registry.execute_tool(fn_name, parsed_args)
+
+        # Autonomous Tool Self-Healing & Secret Sanitization
+        output = diagnostic_engine.sanitize(str(output))
+        if not success:
+            hint = diagnostic_engine.analyze_failure(fn_name, output, exit_code=1)
+            if hint and hint not in output:
+                output = f"{output}\n\n{hint}"
 
         if on_tool_end:
             on_tool_end(fn_name, output, not success)

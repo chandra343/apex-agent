@@ -114,6 +114,18 @@ class PromptBuilder:
                     mem_lines.append(f"• ({m['category']}) {m['content']}")
                 parts.append("\n".join(mem_lines))
 
+        # 5b. Pinned Cognitive Preferences & Rules (Tiered Memory)
+        try:
+            from apex.memory.tiered import tiered_memory
+            pinned_mems = tiered_memory.get_pinned()
+            if pinned_mems:
+                pin_lines = ["\n[Pinned Operator Preferences & Autonomous Rules]:"]
+                for pm in pinned_mems:
+                    pin_lines.append(f"• [{pm['memory_type'].upper()}] {pm['content']}")
+                parts.append("\n".join(pin_lines))
+        except Exception:
+            pass
+
         # 6. Progressive Disclosure Skills (Query-aware budget management)
         skills_text = skill_manager.list_skills_for_prompt(query)
         if skills_text:
