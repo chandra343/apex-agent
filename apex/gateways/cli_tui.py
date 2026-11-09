@@ -52,6 +52,7 @@ class SlashCommandCompleter(Completer):
         "/model": "Ganti model AI aktif (TokenHarbor, Antigravity, dll)",
         "/provider": "Buka Rak Provider AI (9Router Pro Shelf)",
         "/setup": "Jalankan 6-Stage Interactive Setup Wizard",
+        "/config": "Lihat atau ubah konfigurasi sistem Apex (get/set/show)",
         "/stats": "Lihat statistik penggunaan token & estimasi biaya",
         "/compact": "Kompresi konteks riwayat percakapan panjang",
         "/session": "Informasi & ringkasan sesi percakapan aktif",
@@ -241,6 +242,16 @@ class PiTerminalTUI:
             from apex.gateways.setup_wizard import run_setup
             run_setup()
             self.print_welcome()
+            return True
+
+        elif root_cmd == "/config":
+            from apex.gateways.config_cli import show_config_dashboard, get_config_value, set_config_value
+            if len(parts) == 1 or (len(parts) == 2 and parts[1] == "show"):
+                show_config_dashboard()
+            elif len(parts) == 2:
+                get_config_value(parts[1])
+            elif len(parts) >= 3:
+                set_config_value(parts[1], " ".join(parts[2:]))
             return True
 
         elif root_cmd == "/backend":

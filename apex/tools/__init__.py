@@ -37,6 +37,7 @@ from apex.tools.doctor import run_system_doctor
 from apex.tools.learning_ops import record_learned_lesson, consult_learned_lessons
 from apex.tools.devops import run_project_tests, create_git_patch
 from apex.tools.network_diag import benchmark_http_endpoint, check_ssl_certificate, lookup_dns_records
+from apex.tools.config_ops import manage_system_config
 
 
 class ToolRegistry:
@@ -463,6 +464,17 @@ class ToolRegistry:
             },
             "required": ["domain"]
         }, lambda args: lookup_dns_records(args["domain"], args.get("record_type", "A")), is_safe=True)
+
+        # System Configuration Manager Tool
+        self.register("manage_system_config", "Inspect or update Project Apex system settings dynamically (e.g. default_model, router.rtk_compression)", {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["get", "set", "list"], "description": "Action to perform"},
+                "key_path": {"type": "string", "description": "Nested configuration key path (e.g. 'default_model', 'router.rtk_compression')"},
+                "value": {"type": "string", "description": "New value to assign when action is 'set'"}
+            },
+            "required": ["action"]
+        }, lambda args: manage_system_config(args["action"], args.get("key_path"), args.get("value")), is_safe=False)
 
     def _run_shell_wrapper(self, args: Dict[str, Any]) -> Tuple[bool, str]:
         cmd = args["command"]

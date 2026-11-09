@@ -723,6 +723,44 @@ async def export_session_endpoint(session_id: str) -> Dict[str, Any]:
     return {"session_id": session_id, "markdown": "\n".join(md_lines)}
 
 
+@app.get("/api/config")
+async def get_config_endpoint() -> Dict[str, Any]:
+    """Retrieve system configuration with masked API keys for safe viewing."""
+    cfg = json.loads(json.dumps(config.raw))
+    providers = cfg.get("providers", {})
+    for p_id, p_data in providers.items():
+        k = p_data.get("api_key", "")
+        if k and k != "none":
+            p_data["api_key_masked"] = f"{k[:4]}••••••••{k[-4:]}" if len(k) > 8 else "••••••••"
+            p_data["has_key"] = True
+            p_data.pop("api_key", None)
+        else:
+            p_data["api_key_masked"] = "none"
+            p_data["has_key"] = False
+    return cfg
+
+
+@app.post("/api/config")
+async def update_config_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Update system configuration settings."""
+    for key, val in payload.items():
+        if key.startswith("providers.") and key.endswith(".api_key"):
+            if not val or "••••" in str(val):
+                continue
+        config.set(key, val, auto_save=False)
+    config.save()
+    return {"success": True, "message": "Konfigurasi berhasil disimpan ke disk"}
+
+
+@app.post("/api/config/test-provider")
+async def test_provider_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Test connection to a specific provider."""
+    p_name = payload.get("provider", "").strip().lower()
+    from apex.router.provider_manager import provider_manager
+    ok, msg, lat = provider_manager.test_provider(p_name)
+    return {"success": ok, "message": msg, "latency_seconds": lat}
+
+
 # ---------------------------------------------------------
 # WebSocket Real-Time Chat
 # ---------------------------------------------------------

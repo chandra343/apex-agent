@@ -32,6 +32,21 @@ def main() -> None:
     # Setup
     subparsers.add_parser("setup", help="Run 6-stage interactive setup wizard")
 
+    # Config
+    cfg_parser = subparsers.add_parser("config", help="View, update, test, export, or reset system configurations")
+    cfg_sub = cfg_parser.add_subparsers(dest="action")
+    cfg_sub.add_parser("show", help="Display full visual configuration dashboard")
+    cfg_get = cfg_sub.add_parser("get", help="Get a single config value")
+    cfg_get.add_argument("key", nargs="?", default="", help="Key path using dot notation (e.g. default_model)")
+    cfg_set = cfg_sub.add_parser("set", help="Set a config value")
+    cfg_set.add_argument("key", help="Key path using dot notation")
+    cfg_set.add_argument("value", help="Value to assign (supports raw strings or JSON)")
+    cfg_sub.add_parser("reset", help="Reset config to default with automatic backup")
+    cfg_export = cfg_sub.add_parser("export", help="Export configuration to JSON file")
+    cfg_export.add_argument("output", nargs="?", default="", help="Optional destination file path")
+    cfg_import = cfg_sub.add_parser("import", help="Import configuration from JSON file")
+    cfg_import.add_argument("file", help="Path to JSON file to import")
+
     # TUI
     subparsers.add_parser("tui", help="Launch interactive Pi-style terminal TUI")
 
@@ -84,6 +99,25 @@ def main() -> None:
     # 2. Handle Subcommands
     if args.command == "setup":
         run_setup()
+        return
+
+    if args.command == "config":
+        from apex.gateways.config_cli import (
+            show_config_dashboard, get_config_value, set_config_value,
+            reset_config, export_config, import_config
+        )
+        if args.action == "get":
+            get_config_value(args.key)
+        elif args.action == "set":
+            set_config_value(args.key, args.value)
+        elif args.action == "reset":
+            reset_config()
+        elif args.action == "export":
+            export_config(args.output or None)
+        elif args.action == "import":
+            import_config(args.file)
+        else:
+            show_config_dashboard()
         return
 
     if args.command == "gateway":

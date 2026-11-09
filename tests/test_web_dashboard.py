@@ -69,3 +69,18 @@ def test_api_export_session(client):
     data = response.json()
     assert data["session_id"] == "test_session_123"
     assert "Chat Session Export" in data["markdown"]
+
+
+def test_api_config_get_and_post(client):
+    # Test GET /api/config
+    get_res = client.get("/api/config")
+    assert get_res.status_code == 200
+    cfg = get_res.json()
+    assert "default_model" in cfg
+    assert "active_provider" in cfg
+
+    # Test POST /api/config update
+    post_res = client.post("/api/config", json={"key": "routing.budget_mode", "value": "economy"})
+    assert post_res.status_code == 200
+    assert post_res.json()["success"] is True
+
