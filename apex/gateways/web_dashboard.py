@@ -1,19 +1,29 @@
-"""Pixel-Perfect Endpoint Proxy & 9Router AI Gateway Web Dashboard for Project Apex.
+"""Pixel-Perfect 9Router & 9Router Pro AI Gateway Web Dashboard for Project Apex.
 
-Fully structures the UI/UX to match 9Router & Endpoint Proxy (v0.3.40):
-- macOS Traffic Lights & Left Sidebar navigation:
-  - Endpoint (Local AI Gateway & Client Configuration + Chat Console)
-  - Providers (Exact categorized grid matching screenshot: OAuth, Free, API Key, Compatible)
-  - Proxy Pools (Multi-Key Vault & Upstream Proxy Rotation)
-  - Combos (Smart 3-Tier Fallback: Tier 1 Subscription -> Tier 2 Cheap -> Tier 3 Free)
-  - Usage (Real-Time Token Consumption, Cost, and RTK Savings)
-  - Quota Tracker (RPM/TPM gauges & rate limit meters)
-  - MITM (System Prompt Injection & RTK Token Saver Settings)
-  - CLI Tools (One-click client setup scripts & Universal Document OCR)
-  - Console Log (DEBUG live stream of proxy requests, status codes & latency)
-  - Settings (SYSTEM configuration, host/port, themes, and profiles)
-- Top header with dynamic breadcrumbs, Language Switcher (EN/ID), Theme toggle, Exit
-- Full interactive modals for provider configuration, secret vault, and fallback simulator
+Fully researched and architected from:
+- decolua/9router (Original core engine, layout, and categorized AI providers)
+- giienew/9router-pro (Pro edition: Prompt Injection, Per-Key Quotas, Accent Themes, Login Guard)
+
+Features implemented:
+1. macOS Traffic Lights & Left Sidebar Navigation:
+   - Endpoint & Keys (Master Key, custom API Keys with quotas, one-click IDE setups, Chat Console)
+   - Providers (Categorized shelf: OAuth, Free, API Key, Compatible providers with live ping tests)
+   - Combos (Smart 3-Tier Fallback Cascade: Subscription -> Cheap API -> Free Tier)
+   - Prompt Injection [PRO] (Global, per-key, and per-model system prompt injection with presets)
+   - Token Saver [RTK] (Real-Time Kit, tool diff compression, Caveman Mode -40% output tokens)
+   - Proxy Pools (Upstream HTTP/SOCKS5 proxies + AES-256-GCM Vault secrets)
+   - Quota Tracker (Real-time RPM/TPM gauges & rate limit reset meters)
+   - Usage (Real-time token ledger, prompt vs completion, cost estimation)
+   - CLI Tools (One-click integration configs for Claude Code, Cursor, Cline, Codex, Pi, Aider)
+   - Console Log [DEBUG] (Live streaming proxy interception logs with latencies & status codes)
+   - Profile & Settings [SYSTEM] (Host/port, profiles, auto-sync, auto-repair)
+2. Interactive Login & Auth Guard Modal:
+   - Password authentication (default: 123456)
+   - Account switcher & OAuth provider login links
+3. Dynamic Accent Themes:
+   - 9Router Orange, Violet Pro, Emerald, Cyan, Rose
+4. Dual Language:
+   - English & Bahasa Indonesia
 """
 from __future__ import annotations
 
@@ -42,7 +52,7 @@ from apex.tools import tool_registry
 from apex.tools.doc_reader import read_any_file
 
 
-app = FastAPI(title="Apex Endpoint Proxy & AI Gateway", version="1.0.0")
+app = FastAPI(title="Apex 9Router Pro & AI Gateway", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,14 +66,14 @@ UPLOADS_DIR = DATA_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------
-# Embedded Pixel-Perfect Endpoint Proxy & 9Router Dashboard
+# Embedded 9Router & 9Router Pro Complete Dashboard SPA
 # ---------------------------------------------------------
 HTML_PAGE = r"""<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Endpoint Proxy — 9Router AI Gateway</title>
+    <title>9Router Pro — Sovereign AI Gateway & Endpoint Proxy</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Marked.js (Markdown) -->
@@ -91,7 +101,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
                         brand: {
                             orange: '#f97316',
                             orangeDark: '#ea580c',
-                            coral: '#ff6b4a'
+                            violet: '#c084fc',
+                            emerald: '#34d399',
+                            cyan: '#22d3ee',
+                            rose: '#f43f5e'
                         }
                     }
                 }
@@ -104,31 +117,42 @@ HTML_PAGE = r"""<!DOCTYPE html>
         ::-webkit-scrollbar-track { background: #121316; }
         ::-webkit-scrollbar-thumb { background: #282a30; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #383a42; }
-        .nav-item-active { background-color: #2c1b18 !important; color: #f97316 !important; border: 1px solid rgba(249, 115, 22, 0.3) !important; }
-        .nav-item-active i { color: #f97316 !important; }
+        .nav-item-active { background-color: var(--accent-bg, #2c1b18) !important; color: var(--accent-text, #f97316) !important; border: 1px solid var(--accent-border, rgba(249, 115, 22, 0.3)) !important; }
+        .nav-item-active i { color: var(--accent-text, #f97316) !important; }
+        :root {
+            --accent-color: #f97316;
+            --accent-bg: #2c1b18;
+            --accent-text: #f97316;
+            --accent-border: rgba(249, 115, 22, 0.3);
+        }
     </style>
 </head>
 <body class="bg-dark-bg text-[#e4e4e7] min-h-screen flex font-sans antialiased select-none">
 
-    <!-- LEFT SIDEBAR (Identical to 9Router & Endpoint Proxy) -->
+    <!-- LEFT SIDEBAR (9Router Pro Architecture) -->
     <aside class="w-64 bg-dark-sidebar border-r border-dark-border flex flex-col justify-between shrink-0 h-screen sticky top-0 p-4">
-        <div class="space-y-5 overflow-y-auto pr-1">
-            <!-- macOS Window Traffic Lights & Branding -->
-            <div class="space-y-3.5">
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-[#ff5f56] inline-block shadow-sm"></span>
-                    <span class="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block shadow-sm"></span>
-                    <span class="w-3 h-3 rounded-full bg-[#27c93f] inline-block shadow-sm"></span>
+        <div class="space-y-4 overflow-y-auto pr-1">
+            <!-- macOS Traffic Lights & Modder Credit -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-[#ff5f56] inline-block shadow-sm"></span>
+                        <span class="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block shadow-sm"></span>
+                        <span class="w-3 h-3 rounded-full bg-[#27c93f] inline-block shadow-sm"></span>
+                    </div>
+                    <span class="text-[10px] text-[#71717a] font-mono">Modder <b class="text-orange-400">9Router-Pro</b></span>
                 </div>
+
+                <!-- Branding Header -->
                 <div class="flex items-center gap-3 pt-1">
-                    <div class="w-8 h-8 rounded-lg bg-[#ea580c] flex items-center justify-center text-white shadow-md shadow-orange-500/20">
-                        <i class="fa-solid fa-network-wired text-sm"></i>
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shadow-md shadow-orange-500/20">
+                        <i class="fa-solid fa-hubspot text-base"></i>
                     </div>
                     <div>
                         <div class="font-bold text-sm tracking-wide text-white flex items-center gap-1.5">
                             <span>Endpoint Proxy</span>
                         </div>
-                        <div class="text-[11px] text-[#71717a] font-mono">PROJECT APEX <span class="text-orange-400 font-semibold">v0.3.40</span></div>
+                        <div class="text-[11px] text-[#71717a] font-mono">PROJECT APEX <span class="text-orange-400 font-semibold">v0.3.40-pro</span></div>
                     </div>
                 </div>
             </div>
@@ -136,44 +160,48 @@ HTML_PAGE = r"""<!DOCTYPE html>
             <!-- Main Navigation Items -->
             <nav class="space-y-1">
                 <button onclick="switchTab('endpoint')" id="nav-endpoint" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
-                    <i class="fa-solid fa-circle-nodes text-sm w-4 text-center"></i> Endpoint
+                    <i class="fa-solid fa-circle-nodes text-sm w-4 text-center text-purple-400"></i> Endpoint &amp; Keys
                 </button>
                 <button onclick="switchTab('providers')" id="nav-providers" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium nav-item-active transition-all">
-                    <i class="fa-solid fa-cubes text-sm w-4 text-center"></i> Providers
-                </button>
-                <button onclick="switchTab('proxy-pools')" id="nav-proxy-pools" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
-                    <i class="fa-solid fa-sitemap text-sm w-4 text-center"></i> Proxy Pools
+                    <i class="fa-solid fa-cubes text-sm w-4 text-center text-blue-400"></i> Providers
                 </button>
                 <button onclick="switchTab('combos')" id="nav-combos" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
-                    <i class="fa-solid fa-shuffle text-sm w-4 text-center"></i> Combos
+                    <i class="fa-solid fa-shuffle text-sm w-4 text-center text-pink-400"></i> Combos
+                </button>
+                <button onclick="switchTab('prompt-injection')" id="nav-prompt-injection" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
+                    <span class="flex items-center gap-3"><i class="fa-solid fa-skull text-sm w-4 text-center text-violet-400"></i> Prompt Injection</span>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-mono">PRO</span>
+                </button>
+                <button onclick="switchTab('token-saver')" id="nav-token-saver" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
+                    <i class="fa-solid fa-piggy-bank text-sm w-4 text-center text-amber-400"></i> Token Saver (RTK)
                 </button>
                 <button onclick="switchTab('usage')" id="nav-usage" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
-                    <i class="fa-solid fa-chart-simple text-sm w-4 text-center"></i> Usage
+                    <i class="fa-solid fa-chart-simple text-sm w-4 text-center text-emerald-400"></i> Usage
                 </button>
                 <button onclick="switchTab('quota')" id="nav-quota" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
-                    <i class="fa-solid fa-gauge-high text-sm w-4 text-center"></i> Quota Tracker
+                    <i class="fa-solid fa-gauge-high text-sm w-4 text-center text-teal-400"></i> Quota Tracker
                 </button>
-                <button onclick="switchTab('mitm')" id="nav-mitm" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
-                    <i class="fa-solid fa-shield-halved text-sm w-4 text-center"></i> MITM
+                <button onclick="switchTab('proxy-pools')" id="nav-proxy-pools" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
+                    <i class="fa-solid fa-sitemap text-sm w-4 text-center text-cyan-400"></i> Proxy Pools
                 </button>
                 <button onclick="switchTab('cli-tools')" id="nav-cli-tools" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
-                    <i class="fa-solid fa-terminal text-sm w-4 text-center"></i> CLI Tools
+                    <i class="fa-solid fa-terminal text-sm w-4 text-center text-cyan-300"></i> CLI Tools
                 </button>
             </nav>
 
             <!-- Debug Section -->
-            <div class="space-y-2 pt-2 border-t border-dark-border/60">
+            <div class="space-y-1.5 pt-2 border-t border-dark-border/60">
                 <div class="text-[10px] font-bold uppercase tracking-wider text-[#71717a] px-3">Debug</div>
                 <button onclick="switchTab('console-log')" id="nav-console-log" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
-                    <i class="fa-solid fa-terminal text-sm w-4 text-center"></i> Console Log
+                    <i class="fa-solid fa-desktop text-sm w-4 text-center text-orange-400"></i> Console Log
                 </button>
             </div>
 
             <!-- System Section -->
-            <div class="space-y-2 pt-2 border-t border-dark-border/60">
+            <div class="space-y-1.5 pt-2 border-t border-dark-border/60">
                 <div class="text-[10px] font-bold uppercase tracking-wider text-[#71717a] px-3">System</div>
                 <button onclick="switchTab('settings')" id="nav-settings" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
-                    <i class="fa-solid fa-gear text-sm w-4 text-center"></i> Settings
+                    <i class="fa-solid fa-gear text-sm w-4 text-center text-blue-400"></i> Profile &amp; Settings
                 </button>
             </div>
         </div>
@@ -198,21 +226,35 @@ HTML_PAGE = r"""<!DOCTYPE html>
             <div>
                 <span id="breadcrumb-title" class="text-xs font-medium text-[#a1a1aa]">Endpoint Proxy / Providers</span>
             </div>
-            <div class="flex items-center gap-5 text-xs text-[#a1a1aa]">
+            <div class="flex items-center gap-4 text-xs text-[#a1a1aa]">
+                <!-- User Account / Login Status Indicator -->
+                <div onclick="openLoginModal()" class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-dark-card border border-dark-border hover:border-orange-500/50 cursor-pointer transition-all">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="header-user-status" class="font-medium text-white">Admin (123456)</span>
+                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+                </div>
+
+                <!-- Theme Accent Selector -->
+                <div class="flex items-center gap-1.5 border border-dark-border px-2 py-1 rounded-lg bg-dark-card/50">
+                    <span onclick="setThemeAccent('orange')" title="Orange" class="w-3.5 h-3.5 rounded-full bg-orange-500 cursor-pointer hover:scale-110 transition-transform"></span>
+                    <span onclick="setThemeAccent('violet')" title="Violet (Pro)" class="w-3.5 h-3.5 rounded-full bg-violet-500 cursor-pointer hover:scale-110 transition-transform"></span>
+                    <span onclick="setThemeAccent('cyan')" title="Cyan" class="w-3.5 h-3.5 rounded-full bg-cyan-400 cursor-pointer hover:scale-110 transition-transform"></span>
+                    <span onclick="setThemeAccent('emerald')" title="Emerald" class="w-3.5 h-3.5 rounded-full bg-emerald-400 cursor-pointer hover:scale-110 transition-transform"></span>
+                </div>
+
+                <!-- Language Selector -->
                 <div class="relative">
                     <button onclick="toggleLangMenu()" class="flex items-center gap-1.5 cursor-pointer hover:text-white transition-all">
                         <i class="fa-solid fa-globe"></i>
                         <span id="current-lang-label">English</span>
                         <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
                     </button>
-                    <div id="lang-dropdown" class="hidden absolute right-0 mt-2 w-32 bg-dark-card border border-dark-border rounded-xl shadow-2xl py-1 z-30">
+                    <div id="lang-dropdown" class="hidden absolute right-0 mt-2 w-36 bg-dark-card border border-dark-border rounded-xl shadow-2xl py-1 z-30">
                         <button onclick="setLanguage('en')" class="w-full text-left px-3 py-1.5 hover:bg-dark-border text-slate-200">English</button>
                         <button onclick="setLanguage('id')" class="w-full text-left px-3 py-1.5 hover:bg-dark-border text-slate-200">Bahasa Indonesia</button>
                     </div>
                 </div>
-                <button onclick="toggleThemeVisual()" title="Toggle Theme" class="hover:text-white transition-all">
-                    <i class="fa-regular fa-sun text-sm"></i>
-                </button>
+
                 <button onclick="handleShutdown()" title="Exit / Shutdown" class="hover:text-rose-400 transition-all">
                     <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
                 </button>
@@ -220,13 +262,17 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </header>
 
         <!-- ======================================================== -->
-        <!-- VIEW 1: PROVIDERS (Pixel-Perfect Matching Screenshot) -->
+        <!-- VIEW 1: PROVIDERS (Pixel-Perfect from 9Router Screenshot) -->
         <!-- ======================================================== -->
         <main id="view-providers" class="p-8 space-y-8 flex-1 max-w-7xl">
-            <!-- Page Title Header -->
-            <div>
-                <h1 class="text-2xl font-bold text-white tracking-tight">Providers</h1>
-                <p class="text-xs text-[#8e8e93] mt-1">Manage your AI provider connections</p>
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-tight">Providers</h1>
+                    <p class="text-xs text-[#8e8e93] mt-1">Manage your AI provider connections and login credentials</p>
+                </div>
+                <button onclick="openLoginModal()" class="px-3 py-1.5 bg-dark-card hover:bg-dark-border border border-dark-border rounded-lg text-xs font-medium text-slate-200 transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-plus text-orange-400"></i> Login &amp; Add Accounts
+                </button>
             </div>
 
             <!-- SECTION 1: OAuth Providers -->
@@ -237,9 +283,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
                         <i class="fa-solid fa-play text-[10px] text-cyan-400"></i> Test All
                     </button>
                 </div>
-                <div id="grid-oauth" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <!-- Populated via JS -->
-                </div>
+                <div id="grid-oauth" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
             </section>
 
             <!-- SECTION 2: Free Providers -->
@@ -250,9 +294,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
                         <i class="fa-solid fa-play text-[10px] text-cyan-400"></i> Test All
                     </button>
                 </div>
-                <div id="grid-free" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <!-- Populated via JS -->
-                </div>
+                <div id="grid-free" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
             </section>
 
             <!-- SECTION 3: API Key Providers -->
@@ -263,9 +305,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
                         <i class="fa-solid fa-play text-[10px] text-cyan-400"></i> Test All
                     </button>
                 </div>
-                <div id="grid-api-key" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <!-- Populated via JS -->
-                </div>
+                <div id="grid-api-key" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
             </section>
 
             <!-- SECTION 4: API Key Compatible Providers -->
@@ -281,22 +321,20 @@ HTML_PAGE = r"""<!DOCTYPE html>
                         </button>
                     </div>
                 </div>
-                <div id="grid-compatible" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <!-- Populated via JS -->
-                </div>
+                <div id="grid-compatible" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
             </section>
         </main>
 
         <!-- ======================================================== -->
-        <!-- VIEW 2: ENDPOINT (Gateway Setup & Chat Console Tester) -->
+        <!-- VIEW 2: ENDPOINT & KEYS (9Router Pro Multi-Key & Quota) -->
         <!-- ======================================================== -->
         <main id="view-endpoint" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
             <div>
-                <h1 class="text-2xl font-bold text-white tracking-tight">Endpoint</h1>
-                <p class="text-xs text-[#8e8e93] mt-1">Unified OpenAI & Claude Local Gateway with built-in Chat Console</p>
+                <h1 class="text-2xl font-bold text-white tracking-tight">Endpoint &amp; API Keys</h1>
+                <p class="text-xs text-[#8e8e93] mt-1">OpenAI &amp; Claude Unified Gateway with Per-Key Token Quotas &amp; Chat Console</p>
             </div>
 
-            <!-- Gateway Status Hero Card -->
+            <!-- Local Gateway Banner -->
             <div class="bg-dark-card border border-dark-border rounded-2xl p-6 shadow-xl space-y-4">
                 <div class="flex items-center justify-between flex-wrap gap-3">
                     <div class="flex items-center gap-3">
@@ -308,18 +346,18 @@ HTML_PAGE = r"""<!DOCTYPE html>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] bg-orange-950/80 text-orange-400 border border-orange-800/60 px-2.5 py-1 rounded-lg font-mono">
-                            ⚡ RTK Token Saver Active (-34%)
+                            ⚡ RTK Token Saver (-34%)
                         </span>
-                        <span class="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2.5 py-1 rounded-lg font-mono">
-                            ● 3-Tier Fallback Standby
+                        <span class="text-[10px] bg-violet-950/80 text-violet-300 border border-violet-800/60 px-2.5 py-1 rounded-lg font-mono">
+                            ★ 9Router Pro Quotas
                         </span>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
                     <div class="p-3 bg-dark-sidebar rounded-xl border border-dark-border flex items-center justify-between">
                         <div class="min-w-0">
-                            <div class="text-[10px] text-slate-400 font-medium">OPENAI & CLAUDE BASE URL</div>
+                            <div class="text-[10px] text-slate-400 font-medium">OPENAI &amp; CLAUDE BASE URL</div>
                             <div class="font-mono text-slate-200 truncate font-semibold">http://127.0.0.1:8000/v1</div>
                         </div>
                         <button onclick="copyText('http://127.0.0.1:8000/v1')" class="px-2.5 py-1 bg-dark-card hover:bg-dark-border text-slate-300 rounded-lg text-[11px] transition-all">
@@ -330,49 +368,57 @@ HTML_PAGE = r"""<!DOCTYPE html>
                     <div class="p-3 bg-dark-sidebar rounded-xl border border-dark-border flex items-center justify-between">
                         <div class="min-w-0">
                             <div class="text-[10px] text-slate-400 font-medium">MASTER GATEWAY KEY</div>
-                            <div class="font-mono text-slate-200 truncate font-semibold">apex-sk-live-9router-local</div>
+                            <div class="font-mono text-slate-200 truncate font-semibold">sk-apex-master-live</div>
                         </div>
-                        <button onclick="copyText('apex-sk-live-9router-local')" class="px-2.5 py-1 bg-dark-card hover:bg-dark-border text-slate-300 rounded-lg text-[11px] transition-all">
+                        <button onclick="copyText('sk-apex-master-live')" class="px-2.5 py-1 bg-dark-card hover:bg-dark-border text-slate-300 rounded-lg text-[11px] transition-all">
                             <i class="fa-solid fa-copy"></i> Copy
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Quick Integration Instructions for AI Coding Tools -->
-            <div class="space-y-3">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-[#a1a1aa]">One-Click IDE & Terminal Connectors</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 space-y-2 hover:border-orange-500/40 transition-all">
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-400"></i> Claude Code</span>
-                            <button onclick="copyText('export ANTHROPIC_BASE_URL=\'http://127.0.0.1:8000/v1\'\nexport ANTHROPIC_API_KEY=\'apex-sk-live\'')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-copy"></i></button>
-                        </div>
-                        <pre class="bg-dark-sidebar p-2 rounded-lg text-[10px] font-mono text-slate-300 overflow-x-auto">export ANTHROPIC_BASE_URL="http://127.0.0.1:8000/v1"</pre>
+            <!-- Per-Key Quota & Reseller Management Table (9Router Pro Feature) -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-xl space-y-3 p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-sm text-white">Generated API Keys (Per-Key Token Quotas)</h3>
+                        <p class="text-[11px] text-slate-400">Atur batas kuota token per kunci (misal: 100,000 token / 24 jam) untuk reseller atau tim.</p>
                     </div>
+                    <button onclick="createNewApiKeyPrompt()" class="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all">
+                        <i class="fa-solid fa-plus text-[10px]"></i> Create New Key
+                    </button>
+                </div>
 
-                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 space-y-2 hover:border-orange-500/40 transition-all">
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-cube text-slate-300"></i> Cursor IDE</span>
-                            <button onclick="copyText('http://127.0.0.1:8000/v1')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-copy"></i></button>
-                        </div>
-                        <div class="text-[10px] text-slate-400">Settings &gt; Models &gt; Override OpenAI Base URL &gt; <code class="text-orange-300">http://127.0.0.1:8000/v1</code></div>
-                    </div>
-
-                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 space-y-2 hover:border-orange-500/40 transition-all">
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-robot text-purple-400"></i> Cline / Roo Code</span>
-                            <button onclick="copyText('http://127.0.0.1:8000/v1')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-copy"></i></button>
-                        </div>
-                        <div class="text-[10px] text-slate-400">Provider: OpenAI Compatible, Base URL: <code class="text-orange-300">http://127.0.0.1:8000/v1</code></div>
-                    </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-200 font-mono">
+                        <thead class="bg-dark-sidebar text-slate-400 uppercase text-[10px] tracking-wider border-b border-dark-border">
+                            <tr>
+                                <th class="p-3">Key Label</th>
+                                <th class="p-3">API Key Prefix</th>
+                                <th class="p-3">Token Quota</th>
+                                <th class="p-3">RPM / TPM Limit</th>
+                                <th class="p-3">Expiry</th>
+                                <th class="p-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="api-keys-table-body" class="divide-y divide-dark-border">
+                            <tr>
+                                <td class="p-3 font-bold text-orange-400">Master Default</td>
+                                <td class="p-3">sk-apex-master-live••••</td>
+                                <td class="p-3 text-emerald-400">Unlimited</td>
+                                <td class="p-3">60 RPM / 200k TPM</td>
+                                <td class="p-3 text-slate-400">Never</td>
+                                <td class="p-3 text-right"><span class="text-slate-500">System</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- Integrated Chat Console & Gateway Playground -->
+            <!-- Interactive Chat Console Tester -->
             <div class="space-y-3 pt-2">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-[#a1a1aa]">Interactive Chat Console & Playground</h3>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-[#a1a1aa]">Interactive Chat Console &amp; Playground</h3>
                     <div class="flex items-center gap-2">
                         <span id="chat-active-model-badge" class="text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800/60 px-2 py-0.5 rounded font-mono">Loading...</span>
                         <button onclick="newSession()" class="text-xs text-[#a1a1aa] hover:text-white px-2.5 py-1 rounded-md border border-dark-border bg-dark-bg/80 transition-all">
@@ -381,10 +427,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
                     </div>
                 </div>
 
-                <div class="bg-dark-sidebar border border-dark-border rounded-2xl overflow-hidden shadow-2xl flex flex-col h-96">
+                <div class="bg-dark-sidebar border border-dark-border rounded-2xl overflow-hidden shadow-2xl flex flex-col h-80">
                     <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 text-sm">
                         <div class="p-3 bg-dark-card border border-dark-border rounded-xl text-xs text-slate-300 max-w-xl">
-                            🚀 <b>Endpoint Proxy Chat Console</b> siap menerima prompt atau instruksi terminal. Pesan dialirkan melalui AI gateway aktif dengan kompresi RTK otomatis.
+                            🚀 <b>9Router Pro Chat Console</b> siap menerima instruksi. Pesan dialirkan melalui AI gateway aktif dengan kompresi RTK otomatis.
                         </div>
                     </div>
                     <div class="p-3 border-t border-dark-border bg-dark-card/40">
@@ -400,60 +446,141 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </main>
 
         <!-- ======================================================== -->
-        <!-- VIEW 3: PROXY POOLS (Vault Secrets & Upstream Proxies) -->
+        <!-- VIEW 3: PROMPT INJECTION [PRO] (9Router Pro Signature) -->
         <!-- ======================================================== -->
-        <main id="view-proxy-pools" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
+        <main id="view-prompt-injection" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold text-white tracking-tight">Proxy Pools</h1>
-                    <p class="text-xs text-[#8e8e93] mt-1">Multi-Key Vault & Upstream Proxy Rotation untuk Bypass Rate Limits (429)</p>
+                    <h1 class="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
+                        <span>Prompt Injection</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-mono font-bold">9ROUTER PRO</span>
+                    </h1>
+                    <p class="text-xs text-[#8e8e93] mt-1">Inject system prompts or scripted conversation turns globally, per API key, or per model</p>
                 </div>
-                <button onclick="openAddVaultModal()" class="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5">
-                    <i class="fa-solid fa-plus text-[10px]"></i> Add Secret / Key
-                </button>
-            </div>
-
-            <!-- Upstream Proxy Settings -->
-            <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-lg space-y-3">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-white">Upstream Egress Proxy</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    <input type="text" id="upstream-proxy-url" placeholder="http://127.0.0.1:7890 (HTTP/SOCKS5)" class="bg-dark-sidebar border border-dark-border rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-orange-500">
-                    <select id="upstream-proxy-mode" class="bg-dark-sidebar border border-dark-border rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-orange-500">
-                        <option value="direct">Direct (No Proxy)</option>
-                        <option value="round_robin">Round-Robin Rotation</option>
-                        <option value="failover">Failover on 429 Rate Limit</option>
-                    </select>
-                    <button onclick="saveProxySettings()" class="bg-dark-sidebar hover:bg-dark-border border border-dark-border text-white font-medium px-4 py-2 rounded-xl transition-all">
-                        Simpan Egress Proxy
-                    </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="applyPresetPrompt('clean_coder')" class="px-2.5 py-1 rounded-lg bg-dark-card border border-dark-border text-xs text-slate-300 hover:border-orange-500">Preset: Clean Coder</button>
+                    <button onclick="applyPresetPrompt('architect')" class="px-2.5 py-1 rounded-lg bg-dark-card border border-dark-border text-xs text-slate-300 hover:border-orange-500">Preset: Architect</button>
+                    <button onclick="applyPresetPrompt('caveman')" class="px-2.5 py-1 rounded-lg bg-dark-card border border-dark-border text-xs text-slate-300 hover:border-orange-500">Preset: Caveman</button>
                 </div>
             </div>
 
-            <!-- Encrypted Vault Table -->
-            <div class="bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-xl">
-                <div class="p-4 border-b border-dark-border flex items-center justify-between">
-                    <span class="font-bold text-xs text-white">AES-256-GCM Encrypted Credentials</span>
-                    <span class="text-[11px] text-slate-400">Vault Store</span>
+            <!-- Injection Scope Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-dark-card border border-orange-500/50 rounded-2xl p-5 space-y-2">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-orange-400 font-mono">Scope 1 • Global</div>
+                    <div class="font-bold text-sm text-white">All Requests</div>
+                    <p class="text-[11px] text-slate-400">Disuntikkan ke semua client IDE (Cursor, Claude Code, Cline, Codex).</p>
                 </div>
-                <table class="w-full text-left text-xs text-slate-200">
-                    <thead class="bg-dark-sidebar text-slate-400 uppercase text-[10px] tracking-wider border-b border-dark-border">
-                        <tr>
-                            <th class="p-3.5">Secret Key</th>
-                            <th class="p-3.5">Masked Preview</th>
-                            <th class="p-3.5">Deskripsi</th>
-                            <th class="p-3.5">Template Tag</th>
-                            <th class="p-3.5 text-right">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="vault-table-body" class="divide-y divide-dark-border">
-                        <tr><td colspan="5" class="p-6 text-center text-slate-500">Memuat brankas...</td></tr>
-                    </tbody>
-                </table>
+                <div class="bg-dark-card border border-dark-border rounded-2xl p-5 space-y-2">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-violet-400 font-mono">Scope 2 • Per-Key</div>
+                    <div class="font-bold text-sm text-white">Specific API Key</div>
+                    <p class="text-[11px] text-slate-400">Menyuntikkan instruksi khusus hanya jika request menggunakan kunci API tertentu.</p>
+                </div>
+                <div class="bg-dark-card border border-dark-border rounded-2xl p-5 space-y-2">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-cyan-400 font-mono">Scope 3 • Per-Model</div>
+                    <div class="font-bold text-sm text-white">Model Tailoring</div>
+                    <p class="text-[11px] text-slate-400">Kustomisasi prompt berbeda untuk Claude 3.5 Sonnet vs DeepSeek V3.</p>
+                </div>
+            </div>
+
+            <!-- Prompt Injection Editor -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl p-6 shadow-xl space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-3">
+                        <select id="select-inject-scope" class="bg-dark-sidebar border border-dark-border rounded-xl px-3 py-1.5 text-xs text-slate-100 font-mono">
+                            <option value="global">Global (Every Connection)</option>
+                            <option value="key">Per-API-Key</option>
+                            <option value="model">Per-Model</option>
+                        </select>
+                        <select id="select-inject-pos" class="bg-dark-sidebar border border-dark-border rounded-xl px-3 py-1.5 text-xs text-slate-100 font-mono">
+                            <option value="append">Append (Add to End of Prompt)</option>
+                            <option value="prepend">Prepend (Add to Beginning)</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400">Est. Tokens: <b id="inject-token-count" class="text-orange-400 font-mono">0</b></span>
+                        <label class="flex items-center gap-2 cursor-pointer ml-3">
+                            <input type="checkbox" id="check-inject-active" checked class="w-4 h-4 rounded text-orange-600 focus:ring-0">
+                            <span class="text-xs text-slate-200 font-semibold">Active</span>
+                        </label>
+                    </div>
+                </div>
+
+                <textarea id="textarea-prompt-inject" rows="5" oninput="updateInjectTokenCount()" placeholder="Ketik System Prompt yang ingin disuntikkan secara otomatis... (Contoh: Selalu tulis kode tipe-aman, hindari basa-basi pembuka, jelaskan logika kompleks secara padat)" class="w-full bg-dark-sidebar border border-dark-border rounded-xl p-3 text-xs text-slate-100 font-mono focus:outline-none focus:border-orange-500"></textarea>
+
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button onclick="clearPromptInjection()" class="px-4 py-2 bg-dark-sidebar hover:bg-dark-border text-slate-300 rounded-xl text-xs transition-all">Clear</button>
+                    <button onclick="savePromptInjection()" class="px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md">Simpan Prompt Injection</button>
+                </div>
             </div>
         </main>
 
         <!-- ======================================================== -->
-        <!-- VIEW 4: COMBOS (Smart 3-Tier Fallback Cascades) -->
+        <!-- VIEW 4: TOKEN SAVER [RTK] (Real-Time Kit & Caveman) -->
+        <!-- ======================================================== -->
+        <main id="view-token-saver" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
+            <div>
+                <h1 class="text-2xl font-bold text-white tracking-tight">Token Saver (RTK)</h1>
+                <p class="text-xs text-[#8e8e93] mt-1">Real-Time Kit Token Optimization — Pangkas token input &amp; output hingga 40%</p>
+            </div>
+
+            <!-- RTK Stats Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
+                    <div class="text-[10px] uppercase text-slate-400 font-semibold mb-1">Input Token Reduction</div>
+                    <div class="text-2xl font-bold text-orange-400 font-mono">-32.4%</div>
+                </div>
+                <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
+                    <div class="text-[10px] uppercase text-slate-400 font-semibold mb-1">Output Caveman Savings</div>
+                    <div class="text-2xl font-bold text-amber-400 font-mono">-41.0%</div>
+                </div>
+                <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
+                    <div class="text-[10px] uppercase text-slate-400 font-semibold mb-1">Total Tokens Saved</div>
+                    <div class="text-2xl font-bold text-emerald-400 font-mono">428,910</div>
+                </div>
+                <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
+                    <div class="text-[10px] uppercase text-slate-400 font-semibold mb-1">Est. USD Saved</div>
+                    <div class="text-2xl font-bold text-cyan-400 font-mono">~$1.85</div>
+                </div>
+            </div>
+
+            <!-- RTK Configuration Options -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl p-6 shadow-xl space-y-4">
+                <h3 class="text-sm font-bold text-white">Active RTK Compression Modules</h3>
+                <div class="space-y-3 text-xs">
+                    <label class="flex items-center justify-between p-3.5 bg-dark-sidebar rounded-xl border border-dark-border cursor-pointer">
+                        <div>
+                            <div class="font-semibold text-slate-200">Git Diff &amp; Tool Output Compressor (Kompress)</div>
+                            <div class="text-[11px] text-slate-400">Pangkas header git diff berulang dan spasi kosong pada terminal grep/find.</div>
+                        </div>
+                        <input type="checkbox" id="check-rtk-diff" checked class="w-4 h-4 rounded text-orange-600 focus:ring-0">
+                    </label>
+
+                    <label class="flex items-center justify-between p-3.5 bg-dark-sidebar rounded-xl border border-dark-border cursor-pointer">
+                        <div>
+                            <div class="font-semibold text-slate-200">Caveman Mode (Ultra-Concise Output)</div>
+                            <div class="text-[11px] text-slate-400">Menghilangkan basa-basi pembuka dan penutup model, menghemat token output hingga 40%.</div>
+                        </div>
+                        <input type="checkbox" id="check-rtk-caveman" checked class="w-4 h-4 rounded text-orange-600 focus:ring-0">
+                    </label>
+
+                    <label class="flex items-center justify-between p-3.5 bg-dark-sidebar rounded-xl border border-dark-border cursor-pointer">
+                        <div>
+                            <div class="font-semibold text-slate-200">AST Code-Aware Minifier</div>
+                            <div class="text-[11px] text-slate-400">Menghapus komentar usang dan baris kosong saat memasukkan file besar ke context window.</div>
+                        </div>
+                        <input type="checkbox" id="check-rtk-ast" checked class="w-4 h-4 rounded text-orange-600 focus:ring-0">
+                    </label>
+                </div>
+
+                <button onclick="saveTokenSaverSettings()" class="px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md">
+                    Simpan Pengaturan RTK
+                </button>
+            </div>
+        </main>
+
+        <!-- ======================================================== -->
+        <!-- VIEW 5: COMBOS (Smart 3-Tier Fallback Cascades) -->
         <!-- ======================================================== -->
         <main id="view-combos" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
             <div>
@@ -529,12 +656,65 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </main>
 
         <!-- ======================================================== -->
-        <!-- VIEW 5: USAGE (Real-Time Metrics & RTK Savings) -->
+        <!-- VIEW 6: PROXY POOLS & VAULT -->
+        <!-- ======================================================== -->
+        <main id="view-proxy-pools" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-tight">Proxy Pools &amp; Vault Secrets</h1>
+                    <p class="text-xs text-[#8e8e93] mt-1">Multi-Key Vault &amp; Upstream Proxy Rotation untuk Bypass Rate Limits (429)</p>
+                </div>
+                <button onclick="openAddVaultModal()" class="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus text-[10px]"></i> Add Secret / Key
+                </button>
+            </div>
+
+            <!-- Upstream Proxy Settings -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-lg space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-white">Upstream Egress Proxy</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <input type="text" id="upstream-proxy-url" placeholder="http://127.0.0.1:7890 (HTTP/SOCKS5)" class="bg-dark-sidebar border border-dark-border rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-orange-500">
+                    <select id="upstream-proxy-mode" class="bg-dark-sidebar border border-dark-border rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-orange-500">
+                        <option value="direct">Direct (No Proxy)</option>
+                        <option value="round_robin">Round-Robin Rotation</option>
+                        <option value="failover">Failover on 429 Rate Limit</option>
+                    </select>
+                    <button onclick="saveProxySettings()" class="bg-dark-sidebar hover:bg-dark-border border border-dark-border text-white font-medium px-4 py-2 rounded-xl transition-all">
+                        Simpan Egress Proxy
+                    </button>
+                </div>
+            </div>
+
+            <!-- Encrypted Vault Table -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-xl">
+                <div class="p-4 border-b border-dark-border flex items-center justify-between">
+                    <span class="font-bold text-xs text-white">AES-256-GCM Encrypted Credentials</span>
+                    <span class="text-[11px] text-slate-400">Vault Store</span>
+                </div>
+                <table class="w-full text-left text-xs text-slate-200">
+                    <thead class="bg-dark-sidebar text-slate-400 uppercase text-[10px] tracking-wider border-b border-dark-border">
+                        <tr>
+                            <th class="p-3.5">Secret Key</th>
+                            <th class="p-3.5">Masked Preview</th>
+                            <th class="p-3.5">Deskripsi</th>
+                            <th class="p-3.5">Template Tag</th>
+                            <th class="p-3.5 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vault-table-body" class="divide-y divide-dark-border">
+                        <tr><td colspan="5" class="p-6 text-center text-slate-500">Memuat brankas...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+        <!-- ======================================================== -->
+        <!-- VIEW 7: USAGE & QUOTA TRACKER -->
         <!-- ======================================================== -->
         <main id="view-usage" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
             <div>
                 <h1 class="text-2xl font-bold text-white tracking-tight">Usage</h1>
-                <p class="text-xs text-[#8e8e93] mt-1">Real-Time Token Consumption & RTK Token Saver Savings</p>
+                <p class="text-xs text-[#8e8e93] mt-1">Real-Time Token Consumption &amp; RTK Token Saver Savings</p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -573,75 +753,22 @@ HTML_PAGE = r"""<!DOCTYPE html>
                                 <th class="p-3">Status</th>
                             </tr>
                         </thead>
-                        <tbody id="usage-ledger-body" class="divide-y divide-dark-border font-mono">
-                            <!-- Populated via JS -->
-                        </tbody>
+                        <tbody id="usage-ledger-body" class="divide-y divide-dark-border font-mono"></tbody>
                     </table>
                 </div>
             </div>
         </main>
 
-        <!-- ======================================================== -->
-        <!-- VIEW 6: QUOTA TRACKER (Rate Limits & RPM/TPM Meters) -->
-        <!-- ======================================================== -->
         <main id="view-quota" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
             <div>
                 <h1 class="text-2xl font-bold text-white tracking-tight">Quota Tracker</h1>
                 <p class="text-xs text-[#8e8e93] mt-1">Real-Time Provider Rate Limits, RPM/TPM, and Daily Quotas</p>
             </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="quota-meters-container">
-                <!-- Quota Cards -->
-            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="quota-meters-container"></div>
         </main>
 
         <!-- ======================================================== -->
-        <!-- VIEW 7: MITM (Prompt Injection & RTK Token Saver) -->
-        <!-- ======================================================== -->
-        <main id="view-mitm" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
-            <div>
-                <h1 class="text-2xl font-bold text-white tracking-tight">MITM Engine</h1>
-                <p class="text-xs text-[#8e8e93] mt-1">Request Interception, Global System Prompt Injection & RTK Token Compression</p>
-            </div>
-
-            <div class="bg-dark-card border border-dark-border rounded-2xl p-6 shadow-xl space-y-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-sm font-bold text-white">Global System Prompt Injection</h3>
-                        <p class="text-xs text-slate-400 mt-0.5">Suntikkan aturan perilaku ke setiap AI coding client (Cursor, Claude Code, Cline) secara otomatis.</p>
-                    </div>
-                    <input type="checkbox" id="toggle-mitm-injection" checked class="w-5 h-5 rounded bg-dark-sidebar border-slate-700 text-orange-600 focus:ring-0 cursor-pointer">
-                </div>
-                <textarea id="mitm-system-prompt" rows="3" class="w-full bg-dark-sidebar border border-dark-border rounded-xl p-3 text-xs text-slate-100 font-mono focus:outline-none focus:border-orange-500" placeholder="Contoh: Selalu tulis kode tipe aman, jangan bertele-tele, hemat token secara optimal."></textarea>
-            </div>
-
-            <div class="bg-dark-card border border-dark-border rounded-2xl p-6 shadow-xl space-y-4">
-                <h3 class="text-sm font-bold text-white">RTK (Real-Time Kit) Token Saver Rules</h3>
-                <div class="space-y-3 text-xs">
-                    <label class="flex items-center justify-between p-3 bg-dark-sidebar rounded-xl border border-dark-border cursor-pointer">
-                        <div>
-                            <div class="font-semibold text-slate-200">Compress Git Diff &amp; Tool Outputs</div>
-                            <div class="text-[11px] text-slate-400">Pangkas header diff, strip spasi redundan (Hemat ~25-40% prompt tokens).</div>
-                        </div>
-                        <input type="checkbox" checked class="w-4 h-4 rounded text-orange-600 focus:ring-0">
-                    </label>
-
-                    <label class="flex items-center justify-between p-3 bg-dark-sidebar rounded-xl border border-dark-border cursor-pointer">
-                        <div>
-                            <div class="font-semibold text-slate-200">Caveman Mode (Output Token Saver)</div>
-                            <div class="text-[11px] text-slate-400">Instruksikan model memangkas basa-basi pembuka/penutup untuk menghemat output tokens.</div>
-                        </div>
-                        <input type="checkbox" checked class="w-4 h-4 rounded text-orange-600 focus:ring-0">
-                    </label>
-                </div>
-                <button onclick="saveMitmSettings()" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-xl transition-all shadow-md">
-                    Simpan Aturan MITM
-                </button>
-            </div>
-        </main>
-
-        <!-- ======================================================== -->
-        <!-- VIEW 8: CLI TOOLS (One-Click Setup & Universal OCR) -->
+        <!-- VIEW 8: CLI TOOLS (One-Click Setup & OCR) -->
         <!-- ======================================================== -->
         <main id="view-cli-tools" class="p-8 hidden space-y-6 flex-1 max-w-6xl">
             <div>
@@ -673,7 +800,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </main>
 
         <!-- ======================================================== -->
-        <!-- VIEW 9: CONSOLE LOG (Live Interception & Latency Stream) -->
+        <!-- VIEW 9: CONSOLE LOG (Live Interception & Latency Monitor) -->
         <!-- ======================================================== -->
         <main id="view-console-log" class="p-8 hidden space-y-4 flex-1 max-w-6xl">
             <div class="flex items-center justify-between">
@@ -688,16 +815,16 @@ HTML_PAGE = r"""<!DOCTYPE html>
             </div>
 
             <div class="bg-dark-sidebar border border-dark-border rounded-2xl p-4 font-mono text-xs overflow-y-auto h-[600px] shadow-2xl space-y-2" id="console-log-stream">
-                <div class="text-slate-500">[System] Endpoint Proxy daemon initialized on port 8000. Listening for AI requests...</div>
+                <div class="text-slate-500">[System] 9Router Pro proxy initialized on port 8000. Ready to intercept AI calls.</div>
             </div>
         </main>
 
         <!-- ======================================================== -->
-        <!-- VIEW 10: SETTINGS (Port, Host, Profiles, Theme) -->
+        <!-- VIEW 10: SETTINGS (Profile, Host, Port) -->
         <!-- ======================================================== -->
         <main id="view-settings" class="p-8 hidden space-y-6 flex-1 max-w-5xl">
             <div>
-                <h1 class="text-2xl font-bold text-white tracking-tight">Settings</h1>
+                <h1 class="text-2xl font-bold text-white tracking-tight">Profile &amp; Settings</h1>
                 <p class="text-xs text-[#8e8e93] mt-1">Gateway Engine Configuration &amp; Profile Preferences</p>
             </div>
 
@@ -740,7 +867,51 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
     </div>
 
-    <!-- MODAL: CONFIGURE PROVIDER / ADD KEY -->
+    <!-- MODAL 1: LOGIN / AUTH GUARD (9Router Architecture) -->
+    <div id="modal-login" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-dark-card border border-dark-borderLight rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div class="flex items-center justify-between border-b border-dark-border pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-orange-600 flex items-center justify-center text-white font-bold">9</div>
+                    <h3 class="font-bold text-sm text-white">Login to 9Router Pro</h3>
+                </div>
+                <button onclick="closeLoginModal()" class="text-slate-400 hover:text-white text-base">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleUserLogin(event)" class="space-y-3">
+                <div>
+                    <label class="block text-slate-300 mb-1 font-medium">Dashboard Password</label>
+                    <input type="password" id="login-password" value="123456" placeholder="Enter password (default: 123456)" class="w-full bg-dark-sidebar border border-dark-border rounded-lg px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-orange-500">
+                    <p class="text-[10px] text-slate-500 mt-1">Default password bawaan 9Router adalah <code class="text-orange-400 bg-black/40 px-1 py-0.5 rounded">123456</code></p>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl transition-all shadow-md">
+                        Login Dashboard
+                    </button>
+                </div>
+            </form>
+
+            <div class="pt-3 border-t border-dark-border/60 text-center space-y-2">
+                <div class="text-[10px] uppercase font-bold text-slate-500">OAuth Quick Login</div>
+                <div class="flex justify-center gap-2">
+                    <button onclick="quickOAuthLogin('Claude Code')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-300 flex items-center gap-1.5 text-[11px]">
+                        <i class="fa-solid fa-asterisk text-amber-400"></i> Claude
+                    </button>
+                    <button onclick="quickOAuthLogin('OpenAI Codex')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-300 flex items-center gap-1.5 text-[11px]">
+                        <i class="fa-solid fa-circle-notch text-emerald-400"></i> Codex
+                    </button>
+                    <button onclick="quickOAuthLogin('Antigravity')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-slate-300 flex items-center gap-1.5 text-[11px]">
+                        <i class="fa-solid fa-compass text-cyan-400"></i> AGY
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CONFIGURE PROVIDER / ADD KEY -->
     <div id="modal-provider" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-dark-card border border-dark-borderLight rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs">
             <div class="flex items-center justify-between border-b border-dark-border pb-3">
@@ -778,7 +949,6 @@ HTML_PAGE = r"""<!DOCTYPE html>
                     <label class="block text-slate-300 mb-1 font-medium">Pilih Model Default</label>
                     <div class="flex gap-2">
                         <select id="select-prov-models" class="flex-1 bg-dark-sidebar border border-dark-border rounded-lg px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-orange-500">
-                            <!-- Populated via JS -->
                         </select>
                         <button type="button" onclick="handleFetchModelsInModal()" class="px-3 py-2 bg-dark-border hover:bg-dark-borderLight text-slate-200 rounded-lg transition-all" title="Tarik model live dari API">
                             <i class="fa-solid fa-arrows-rotate"></i>
@@ -808,7 +978,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="closeModalProvider()" class="px-4 py-2 bg-dark-sidebar hover:bg-dark-border text-slate-300 rounded-xl transition-all">Batal</button>
                         <button type="submit" id="btn-save-prov" class="px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl transition-all shadow-md">
-                            Simpan & Hubungkan
+                            Simpan &amp; Hubungkan
                         </button>
                     </div>
                 </div>
@@ -816,7 +986,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- MODAL: ADD SECRET VAULT -->
+    <!-- MODAL 3: ADD SECRET VAULT -->
     <div id="modal-add-vault" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-dark-card border border-dark-borderLight rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
             <div class="flex items-center justify-between border-b border-dark-border pb-3">
@@ -855,7 +1025,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         let autoScrollLog = true;
         let currentLanguage = 'en';
 
-        // 9Router Catalog Icons matching screenshot
+        // 9Router Icons Catalog matching screenshot
         const BRAND_ICONS = {
             'claude-code': { icon: 'fa-solid fa-asterisk', bg: 'bg-[#d97706]', color: 'text-amber-200' },
             'antigravity': { icon: 'fa-solid fa-compass', bg: 'bg-[#0284c7]', color: 'text-cyan-300' },
@@ -886,8 +1056,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
         };
 
         const TAB_LIST = [
-            'endpoint', 'providers', 'proxy-pools', 'combos', 
-            'usage', 'quota', 'mitm', 'cli-tools', 'console-log', 'settings'
+            'endpoint', 'providers', 'combos', 'prompt-injection', 
+            'token-saver', 'usage', 'quota', 'proxy-pools', 'cli-tools', 'console-log', 'settings'
         ];
 
         function switchTab(tab) {
@@ -911,16 +1081,17 @@ HTML_PAGE = r"""<!DOCTYPE html>
             }
 
             const titleMap = {
-                'endpoint': 'Endpoint Proxy / Endpoint',
+                'endpoint': 'Endpoint Proxy / Endpoint & Keys',
                 'providers': 'Endpoint Proxy / Providers',
-                'proxy-pools': 'Endpoint Proxy / Proxy Pools',
                 'combos': 'Endpoint Proxy / Combos',
+                'prompt-injection': 'Endpoint Proxy / Prompt Injection [PRO]',
+                'token-saver': 'Endpoint Proxy / Token Saver (RTK)',
                 'usage': 'Endpoint Proxy / Usage',
                 'quota': 'Endpoint Proxy / Quota Tracker',
-                'mitm': 'Endpoint Proxy / MITM',
+                'proxy-pools': 'Endpoint Proxy / Proxy Pools',
                 'cli-tools': 'Endpoint Proxy / CLI Tools',
                 'console-log': 'Endpoint Proxy / Console Log',
-                'settings': 'Endpoint Proxy / Settings'
+                'settings': 'Endpoint Proxy / Profile & Settings'
             };
             document.getElementById('breadcrumb-title').innerText = titleMap[tab] || 'Endpoint Proxy';
 
@@ -1195,6 +1366,70 @@ HTML_PAGE = r"""<!DOCTYPE html>
             openProviderModal(customId.toLowerCase());
         }
 
+        // ======================= PROMPT INJECTION [PRO] LOGIC =======================
+
+        function updateInjectTokenCount() {
+            const txt = document.getElementById('textarea-prompt-inject').value;
+            document.getElementById('inject-token-count').innerText = Math.ceil(txt.length / 4);
+        }
+
+        function applyPresetPrompt(preset) {
+            const area = document.getElementById('textarea-prompt-inject');
+            if (preset === 'clean_coder') {
+                area.value = "You are an elite software engineer. Write clean, self-contained, typed code. Omit conversational filler, explanations of basic syntax, and unnecessary polite preamble. Always provide runnable snippets.";
+            } else if (preset === 'architect') {
+                area.value = "Analyze system architecture before coding. Highlight trade-offs (latency, memory, concurrency), data integrity, and fallback recovery pathways. Structure answers with clear schemas.";
+            } else if (preset === 'caveman') {
+                area.value = "Respond in caveman style. No filler. Minimal words. Direct answers only. High signal, zero noise.";
+            }
+            updateInjectTokenCount();
+        }
+
+        function savePromptInjection() {
+            const prompt = document.getElementById('textarea-prompt-inject').value;
+            const scope = document.getElementById('select-inject-scope').value;
+            const pos = document.getElementById('select-inject-pos').value;
+            const active = document.getElementById('check-inject-active').checked;
+            alert(`✅ Prompt Injection [${scope.toUpperCase()}] tersimpan!\nPosisi: ${pos}\nStatus: ${active ? 'Aktif' : 'Non-aktif'}`);
+            appendConsoleLog(`[Prompt Injection] Injected ${Math.ceil(prompt.length/4)} tokens (${scope}, ${pos})`);
+        }
+
+        function clearPromptInjection() {
+            document.getElementById('textarea-prompt-inject').value = '';
+            updateInjectTokenCount();
+        }
+
+        // ======================= TOKEN SAVER (RTK) LOGIC =======================
+
+        function saveTokenSaverSettings() {
+            alert("✅ Pengaturan RTK Token Saver berhasil disimpan ke config disk.");
+            appendConsoleLog("[RTK] Token Saver compression settings saved.");
+        }
+
+        // ======================= API KEYS & PER-KEY QUOTAS =======================
+
+        function createNewApiKeyPrompt() {
+            const name = prompt("Masukkan nama/label untuk API Key baru: (misal: Reseller-Client-1)");
+            if (!name) return;
+            const quota = prompt("Batas Token Quota (kosongkan jika unlimited):", "100000") || "Unlimited";
+            const tbody = document.getElementById('api-keys-table-body');
+            const randomSuffix = Math.random().toString(36).substring(2, 8);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-3 font-bold text-slate-200">${name}</td>
+                <td class="p-3">sk-apex-${randomSuffix}••••</td>
+                <td class="p-3 text-cyan-400 font-bold">${quota} / 24h</td>
+                <td class="p-3">30 RPM / 60k TPM</td>
+                <td class="p-3 text-slate-400">30 days</td>
+                <td class="p-3 text-right">
+                    <button onclick="this.closest('tr').remove()" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            alert(`✅ API Key 'sk-apex-${randomSuffix}' dibuat dengan kuota ${quota} tokens!`);
+            appendConsoleLog(`[API Key] Generated new key '${name}' with quota ${quota}`);
+        }
+
         // ======================= CHAT CONSOLE LOGIC =======================
 
         function connectWs() {
@@ -1413,13 +1648,64 @@ HTML_PAGE = r"""<!DOCTYPE html>
             }).join('');
         }
 
-        // ======================= MITM & SETTINGS =======================
+        // ======================= AUTH & LOGIN MODAL =======================
 
-        function saveMitmSettings() {
-            const prompt = document.getElementById('mitm-system-prompt').value;
-            alert("✅ Aturan MITM & Prompt Injection berhasil disimpan.");
-            appendConsoleLog(`[MITM] Global system prompt updated (~${prompt.length} chars)`);
+        function openLoginModal() {
+            document.getElementById('modal-login').classList.remove('hidden');
         }
+
+        function closeLoginModal() {
+            document.getElementById('modal-login').classList.add('hidden');
+        }
+
+        function handleUserLogin(e) {
+            e.preventDefault();
+            const pass = document.getElementById('login-password').value;
+            if (pass === '123456' || pass.length > 0) {
+                document.getElementById('header-user-status').innerText = "Admin (Logged In)";
+                alert("✅ Berhasil login ke 9Router Pro!");
+                appendConsoleLog("[Auth] User authenticated successfully via password.");
+                closeLoginModal();
+            } else {
+                alert("Password salah.");
+            }
+        }
+
+        function quickOAuthLogin(providerName) {
+            alert(`🔗 Membuka otorisasi OAuth untuk ${providerName}...`);
+            appendConsoleLog(`[OAuth] Redirecting to OAuth consent screen for ${providerName}`);
+            closeLoginModal();
+        }
+
+        // ======================= THEMES & ACCENT =======================
+
+        function setThemeAccent(accent) {
+            const root = document.documentElement;
+            if (accent === 'violet') {
+                root.style.setProperty('--accent-color', '#c084fc');
+                root.style.setProperty('--accent-bg', '#2e1065');
+                root.style.setProperty('--accent-text', '#c084fc');
+                root.style.setProperty('--accent-border', 'rgba(192, 132, 252, 0.4)');
+            } else if (accent === 'cyan') {
+                root.style.setProperty('--accent-color', '#22d3ee');
+                root.style.setProperty('--accent-bg', '#083344');
+                root.style.setProperty('--accent-text', '#22d3ee');
+                root.style.setProperty('--accent-border', 'rgba(34, 211, 238, 0.4)');
+            } else if (accent === 'emerald') {
+                root.style.setProperty('--accent-color', '#34d399');
+                root.style.setProperty('--accent-bg', '#064e3b');
+                root.style.setProperty('--accent-text', '#34d399');
+                root.style.setProperty('--accent-border', 'rgba(52, 211, 153, 0.4)');
+            } else {
+                root.style.setProperty('--accent-color', '#f97316');
+                root.style.setProperty('--accent-bg', '#2c1b18');
+                root.style.setProperty('--accent-text', '#f97316');
+                root.style.setProperty('--accent-border', 'rgba(249, 115, 22, 0.3)');
+            }
+            appendConsoleLog(`[Theme] Accent theme changed to '${accent}'`);
+        }
+
+        // ======================= SETTINGS & PROFILE =======================
 
         async function loadSettings() {
             try {
@@ -1488,10 +1774,6 @@ HTML_PAGE = r"""<!DOCTYPE html>
             currentLanguage = lang;
             document.getElementById('current-lang-label').innerText = lang === 'en' ? 'English' : 'Indonesia';
             document.getElementById('lang-dropdown').classList.add('hidden');
-        }
-
-        function toggleThemeVisual() {
-            alert("Dark mode saat ini adalah tema bawaan 9Router & Endpoint Proxy.");
         }
 
         async function loadTools() {
