@@ -61,6 +61,26 @@ class TaskScheduler:
                 return True
         return False
 
+    def record_job_result(self, name: str, result_output: str) -> bool:
+        """Process job execution result and detect quiet runs (OpenBot style).
+
+        Returns:
+            bool: True if run ended quietly without requiring operator notification.
+        """
+        is_quiet = (
+            "[[no-update]]" in result_output or
+            "routine_no_update" in result_output or
+            "🔕 [Quiet Run]" in result_output
+        )
+        with self._lock:
+            if name in self._jobs:
+                j = self._jobs[name]
+                j["last_completed"] = time.time()
+                j["last_status"] = "quiet" if is_quiet else "completed"
+                j["last_summary"] = "Quiet run (no update needed)" if is_quiet else result_output[:200]
+                self._save()
+        return is_quiet
+
     def list_jobs(self) -> List[Dict[str, Any]]:
         with self._lock:
             return list(self._jobs.values())

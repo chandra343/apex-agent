@@ -39,6 +39,15 @@ from apex.tools.devops import run_project_tests, create_git_patch
 from apex.tools.network_diag import benchmark_http_endpoint, check_ssl_certificate, lookup_dns_records
 from apex.tools.config_ops import manage_system_config
 from apex.tools.provider_ops import manage_ai_providers
+from apex.tools.tool_discovery import tool_discovery
+from apex.tools.data_lake import shared_data_lake
+
+CORE_TOOL_NAMES = {
+    "read_file", "write_file", "edit_file", "search_files", "grep_search",
+    "list_directory", "run_shell", "python_repl", "web_search",
+    "tool_search", "tool_describe", "manage_data_lake", "manage_scheduled_tasks",
+    "routine_no_update"
+}
 
 
 class ToolRegistry:
@@ -502,6 +511,49 @@ class ToolRegistry:
             args.get("query")
         ), is_safe=False)
 
+        # OpenBot-inspired Superpowers:
+        # 1. Dynamic Tool Discovery & Deferred Loading
+        self.register("tool_search", "Search registered tools by keyword matching against names, descriptions, and capabilities", {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Keyword to search tools (e.g. 'dns', 'ssl', 'database', 'devops', 'reverse', 'doctor')"},
+                "max_results": {"type": "integer", "description": "Maximum tool results to return (default: 5)", "default": 5}
+            },
+            "required": ["query"]
+        }, lambda args: (True, tool_discovery.search(self._tools, args["query"], args.get("max_results", 5))), is_safe=True)
+
+        self.register("tool_describe", "Inspect detailed parameters, types, and schema of any registered tool in Apex", {
+            "type": "object",
+            "properties": {
+                "tool_name": {"type": "string", "description": "Exact name of the tool to inspect"}
+            },
+            "required": ["tool_name"]
+        }, lambda args: (True, tool_discovery.describe(self._tools, args["tool_name"])), is_safe=True)
+
+        # 2. Shared SQLite Data Lake
+        self.register("manage_data_lake", "Query, create tables, insert, and inspect multi-agent relational data in the shared SQLite Data Lake (~/.apex/agent_data.db)", {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["query", "list_tables", "describe_table"], "description": "Operation to perform"},
+                "query": {"type": "string", "description": "SQL statement (SELECT, INSERT, UPDATE, CREATE TABLE) to execute when action='query'"},
+                "table_name": {"type": "string", "description": "Name of the table to describe when action='describe_table'"},
+                "agent_id": {"type": "string", "description": "Identifier of the agent executing the operation", "default": "apex"}
+            },
+            "required": ["action"]
+        }, lambda args: (
+            (True, shared_data_lake.list_tables()) if args["action"] == "list_tables"
+            else (True, shared_data_lake.describe_table(args.get("table_name", ""))) if args["action"] == "describe_table"
+            else (True, shared_data_lake.query(args.get("query", ""), agent_id=args.get("agent_id", "apex")))
+        ), is_safe=False)
+
+        # 3. Quiet Routine Runs
+        self.register("routine_no_update", "Mark a scheduled task or background monitoring turn as quiet (no anomalies or urgent updates to report, suppresses noisy notifications)", {
+            "type": "object",
+            "properties": {
+                "reason": {"type": "string", "description": "Reason why no update is needed (e.g. 'All services healthy, 0 errors detected')", "default": "Pemeriksaan selesai tanpa anomali."}
+            }
+        }, lambda args: (True, f"🔕 [Quiet Run]: {args.get('reason', 'Pemeriksaan selesai tanpa anomali. Notifikasi disembunyikan.')}"), is_safe=True)
+
     def _run_shell_wrapper(self, args: Dict[str, Any]) -> Tuple[bool, str]:
         cmd = args["command"]
         cwd = args.get("cwd")
@@ -584,8 +636,11 @@ class ToolRegistry:
 
     def get_all_tool_definitions(self) -> List[Dict[str, Any]]:
         """Return tool schemas in OpenAI/Anthropic format, including dynamic MCP tools."""
+        deferred = config.get("tools.deferred_discovery", False)
         defs: list[dict[str, Any]] = []
         for name, t in self._tools.items():
+            if deferred and name not in CORE_TOOL_NAMES and not t.get("is_active_session"):
+                continue
             defs.append({
                 "type": "function",
                 "function": {
