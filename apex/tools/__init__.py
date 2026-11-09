@@ -34,6 +34,9 @@ from apex.tools.memory_ops import (
 from apex.tools.scheduler_ops import manage_scheduled_tasks
 from apex.tools.code_audit import audit_codebase
 from apex.tools.doctor import run_system_doctor
+from apex.tools.learning_ops import record_learned_lesson, consult_learned_lessons
+from apex.tools.devops import run_project_tests, create_git_patch
+from apex.tools.network_diag import benchmark_http_endpoint, check_ssl_certificate, lookup_dns_records
 
 
 class ToolRegistry:
@@ -396,6 +399,70 @@ class ToolRegistry:
                 "auto_repair": {"type": "boolean", "description": "Automatically repair missing directories and initialize schemas", "default": True}
             }
         }, lambda args: run_system_doctor(args.get("auto_repair", True)), is_safe=False)
+
+        # Autonomous Lessons & Meta-Learning
+        self.register("record_learned_lesson", "Record an operational DO or DONT lesson into Apex's permanent memory to prevent repeating past errors", {
+            "type": "object",
+            "properties": {
+                "trigger_pattern": {"type": "string", "description": "Trigger keyword, tool name, or context (e.g. 'git_commit', 'sql_query')"},
+                "rule_type": {"type": "string", "enum": ["DO", "DONT"], "description": "'DO' for best practice or 'DONT' for error pattern to avoid"},
+                "explanation": {"type": "string", "description": "Detailed operational rule and actionable guidance"}
+            },
+            "required": ["trigger_pattern", "rule_type", "explanation"]
+        }, lambda args: record_learned_lesson(args["trigger_pattern"], args["rule_type"], args["explanation"]), is_safe=False)
+
+        self.register("consult_learned_lessons", "Consult stored operational lessons and guidelines learned from previous tool executions", {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Optional keyword to filter rules", "default": ""}
+            }
+        }, lambda args: consult_learned_lessons(args.get("query", "")), is_safe=True)
+
+        # DevOps CI/CD & Test Runner
+        self.register("run_project_tests", "Auto-detect and execute the test suite for a project (pytest, npm test, cargo test, go test) with structured pass/fail diagnostics", {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Root path of the project", "default": "."},
+                "framework": {"type": "string", "description": "Optional framework override (pytest, npm, go, cargo)"},
+                "timeout": {"type": "integer", "description": "Execution timeout in seconds", "default": 120}
+            }
+        }, lambda args: run_project_tests(args.get("path", "."), args.get("framework"), args.get("timeout", 120)), is_safe=False)
+
+        self.register("create_git_patch", "Create an isolated Git branch, stage working changes, and synthesize a clean commit or patch", {
+            "type": "object",
+            "properties": {
+                "branch_name": {"type": "string", "description": "Optional new branch to create and checkout"},
+                "commit_message": {"type": "string", "description": "Optional commit message to commit changes"}
+            }
+        }, lambda args: create_git_patch(args.get("branch_name"), args.get("commit_message")), is_safe=False)
+
+        # Network & SSL Diagnostic Suite
+        self.register("benchmark_http_endpoint", "Benchmark an HTTP/HTTPS endpoint measuring latency percentiles, TTFB, and status codes", {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "Target web or API URL"},
+                "request_count": {"type": "integer", "description": "Number of probe requests (default: 5)", "default": 5}
+            },
+            "required": ["url"]
+        }, lambda args: benchmark_http_endpoint(args["url"], args.get("request_count", 5)), is_safe=True)
+
+        self.register("check_ssl_certificate", "Inspect SSL/TLS certificate validity, expiry date, days remaining, and issuer", {
+            "type": "object",
+            "properties": {
+                "host": {"type": "string", "description": "Hostname or domain name (e.g. 'google.com')"},
+                "port": {"type": "integer", "description": "Port (default: 443)", "default": 443}
+            },
+            "required": ["host"]
+        }, lambda args: check_ssl_certificate(args["host"], args.get("port", 443)), is_safe=True)
+
+        self.register("lookup_dns_records", "Resolve DNS address records for a domain using native socket resolution", {
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Target domain name"},
+                "record_type": {"type": "string", "enum": ["A", "AAAA"], "default": "A"}
+            },
+            "required": ["domain"]
+        }, lambda args: lookup_dns_records(args["domain"], args.get("record_type", "A")), is_safe=True)
 
     def _run_shell_wrapper(self, args: Dict[str, Any]) -> Tuple[bool, str]:
         cmd = args["command"]
