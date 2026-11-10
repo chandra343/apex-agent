@@ -1,6 +1,6 @@
 # Sovereign Hybrid Agent ("Project Apex")
 
-> **Unrestricted Full Host Access · 20+ Channel 24/7 Gateway · 4-Trick Pure-Software Anti-Refusal · 9Router RTK Token Saver · Pi-Style Minimalist TUI · Unbounded Swarm · Full MCP & ACP Support**
+> **Unrestricted Full Host Access · 20+ Channel 24/7 Gateway · 4-Trick Pure-Software Anti-Refusal · 9Router RTK Token Saver · Model Arena Benchmarks · AST Code Graph · Git Worktree Sandbox · Full MCP & ACP Support**
 
 <div align="center">
 
@@ -210,3 +210,7 @@ apex
 18. **Autonomous Tool Self-Healing & Diagnostics:** Intelligent error pattern matching (ModuleNotFoundError, PortConflict, etc.) with actionable remediation loops.
 19. **Declarative DAG Workflows (`manage_workflows`):** Multi-step pipeline orchestrator with cycle detection, parameter piping (`${node.output}`), and conditional branching.
 20. **Tiered Cognitive Memory (`manage_cognitive_memory`):** Multi-layer cognitive store (working, episodic, fact, rule) with time-decay relevance and pinned preferences.
+21. **Side-by-Side Model Arena & Benchmark Playground:** Compare models head-to-head concurrently with real-time latency (TTFT), tokens/sec speed, quality voting, and win-rate leaderboards.
+22. **AST Semantic Code Graph (`query_code_graph`):** Instant symbol outline, definition lookup, and reference tracing saving up to 80% context tokens on large codebases.
+23. **Git Worktree Isolation Sandbox (`manage_worktree_sandbox`):** Zero-risk autonomous agent development with verification test gates before auto-merging into the main repository.
+24. **Universal Modular Plugins (`manage_plugins`):** Manifest-driven extension architecture (`~/.apex/plugins/`) with lifecycle hooks and boundary security auditing.
