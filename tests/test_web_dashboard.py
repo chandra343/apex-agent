@@ -470,6 +470,48 @@ def test_preflight_normalization_and_ssrf_guard(client):
     assert "SSRF Guard" in add_ssrf.json()["message"]
 
 
+def test_model_arena_endpoints(client, monkeypatch):
+    """Test Model Arena concurrent execution, voting, and battle history."""
+    from apex.gateways import web_dashboard
+
+    # Mock agent run for fast testing
+    monkeypatch.setattr(web_dashboard.default_agent, "run", lambda **kwargs: "Arena evaluation test output.")
+
+    # 1. Run Arena Battle between 2 models
+    battle_res = client.post("/api/arena/run", json={
+        "prompt": "Explain quicksort",
+        "models": ["mimo-v2.6-flash:free", "tokenharbor"]
+    })
+    assert battle_res.status_code == 200
+    battle_data = battle_res.json()
+    assert battle_data["success"] is True
+    assert "battle_id" in battle_data
+    assert len(battle_data["results"]) == 2
+    assert battle_data["results"][0]["latency_ms"] >= 0
+    assert battle_data["results"][0]["tokens"] > 0
+
+    # 2. Vote for Winner
+    vote_res = client.post("/api/arena/vote", json={
+        "battle_id": battle_data["battle_id"],
+        "prompt": "Explain quicksort",
+        "model_a": "mimo-v2.6-flash:free",
+        "model_b": "tokenharbor",
+        "winner": "mimo-v2.6-flash:free",
+        "latency_diff_ms": 25
+    })
+    assert vote_res.status_code == 200
+    assert vote_res.json()["success"] is True
+
+    # 3. Retrieve History
+    hist_res = client.get("/api/arena/history")
+    assert hist_res.status_code == 200
+    hist_data = hist_res.json()
+    assert len(hist_data["history"]) > 0
+    latest = hist_data["history"][0]
+    assert latest["winner"] == "mimo-v2.6-flash:free"
+
+
+
 
 
 

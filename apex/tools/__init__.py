@@ -44,12 +44,16 @@ from apex.tools.data_lake import shared_data_lake
 from apex.tools.vault_ops import manage_vault
 from apex.tools.workflow_ops import manage_workflows
 from apex.tools.memory_tiered_ops import manage_cognitive_memory
+from apex.tools.code_graph import query_code_graph
+from apex.swarm.worktree import manage_worktree_sandbox
+from apex.plugins.manager import manage_plugins
 
 CORE_TOOL_NAMES = {
     "read_file", "write_file", "edit_file", "search_files", "grep_search",
     "list_directory", "run_shell", "python_repl", "web_search",
     "tool_search", "tool_describe", "manage_data_lake", "manage_scheduled_tasks",
-    "routine_no_update", "manage_vault", "manage_workflows", "manage_cognitive_memory"
+    "routine_no_update", "manage_vault", "manage_workflows", "manage_cognitive_memory",
+    "query_code_graph", "manage_worktree_sandbox", "manage_plugins"
 }
 
 
@@ -608,6 +612,42 @@ class ToolRegistry:
             identifier=args.get("identifier", ""),
             limit=args.get("limit", 5)
         )), is_safe=True)
+
+        # 7. AST Code Graph Explorer
+        self.register("query_code_graph", "Explore codebase structure, classes, functions, and cross-references via fast in-memory AST without reading entire files", {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["index", "outline", "find", "refs"], "description": "Operation: 'index' (scan codebase), 'outline' (inspect file symbols), 'find' (find symbol def), 'refs' (find callers)"},
+                "target": {"type": "string", "description": "Target symbol name (for find/refs) or file path (for outline)"},
+                "path": {"type": "string", "description": "Root directory to scan (default '.')", "default": "."}
+            },
+            "required": ["action"]
+        }, lambda args: (True, query_code_graph(args["action"], args.get("target", ""), args.get("path", "."))), is_safe=True)
+
+        # 8. Git Worktree Isolation Sandbox
+        self.register("manage_worktree_sandbox", "Create, test, verify, and merge isolated git worktree sandboxes for zero-risk autonomous coding", {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["create", "verify", "merge", "discard", "list"], "description": "Operation: 'create', 'verify', 'merge', 'discard', 'list'"},
+                "task_id": {"type": "string", "description": "Unique task or feature identifier for the sandbox branch"},
+                "command": {"type": "string", "description": "Verification command to run inside sandbox (e.g. 'pytest', 'npm test')", "default": "pytest"},
+                "commit_msg": {"type": "string", "description": "Commit message when applying and merging changes"}
+            },
+            "required": ["action"]
+        }, lambda args: (True, manage_worktree_sandbox(args["action"], args.get("task_id", ""), args.get("command", "pytest"), args.get("commit_msg", ""))), is_safe=False)
+
+        # 9. Universal Extension Plugins
+        self.register("manage_plugins", "Manage manifest-driven modular extension plugins in ~/.apex/plugins/", {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["list", "create", "toggle", "delete"], "description": "Operation: 'list', 'create', 'toggle', 'delete'"},
+                "name": {"type": "string", "description": "Plugin slug or directory name"},
+                "description": {"type": "string", "description": "Description of the plugin"},
+                "code": {"type": "string", "description": "Python source code for main.py (for create)"},
+                "enabled": {"type": "boolean", "description": "Whether the plugin is enabled (for toggle)"}
+            },
+            "required": ["action"]
+        }, lambda args: (True, manage_plugins(args["action"], args.get("name", ""), args.get("description", ""), args.get("code", ""), args.get("enabled", True))), is_safe=False)
 
     def _run_shell_wrapper(self, args: Dict[str, Any]) -> Tuple[bool, str]:
         cmd = args["command"]

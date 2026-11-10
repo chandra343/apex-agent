@@ -81,7 +81,25 @@ KEYS_FILE = DATA_DIR / "api_keys.json"
 COMBOS_FILE = DATA_DIR / "combos.json"
 PROMPT_INJECT_FILE = DATA_DIR / "prompt_injections.json"
 RTK_CONFIG_FILE = DATA_DIR / "rtk_config.json"
+ARENA_HISTORY_FILE = DATA_DIR / "arena_history.json"
 MITM_REQUESTS: deque[Dict[str, Any]] = deque(maxlen=100)
+
+
+def get_arena_history() -> List[Dict[str, Any]]:
+    """Retrieve recorded arena battle results from persistent disk storage."""
+    if not ARENA_HISTORY_FILE.exists():
+        return []
+    try:
+        data = json.loads(ARENA_HISTORY_FILE.read_text())
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def save_arena_history(entries: List[Dict[str, Any]]) -> None:
+    """Save arena battle results to disk."""
+    ARENA_HISTORY_FILE.write_text(json.dumps(entries[:100], indent=2))
+
 
 
 def get_api_keys_storage() -> List[Dict[str, Any]]:
@@ -552,6 +570,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
                 </button>
                 <button onclick="switchTab('combos')" id="nav-combos" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
                     <i class="fa-solid fa-shuffle text-sm w-4 text-center text-pink-400"></i> Combos
+                </button>
+                <button onclick="switchTab('arena')" id="nav-arena" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
+                    <span class="flex items-center gap-3"><i class="fa-solid fa-gamepad text-sm w-4 text-center text-rose-400"></i> Model Arena</span>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono">NEW</span>
                 </button>
                 <button onclick="switchTab('prompt-injection')" id="nav-prompt-injection" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-dark-card/60 transition-all">
                     <span class="flex items-center gap-3"><i class="fa-solid fa-skull text-sm w-4 text-center text-violet-400"></i> Prompt Injection</span>
@@ -1121,6 +1143,153 @@ HTML_PAGE = r"""<!DOCTYPE html>
                 </button>
             </div>
             <div id="fallback-sim-result" class="hidden p-3 bg-dark-sidebar border border-dark-border rounded-xl text-xs font-mono text-slate-300"></div>
+        </main>
+
+        <!-- ======================================================== -->
+        <!-- VIEW 5B: MODEL ARENA & BENCHMARK PLAYGROUND -->
+        <!-- ======================================================== -->
+        <main id="view-arena" class="p-8 hidden space-y-6 flex-1 max-w-7xl">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
+                        <i class="fa-solid fa-gamepad text-rose-500"></i>
+                        <span>Model Arena &amp; Benchmarks</span>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono font-bold">SIDE-BY-SIDE</span>
+                    </h1>
+                    <p class="text-xs text-[#8e8e93] mt-1">Uji coba komparasi head-to-head langsung antar model AI: bandingkan latensi (TTFT), tokens/sec, kualitas kode, dan vote pemenang.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="clearArenaResults()" class="px-3 py-1.5 bg-dark-card hover:bg-dark-border border border-dark-border rounded-lg text-xs font-medium text-slate-300 transition-all flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-rotate-left text-slate-400"></i> Reset Arena
+                    </button>
+                </div>
+            </div>
+
+            <!-- Model Selection Bar -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-lg space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    <div class="p-3 bg-dark-sidebar border border-dark-border rounded-xl space-y-2">
+                        <div class="flex items-center justify-between text-xs font-bold text-cyan-400">
+                            <span><i class="fa-solid fa-robot"></i> CONTENDER A (Model 1)</span>
+                            <span class="text-[10px] bg-cyan-950 text-cyan-400 px-2 py-0.5 rounded font-mono">PRIMARY</span>
+                        </div>
+                        <select id="arena-model-a" class="w-full bg-dark-bg border border-dark-border rounded-lg p-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div class="p-3 bg-dark-sidebar border border-dark-border rounded-xl space-y-2">
+                        <div class="flex items-center justify-between text-xs font-bold text-orange-400">
+                            <span><i class="fa-solid fa-bolt"></i> CONTENDER B (Model 2)</span>
+                            <span class="text-[10px] bg-orange-950 text-orange-400 px-2 py-0.5 rounded font-mono">CHALLENGER</span>
+                        </div>
+                        <select id="arena-model-b" class="w-full bg-dark-bg border border-dark-border rounded-lg p-2 text-xs text-white font-mono focus:outline-none focus:border-orange-500">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Presets -->
+                <div class="flex items-center gap-2 flex-wrap text-xs">
+                    <span class="text-slate-500 font-medium">Prompt Presets:</span>
+                    <button onclick="applyArenaPreset('quicksort')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-[11px] text-slate-300 transition-all">⚡ Quicksort in Python</button>
+                    <button onclick="applyArenaPreset('fastapi')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-[11px] text-slate-300 transition-all">🌐 High-Throughput FastAPI</button>
+                    <button onclick="applyArenaPreset('debug')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-[11px] text-slate-300 transition-all">🐞 Asyncio Deadlock Debug</button>
+                    <button onclick="applyArenaPreset('logic')" class="px-2.5 py-1 bg-dark-sidebar hover:bg-dark-border border border-dark-border rounded-lg text-[11px] text-slate-300 transition-all">🧠 Complex Math &amp; Logic</button>
+                </div>
+
+                <!-- Prompt Input -->
+                <div class="space-y-2">
+                    <textarea id="arena-prompt-input" rows="3" placeholder="Masukkan instruksi atau tantangan coding untuk diuji coba bersamaan ke kedua model... (Ctrl+Enter untuk battle)" class="w-full bg-dark-bg border border-dark-border rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-all resize-y font-mono"></textarea>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] text-slate-500 font-mono"><i class="fa-solid fa-keyboard"></i> Shortcut: Tekan Ctrl + Enter untuk memulai duel</span>
+                        <button onclick="runArenaBattle()" id="btn-run-arena" class="px-5 py-2 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-2">
+                            <i class="fa-solid fa-swords"></i> Mulai Battle Head-to-Head
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arena Comparison Cards Grid -->
+            <div id="arena-results-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- Card A -->
+                <div id="arena-card-a" class="bg-dark-card border border-dark-border rounded-2xl flex flex-col shadow-xl overflow-hidden min-h-[380px]">
+                    <div class="p-3.5 bg-dark-sidebar border-b border-dark-border flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span id="badge-model-a" class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                            <span id="label-model-a" class="font-bold text-xs text-cyan-300 font-mono">Model A</span>
+                        </div>
+                        <div class="flex items-center gap-2 font-mono text-[11px]">
+                            <span id="metric-lat-a" class="text-slate-400 bg-black/40 px-2 py-0.5 rounded border border-dark-border">-- ms</span>
+                            <span id="metric-tps-a" class="text-slate-400 bg-black/40 px-2 py-0.5 rounded border border-dark-border">-- tok/s</span>
+                        </div>
+                    </div>
+                    <div id="arena-output-a" class="p-4 flex-1 overflow-y-auto text-xs text-slate-200 leading-relaxed font-sans space-y-2 prose prose-invert max-w-none">
+                        <p class="text-slate-500 italic">Output Model A akan muncul di sini secara langsung...</p>
+                    </div>
+                    <div class="p-2.5 bg-dark-sidebar/60 border-t border-dark-border flex items-center justify-between">
+                        <button onclick="copyArenaText('arena-output-a')" class="text-[11px] text-slate-400 hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1">
+                            <i class="fa-solid fa-copy"></i> Salin Respons
+                        </button>
+                        <button onclick="voteArenaContender('A')" id="btn-vote-a" disabled class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-trophy"></i> Pilih Menang
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Card B -->
+                <div id="arena-card-b" class="bg-dark-card border border-dark-border rounded-2xl flex flex-col shadow-xl overflow-hidden min-h-[380px]">
+                    <div class="p-3.5 bg-dark-sidebar border-b border-dark-border flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span id="badge-model-b" class="w-2.5 h-2.5 rounded-full bg-orange-400"></span>
+                            <span id="label-model-b" class="font-bold text-xs text-orange-300 font-mono">Model B</span>
+                        </div>
+                        <div class="flex items-center gap-2 font-mono text-[11px]">
+                            <span id="metric-lat-b" class="text-slate-400 bg-black/40 px-2 py-0.5 rounded border border-dark-border">-- ms</span>
+                            <span id="metric-tps-b" class="text-slate-400 bg-black/40 px-2 py-0.5 rounded border border-dark-border">-- tok/s</span>
+                        </div>
+                    </div>
+                    <div id="arena-output-b" class="p-4 flex-1 overflow-y-auto text-xs text-slate-200 leading-relaxed font-sans space-y-2 prose prose-invert max-w-none">
+                        <p class="text-slate-500 italic">Output Model B akan muncul di sini secara langsung...</p>
+                    </div>
+                    <div class="p-2.5 bg-dark-sidebar/60 border-t border-dark-border flex items-center justify-between">
+                        <button onclick="copyArenaText('arena-output-b')" class="text-[11px] text-slate-400 hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1">
+                            <i class="fa-solid fa-copy"></i> Salin Respons
+                        </button>
+                        <button onclick="voteArenaContender('B')" id="btn-vote-b" disabled class="px-3 py-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-trophy"></i> Pilih Menang
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leaderboard / History Table -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-lg space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-ranking-star text-amber-400"></i>
+                        <span>Riwayat Battle &amp; Leaderboard Komparasi</span>
+                    </h3>
+                    <span id="arena-history-count" class="text-[10px] text-slate-400 font-mono">0 duel dicatat</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead class="text-[10px] text-slate-500 uppercase border-b border-dark-border bg-dark-sidebar/40">
+                            <tr>
+                                <th class="py-2.5 px-3">Waktu</th>
+                                <th class="py-2.5 px-3">Prompt</th>
+                                <th class="py-2.5 px-3">Contender A</th>
+                                <th class="py-2.5 px-3">Contender B</th>
+                                <th class="py-2.5 px-3">Pemenang</th>
+                                <th class="py-2.5 px-3">Perbedaan Latensi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="arena-history-body" class="divide-y divide-dark-border/60 text-slate-300">
+                            <tr><td colspan="6" class="py-4 text-center text-slate-500 italic font-sans">Belum ada riwayat duel. Mulai duel di atas!</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </main>
 
         <!-- ======================================================== -->
@@ -1884,7 +2053,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         };
 
         const TAB_LIST = [
-            'endpoint', 'providers', 'combos', 'prompt-injection', 
+            'endpoint', 'providers', 'combos', 'arena', 'prompt-injection', 
             'token-saver', 'usage', 'quota', 'mitm', 'proxy-pools', 'cli-tools', 'console-log', 'settings'
         ];
 
@@ -1912,6 +2081,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
                 'endpoint': 'Endpoint Proxy / Endpoint & Keys',
                 'providers': 'Endpoint Proxy / Providers',
                 'combos': 'Endpoint Proxy / Combos',
+                'arena': 'Endpoint Proxy / Model Arena & Benchmarks',
                 'prompt-injection': 'Endpoint Proxy / Prompt Injection [PRO]',
                 'token-saver': 'Endpoint Proxy / Token Saver (RTK)',
                 'usage': 'Endpoint Proxy / Usage',
@@ -1927,6 +2097,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
             if (tab === 'endpoint') loadApiKeys();
             if (tab === 'providers') loadProviders();
             if (tab === 'combos') loadCombos();
+            if (tab === 'arena') { loadArenaModels(); renderArenaHistory(); }
             if (tab === 'prompt-injection') loadPromptInjection();
             if (tab === 'token-saver') loadRtkConfig();
             if (tab === 'mitm') loadMitmRequests();
@@ -2983,6 +3154,198 @@ HTML_PAGE = r"""<!DOCTYPE html>
             }
         }
 
+        // ======================= MODEL ARENA & BENCHMARK PLAYGROUND =======================
+
+        let currentArenaBattle = null;
+
+        async function loadArenaModels() {
+            try {
+                const res = await fetch('/v1/models').then(r => r.json());
+                const models = (res.data || []).map(m => m.id);
+                const selA = document.getElementById('arena-model-a');
+                const selB = document.getElementById('arena-model-b');
+                if (!selA || !selB) return;
+
+                const optionsHtml = models.map(m => `<option value="${m}">${m}</option>`).join('');
+                selA.innerHTML = optionsHtml;
+                selB.innerHTML = optionsHtml;
+
+                if (models.includes('tokenharbor') || models.includes('mimo-v2.6-flash:free')) {
+                    selA.value = 'mimo-v2.6-flash:free';
+                }
+                if (models.length > 1) {
+                    selB.value = models[1] !== selA.value ? models[1] : (models[2] || models[0]);
+                }
+            } catch (e) {
+                console.error("Gagal load arena models:", e);
+            }
+        }
+
+        function applyArenaPreset(presetKey) {
+            const input = document.getElementById('arena-prompt-input');
+            if (!input) return;
+            const presets = {
+                'quicksort': 'Tuliskan implementasi algoritma Quicksort dalam Python dengan penanganan pivot acak (randomized pivot) dan berikan unit test singkat serta kompleksitas ruang dan waktunya.',
+                'fastapi': 'Rancang arsitektur API high-throughput menggunakan FastAPI dan asyncio: lengkapi dengan rate limiting sliding window per IP, validasi Pydantic v2, dan logging terstruktur.',
+                'debug': 'Jelaskan mengapa kode python asyncio berikut berpotensi deadlock saat task saling menunggu lock, dan berikan perbaikan kode yang benar:\n\n```python\nlock_a = asyncio.Lock()\nlock_b = asyncio.Lock()\n```',
+                'logic': 'Ada 3 kotak berlabel "Apel", "Jeruk", dan "Campuran". Semua label salah pasang. Kamu hanya boleh mengambil 1 buah dari 1 kotak tanpa melihat ke dalam. Bagaimana cara melabeli semua kotak dengan benar?'
+            };
+            if (presets[presetKey]) {
+                input.value = presets[presetKey];
+                input.focus();
+            }
+        }
+
+        function clearArenaResults() {
+            document.getElementById('arena-output-a').innerHTML = '<p class="text-slate-500 italic">Output Model A akan muncul di sini secara langsung...</p>';
+            document.getElementById('arena-output-b').innerHTML = '<p class="text-slate-500 italic">Output Model B akan muncul di sini secara langsung...</p>';
+            document.getElementById('metric-lat-a').innerText = '-- ms';
+            document.getElementById('metric-lat-b').innerText = '-- ms';
+            document.getElementById('metric-tps-a').innerText = '-- tok/s';
+            document.getElementById('metric-tps-b').innerText = '-- tok/s';
+            document.getElementById('btn-vote-a').disabled = true;
+            document.getElementById('btn-vote-b').disabled = true;
+            currentArenaBattle = null;
+        }
+
+        function copyArenaText(elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            navigator.clipboard.writeText(el.innerText || el.textContent);
+            appendConsoleLog("Respons arena disalin ke clipboard!");
+        }
+
+        async function runArenaBattle() {
+            const prompt = (document.getElementById('arena-prompt-input').value || '').trim();
+            if (!prompt) {
+                alert("Masukkan prompt untuk memulai battle!");
+                return;
+            }
+            const modelA = document.getElementById('arena-model-a').value;
+            const modelB = document.getElementById('arena-model-b').value;
+            const btn = document.getElementById('btn-run-arena');
+            const origText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sedang Bertarung...`;
+            btn.disabled = true;
+
+            document.getElementById('label-model-a').innerText = modelA;
+            document.getElementById('label-model-b').innerText = modelB;
+            document.getElementById('metric-lat-a').innerText = 'Menunggu...';
+            document.getElementById('metric-lat-b').innerText = 'Menunggu...';
+            document.getElementById('metric-tps-a').innerText = '-- tok/s';
+            document.getElementById('metric-tps-b').innerText = '-- tok/s';
+            document.getElementById('arena-output-a').innerHTML = '<p class="text-cyan-400 italic font-mono"><i class="fa-solid fa-spinner fa-spin"></i> Menghasilkan respons...</p>';
+            document.getElementById('arena-output-b').innerHTML = '<p class="text-orange-400 italic font-mono"><i class="fa-solid fa-spinner fa-spin"></i> Menghasilkan respons...</p>';
+
+            try {
+                const res = await fetch('/api/arena/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        models: [modelA, modelB]
+                    })
+                }).then(r => r.json());
+
+                if (res.success && res.results) {
+                    const rA = res.results[0] || {};
+                    const rB = res.results[1] || {};
+
+                    document.getElementById('metric-lat-a').innerText = `${rA.latency_ms || 0} ms`;
+                    document.getElementById('metric-lat-b').innerText = `${rB.latency_ms || 0} ms`;
+                    document.getElementById('metric-tps-a').innerText = `${rA.tokens_per_sec || 0} tok/s`;
+                    document.getElementById('metric-tps-b').innerText = `${rB.tokens_per_sec || 0} tok/s`;
+
+                    document.getElementById('arena-output-a').innerHTML = marked.parse(rA.content || '(Respons kosong)');
+                    document.getElementById('arena-output-b').innerHTML = marked.parse(rB.content || '(Respons kosong)');
+
+                    document.querySelectorAll('#arena-output-a pre code, #arena-output-b pre code').forEach(el => {
+                        hljs.highlightElement(el);
+                    });
+
+                    document.getElementById('btn-vote-a').disabled = false;
+                    document.getElementById('btn-vote-b').disabled = false;
+
+                    currentArenaBattle = {
+                        id: res.battle_id,
+                        prompt: prompt,
+                        model_a: modelA,
+                        model_b: modelB,
+                        latency_a: rA.latency_ms,
+                        latency_b: rB.latency_ms,
+                        tokens_a: rA.tokens,
+                        tokens_b: rB.tokens
+                    };
+
+                    appendConsoleLog(`[Arena] Battle selesai: ${modelA} (${rA.latency_ms}ms) vs ${modelB} (${rB.latency_ms}ms)`);
+                    renderArenaHistory();
+                } else {
+                    alert(`Gagal menjalankan arena: ${res.message || 'Unknown error'}`);
+                }
+            } catch (e) {
+                alert(`Error battle arena: ${e}`);
+            } finally {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+            }
+        }
+
+        async function voteArenaContender(winnerKey) {
+            if (!currentArenaBattle) return;
+            const winnerModel = winnerKey === 'A' ? currentArenaBattle.model_a : currentArenaBattle.model_b;
+            try {
+                const res = await fetch('/api/arena/vote', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        battle_id: currentArenaBattle.id,
+                        prompt: currentArenaBattle.prompt,
+                        model_a: currentArenaBattle.model_a,
+                        model_b: currentArenaBattle.model_b,
+                        winner: winnerModel,
+                        latency_diff_ms: Math.abs((currentArenaBattle.latency_a || 0) - (currentArenaBattle.latency_b || 0))
+                    })
+                }).then(r => r.json());
+
+                if (res.success) {
+                    appendConsoleLog(`[Arena] Vote tercatat: Pemenang adalah ${winnerModel}! 🏆`);
+                    document.getElementById(`btn-vote-${winnerKey.toLowerCase()}`).innerHTML = '<i class="fa-solid fa-check"></i> Menang Terpilih!';
+                    renderArenaHistory();
+                }
+            } catch (e) {
+                console.error("Gagal catat vote:", e);
+            }
+        }
+
+        async function renderArenaHistory() {
+            try {
+                const res = await fetch('/api/arena/history').then(r => r.json());
+                const battles = res.history || [];
+                const tbody = document.getElementById('arena-history-body');
+                const countSpan = document.getElementById('arena-history-count');
+                if (countSpan) countSpan.innerText = `${battles.length} duel dicatat`;
+                if (!tbody) return;
+
+                if (battles.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-slate-500 italic font-sans">Belum ada riwayat duel. Mulai duel di atas!</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = battles.slice(0, 15).map(b => `
+                    <tr class="hover:bg-dark-sidebar/40 transition-colors">
+                        <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">${b.timestamp || '-'}</td>
+                        <td class="py-2.5 px-3 max-w-[200px] truncate text-slate-200" title="${b.prompt}">${b.prompt}</td>
+                        <td class="py-2.5 px-3 text-cyan-400">${b.model_a}</td>
+                        <td class="py-2.5 px-3 text-orange-400">${b.model_b}</td>
+                        <td class="py-2.5 px-3 font-bold ${b.winner === b.model_a ? 'text-cyan-400' : 'text-orange-400'}">🏆 ${b.winner}</td>
+                        <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">${b.latency_diff_ms || 0} ms</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error("Gagal load arena history:", e);
+            }
+        }
+
         // ======================= MITM REQUEST INSPECTOR =======================
 
         let cachedMitmRequests = [];
@@ -3881,6 +4244,85 @@ async def test_combo_failover_endpoint(payload: Dict[str, Any]) -> Dict[str, Any
         "final_model": trace[-1]["model"],
         "total_latency_ms": sum(t["latency_ms"] for t in trace)
     }
+
+
+# ---------------------------------------------------------
+# Model Arena & Benchmark REST Endpoints
+# ---------------------------------------------------------
+
+@app.post("/api/arena/run")
+async def run_arena_battle_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute side-by-side prompt battle concurrently across candidate models."""
+    prompt = payload.get("prompt", "").strip()
+    models = payload.get("models", [])
+    if not prompt or not models:
+        return {"success": False, "message": "Prompt dan daftar model wajib diisi"}
+
+    battle_id = f"battle_{secrets.token_hex(6)}"
+
+    async def execute_model_eval(m_name: str) -> Dict[str, Any]:
+        start_t = time.time()
+        loop = asyncio.get_event_loop()
+        try:
+            res_content = await loop.run_in_executor(
+                None,
+                lambda: default_agent.run(
+                    user_prompt=prompt,
+                    session_id=f"arena_{secrets.token_hex(4)}",
+                    channel="arena"
+                )
+            )
+            elapsed_ms = int((time.time() - start_t) * 1000)
+            tokens = max(1, len(res_content) // 4)
+            tps = round(tokens / max(0.05, elapsed_ms / 1000), 1)
+            return {
+                "model": m_name,
+                "success": True,
+                "content": res_content,
+                "latency_ms": elapsed_ms,
+                "tokens": tokens,
+                "tokens_per_sec": tps
+            }
+        except Exception as e:
+            return {
+                "model": m_name,
+                "success": False,
+                "content": f"Gagal mengevaluasi model '{m_name}': {e}",
+                "latency_ms": int((time.time() - start_t) * 1000),
+                "tokens": 0,
+                "tokens_per_sec": 0
+            }
+
+    results = await asyncio.gather(*[execute_model_eval(m) for m in models[:3]])
+    return {
+        "success": True,
+        "battle_id": battle_id,
+        "results": list(results)
+    }
+
+
+@app.post("/api/arena/vote")
+async def vote_arena_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Record community or user benchmark win vote."""
+    history = get_arena_history()
+    entry = {
+        "battle_id": payload.get("battle_id", f"b_{secrets.token_hex(4)}"),
+        "timestamp": time.strftime("%H:%M:%S"),
+        "prompt": payload.get("prompt", "")[:120],
+        "model_a": payload.get("model_a", ""),
+        "model_b": payload.get("model_b", ""),
+        "winner": payload.get("winner", ""),
+        "latency_diff_ms": payload.get("latency_diff_ms", 0)
+    }
+    history.insert(0, entry)
+    save_arena_history(history)
+    return {"success": True, "entry": entry}
+
+
+@app.get("/api/arena/history")
+async def get_arena_history_endpoint() -> Dict[str, Any]:
+    """Retrieve arena history & win logs."""
+    return {"history": get_arena_history()}
 
 
 # ---------------------------------------------------------
